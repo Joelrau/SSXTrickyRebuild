@@ -6,6 +6,7 @@
 #include "Race/GameRng.h"
 #include "UI/SSXFeDraw.h"
 #include "UI/SSXFrontEndData.h"
+#include "World/SSXRenderLook.h"
 #include "HAL/IConsoleManager.h"
 
 namespace
@@ -480,6 +481,12 @@ FSSXFeState FSSXFrontEnd::Make(ESSXFeScreen Screen, int32 Player) const
 		Item(2, 186);
 		Item(3, 204);
 		Item(4, 180);
+		{
+			FSSXFeItem Video;   // PC-only Video page (user request)
+			Video.Id = SSXFeOptions::VideoPage;
+			Video.Text = SSXFeOptions::PageTitleText(SSXFeOptions::VideoPage);
+			S.Items.Add(Video);
+		}
 		for (int32 I = 0; I < S.Items.Num(); ++I) { S.Items[I].HelpLoc = SSXFeOptions::HelpLoc(-1, I); }   // 0x3481D0
 		S.InFade = 0;   // 0x2A8A30
 		// FUN_002A8380
@@ -1995,6 +2002,7 @@ void FSSXFrontEnd::OptionsSync(FSSXFeState& S)
 	O.List[2][3] = Idx(St.Replay, 2);
 	O.List[2][4] = Idx(St.MaxBoarders - 2, 5);
 	O.Bar[2][5] = St.Brightness;
+	O.List[SSXFeOptions::VideoPage][0] = int32(SSXRenderLook::Get());
 }
 
 void FSSXFrontEnd::OptionsDiagram(FSSXFeState& S)
@@ -2053,6 +2061,9 @@ void FSSXFrontEnd::OptionsEnterPage(FSSXFeState& S, int32 P)
 		O.bCreditsActive = true;
 		Speech(41);   // FUN_002626B0
 		break;
+	case VideoPage:
+		Snapshot(VideoPage);
+		break;
 	default:
 		break;
 	}
@@ -2060,6 +2071,12 @@ void FSSXFrontEnd::OptionsEnterPage(FSSXFeState& S, int32 P)
 
 void FSSXFrontEnd::OptionsCommit(FSSXFeState& S, int32 P)
 {
+	if (P == SSXFeOptions::VideoPage)
+	{
+		SSXRenderLook::Set(ESSXRenderLook(S.Opt.List[P][0]));
+		SoundHooks.Add(TEXT("saveVideo"));
+		return;
+	}
 	if (!Profile)
 	{
 		return;
@@ -2112,6 +2129,11 @@ void FSSXFrontEnd::OptionsApplyList(FSSXFeState& S, int32 Row)
 	using namespace SSXFeOptions;
 	const int32 P = S.Page;
 	const TArray<FRow>& Rows = PageRows(P);
+	if (P == VideoPage && Rows.IsValidIndex(Row) && Rows[Row].Id == 0)
+	{
+		SSXRenderLook::Set(ESSXRenderLook(S.Opt.List[P][Row]));
+		return;
+	}
 	if (!Rows.IsValidIndex(Row) || !Profile)
 	{
 		return;
@@ -2280,7 +2302,7 @@ void FSSXFrontEnd::OptionsKey(FSSXFeState& S, ESSXFeKey K)
 	if (IsBack(K))
 	{
 		Sound(TEXT("back"));
-		if (P <= 2)
+		if (P <= 2 || P == VideoPage)
 		{
 			FMemory::Memcpy(O.List[P], O.SnapList[P], sizeof(O.List[P]));
 			FMemory::Memcpy(O.Bar[P], O.SnapBar[P], sizeof(O.Bar[P]));
@@ -2845,8 +2867,10 @@ FString FSSXFrontEnd::HelpLine(const FSSXFeState& S) const
 	if (S.Screen == ESSXFeScreen::Options)
 	{
 		// FUN_002AA998
-		const int32 HelpId = SSXFeOptions::HelpLoc(S.Page, OptionsSelectedId(S));
-		return HelpId >= 0 ? L(HelpId) : FString();
+		const int32 Id = OptionsSelectedId(S);
+		const int32 HelpId = SSXFeOptions::HelpLoc(S.Page, Id);
+		const TCHAR* Text = HelpId < 0 ? SSXFeOptions::HelpText(S.Page, Id) : nullptr;
+		return HelpId >= 0 ? L(HelpId) : Text ? FString(Text) : FString();
 	}
 	if (S.Screen == ESSXFeScreen::TrickBook)
 	{
@@ -3475,7 +3499,8 @@ void FSSXFrontEnd::DrawOptions(FSSXFeDrawList& D, const FSSXFeState& S) const
 	const float Y0 = BarY(S);
 	const int32 Tl = TextLayer(TitleBarLayer + 1);
 	auto MenuW = [&D](const FString& Str, float Scale) { return D.TextBoxWidth(EFont::Menu, Str, Scale) + ShadowOffset; };
-	const FString Title = L(PageTitleLoc(S.Page));
+	const TCHAR* TitleText = PageTitleText(S.Page);
+	const FString Title = TitleText ? FString(TitleText) : L(PageTitleLoc(S.Page));
 	const float TitleW = D.TextBoxWidth(EFont::Title, Title, 1.f) + ShadowOffset;
 	D.Text(EFont::Title, (ScreenW - TitleW) * 0.5f, Y0 + TitleY, 1.f, White, Title, ESSXAlign::Left, true, Tl);
 
@@ -3578,7 +3603,7 @@ void FSSXFrontEnd::DrawOptions(FSSXFeDrawList& D, const FSSXFeState& S) const
 			D.Text(EFont::Menu, X + (CellW - MenuW(Str, 1.f)) * 0.5f, Y, 1.f, C, Str, ESSXAlign::Left, true, Tl);
 			continue;
 		}
-		const FString Label = L(R.Loc);
+		const FString Label = R.Text ? FString(R.Text) : L(R.Loc);
 		D.Text(EFont::Menu, X - MenuW(Label, 1.f), Y, 1.f, C, Label, ESSXAlign::Left, true, Tl);
 		const float Vx = X + EntryGap;
 		if (R.Kind == EKind::List)

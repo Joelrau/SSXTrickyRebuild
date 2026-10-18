@@ -1,6 +1,7 @@
 #include "Misc/AutomationTest.h"
 #include "TestSkip.h"
 #include "Misc/Paths.h"
+#include "Misc/ScopeExit.h"
 #include "Engine/Texture2D.h"
 #include "UObject/Package.h"
 #include "UI/SSXFeDraw.h"
@@ -8,6 +9,7 @@
 #include "UI/SSXFeProfile.h"
 #include "UI/SSXFrontEnd.h"
 #include "UI/SSXFrontEndData.h"
+#include "World/SSXRenderLook.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -317,6 +319,55 @@ bool FSSXUIOptionsPagesTest::RunTest(const FString& Parameters)
 		F.Press(ESSXFeKey::Down); F.Press(ESSXFeKey::Down);
 		F.Press(ESSXFeKey::Cross);
 		TestEqual(TEXT("DONE: controller 1P Pro"), F.Profile.Settings.Controller[0], 1);
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSSXUIOptionsVideoTest, "SSX.UI.OptionsVideo", OptTestFlags)
+bool FSSXUIOptionsVideoTest::RunTest(const FString& Parameters)
+{
+	using namespace SSXFeOptions;
+	if (!FOptAssets::Get().Ready()) { SSXTest::Skip(*this, TEXT("FE fonts / sprites / LOC not converted; Video page checks skipped")); return true; }
+	const ESSXRenderLook Prev = SSXRenderLook::Get();
+	ON_SCOPE_EXIT { SSXRenderLook::Set(Prev); };
+	SSXRenderLook::Set(ESSXRenderLook::Classic);
+	{
+		FOptFe F;
+		F.Press(ESSXFeKey::Square);
+		const FSSXFeState* S = F.FE.Top();
+		if (!TestTrue(TEXT("Options top list: the original five + Video"), S && S->Items.Num() == 6)) return false;
+		TestEqual(TEXT("item 5 text"), S->Items[5].Text, FString(TEXT("VIDEO")));
+		TestEqual(TEXT("item 5 id"), S->Items[5].Id, VideoPage);
+		for (int32 I = 0; I < 5; ++I) { TestEqual(FString::Printf(TEXT("original item %d help"), I), S->Items[I].HelpLoc, HelpLoc(-1, I)); }
+	}
+	{
+		FOptFe F;
+		F.OpenPage(VideoPage);
+		const FSSXFeState* S = F.FE.Top();
+		if (!TestTrue(TEXT("Video page open"), S && S->Page == VideoPage)) return false;
+		F.Redraw();
+		TestNotNull(TEXT("title VIDEO"), F.Txt(TEXT("VIDEO")));
+		TestNotNull(TEXT("row LOOK"), F.Txt(TEXT("LOOK")));
+		TestNotNull(TEXT("value CLASSIC"), F.Txt(TEXT("CLASSIC")));
+		TestEqual(TEXT("help line"), F.FE.CurrentHelpLine(), FString(HelpText(VideoPage, 0)));
+		F.Press(ESSXFeKey::Right);
+		TestEqual(TEXT("Right previews Remastered"), int32(SSXRenderLook::Get()), int32(ESSXRenderLook::Remastered));
+		F.Redraw();
+		TestNotNull(TEXT("value REMASTERED"), F.Txt(TEXT("REMASTERED")));
+		F.Press(ESSXFeKey::Triangle);
+		TestEqual(TEXT("Back restores Classic"), int32(SSXRenderLook::Get()), int32(ESSXRenderLook::Classic));
+		TestEqual(TEXT("Back leaves the page"), F.FE.Top()->Page, -1);
+	}
+	{
+		FOptFe F;
+		F.OpenPage(VideoPage);
+		F.Press(ESSXFeKey::Right);
+		F.Press(ESSXFeKey::Down);
+		F.FE.SoundHooks.Reset();
+		F.Press(ESSXFeKey::Cross);
+		TestEqual(TEXT("DONE keeps Remastered"), int32(SSXRenderLook::Get()), int32(ESSXRenderLook::Remastered));
+		TestTrue(TEXT("DONE asks to save the Video settings"), F.HasHook(TEXT("saveVideo")));
+		TestEqual(TEXT("DONE leaves the page"), F.FE.Top()->Page, -1);
 	}
 	return true;
 }

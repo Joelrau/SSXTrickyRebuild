@@ -35,6 +35,12 @@ const TArray<SSXFeOptions::FRow>& SSXFeOptions::PageRows(int32 Page)
 	};
 	// FUN_002A7FD8
 	static const TArray<FRow> SaveLoad = { Item(0, 222), Item(1, 198), Item(2, 199) };
+	static const TArray<FRow> Video = [&]()
+	{
+		FRow Look = List(0, -1, { { 0, -1, TEXT("CLASSIC") }, { 1, -1, TEXT("REMASTERED") } });
+		Look.Text = TEXT("LOOK");
+		return TArray<FRow>{ Look, Done() };
+	}();
 	static const TArray<FRow> None;
 	switch (Page)
 	{
@@ -42,14 +48,27 @@ const TArray<SSXFeOptions::FRow>& SSXFeOptions::PageRows(int32 Page)
 	case 1: return Controller;
 	case 2: return Game;
 	case 3: return SaveLoad;
+	case VideoPage: return Video;
 	default: return None;
 	}
 }
 
 int32 SSXFeOptions::PageTitleLoc(int32 Page)
 {
-	static const int32 Locs[NumPages] = { 3608, 176, 186, 204, 180 };
+	static const int32 Locs[NumPages] = { 3608, 176, 186, 204, 180, -1 };
 	return Page >= 0 && Page < NumPages ? Locs[Page] : -1;
+}
+
+const TCHAR* SSXFeOptions::PageTitleText(int32 Page)
+{
+	return Page == VideoPage ? TEXT("VIDEO") : nullptr;
+}
+
+const TCHAR* SSXFeOptions::HelpText(int32 Page, int32 ItemId)
+{
+	if (Page == -1 && ItemId == VideoPage) { return TEXT("Change the PC display settings."); }
+	if (Page == VideoPage && ItemId == 0) { return TEXT("Classic: the original look. Remastered: modern lighting and materials."); }
+	return nullptr;
 }
 
 int32 SSXFeOptions::HelpLoc(int32 Page, int32 ItemId)

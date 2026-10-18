@@ -200,7 +200,7 @@ public:
 
 	FSSXFeCameraDirector Camera;
 	TArray<FString> SceneEvents;     // FUN_0013BAD8
-	/** cFE3DSound calls in order: "ui<id>" = entry 10 play(u8 id), "music<e>" = FE music event e (entries 19..24), "riderName" = entry 3 rider-name speech (TODO: Events.evt not decoded). */
+	/** cFE3DSound calls in order: "ui<id>" = entry 10 play(u8 id), "music<e>" = FE music event e (entries 19..24), "riderName" = entry 3 rider-name speech (TODO: Events.evt not decoded); "saveVideo" = write the PC Video settings (no original counterpart). */
 	TArray<FString> SoundHooks;
 	/** cFE3DSound entry 31 (the jukebox stream ended), written by the audio side after it ran the hooks (SSXGameAudio::
 	 *  TickFrontEnd); the DVD page reads it in its idle update. */

@@ -17,6 +17,7 @@
 #include "UI/SSXLoadingScreen.h"
 #include "UI/SSXRaceUIHost.h"
 #include "UObject/Package.h"
+#include "World/SSXRenderLook.h"
 
 using namespace SSXFe;
 
@@ -281,6 +282,10 @@ void USSXFeWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 	if (Mode == EMode::FrontEnd)
 	{
 		TickMovie(InDeltaTime);
+		if (FE.SoundHooks.Contains(TEXT("saveVideo")))
+		{
+			USSXVideoSettings::SaveLook();
+		}
 		if (USSXAudioSubsystem* Audio = USSXAudioSubsystem::Get(this))
 		{
 			SSXGameAudio::TickFrontEnd(*Audio, FE);
