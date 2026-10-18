@@ -387,6 +387,17 @@ void USSXWorldPresentation::LightActor(AActor& Actor)
 				ApplyRiderLight(*Mid, In);
 				// 0x1364D0 / 0x208010
 				ApplyRiderDepth(*Mid, FeRider ? 0.0 : SSXRiderDepth::PullCm, Actor.GetActorLocation(), RiderDepthNear, RiderGuard);
+				if (const TWeakObjectPtr<UMaterialInstanceDynamic>* Shown = DisplayedRider.Find(Mid))
+				{
+					if (UMaterialInstanceDynamic* D = Shown->Get())
+					{
+						static const FName Vectors[] = { TEXT("Ambient"), TEXT("Light0Colour"), TEXT("Light0Dir"), TEXT("Light1Colour"),
+							TEXT("Light1Dir"), TEXT("Light2Colour"), TEXT("Light2Dir"), TEXT("RiderRoot"), TEXT("RiderGuard") };
+						static const FName Scalars[] = { TEXT("RiderDepthPull"), TEXT("RiderDepthNear") };
+						for (const FName& N : Vectors) { D->SetVectorParameterValue(N, Mid->K2_GetVectorParameterValue(N)); }
+						for (const FName& N : Scalars) { D->SetScalarParameterValue(N, Mid->K2_GetScalarParameterValue(N)); }
+					}
+				}
 			}
 		}
 	}
@@ -398,6 +409,10 @@ UMaterialInstanceDynamic* USSXWorldPresentation::WrapRiderMaterial(UMeshComponen
 	if (!Src)
 	{
 		return nullptr;
+	}
+	if (const TWeakObjectPtr<UMaterialInstanceDynamic>* Classic = ClassicRider.Find(Cast<UMaterialInstanceDynamic>(Src)))
+	{
+		if (Classic->IsValid()) { return Classic->Get(); }
 	}
 	if (UMaterialInstanceDynamic* Mid = Cast<UMaterialInstanceDynamic>(Src))
 	{
@@ -414,6 +429,24 @@ UMaterialInstanceDynamic* USSXWorldPresentation::WrapRiderMaterial(UMeshComponen
 		Mesh.SetMaterial(Slot, Mid);
 	}
 	return Mid;
+}
+
+void USSXWorldPresentation::SetDisplayedRiderMaterial(UMaterialInstanceDynamic* Classic, UMaterialInstanceDynamic* Displayed)
+{
+	if (!Classic) { return; }
+	if (const TWeakObjectPtr<UMaterialInstanceDynamic>* Old = DisplayedRider.Find(Classic)) { ClassicRider.Remove(*Old); }
+	DisplayedRider.Remove(Classic);
+	if (Displayed)
+	{
+		DisplayedRider.Add(Classic, Displayed);
+		ClassicRider.Add(Displayed, Classic);
+	}
+}
+
+bool USSXWorldPresentation::IsRiderMaterial(const UMaterialInterface* M) const
+{
+	const UMaterialInstanceDynamic* Mid = Cast<UMaterialInstanceDynamic>(M);
+	return Mid && (Mid->Parent == RiderMaterial || (RiderMaskedMaterial && Mid->Parent == RiderMaskedMaterial) || IsChromeParent(Mid->Parent));
 }
 
 void USSXWorldPresentation::SetGlossSpecmap(int32 SpecmapIndex)

@@ -6,6 +6,9 @@ Remastered one (World/SSXRemasterWorld.cpp), plus RmNormal / RmMasks from tools/
 baked light (terrain lightmap, prop vertex colours) stays in as a tint of the albedo and as ambient occlusion, weighted
 by MPC_SSXRemaster.BakedWeight, and as the ambient light (emissive albedo x baked x BakedAmbient, which Lumen also
 bounces), so each track keeps its painted mood and shadows never go black.
+M_RmRider* are the lit riders: the original's per-vertex light rig (the same parameters the Classic rider materials get
+every frame) becomes a local fill and a rim light in the track's colours, on top of the sun, sky and Lumen; chrome
+outfits are metal, glossy parts smoother; the rider depth pull and guard band of the Classic riders stay.
 PP_RmScene replaces the tonemapper in the Remastered look: unlit pixels (riders, sky, particles: still the Classic
 materials, PS2 display values) pass through exactly as PP_SSXAuthoredColour shows them; lit pixels (linear light) get
 the exposure, a soft shoulder and the sRGB encode.
@@ -44,9 +47,11 @@ float3 t = saturate({ENC.format(x='Tex')} * (255.0 / 128.0));
 float3 a = {DEC.format(x='t')} * AlbedoScale;
 return a * lerp(float3(1.0, 1.0, 1.0), Baked, BakedWeight);
 """
+# Ambient from the baked light, plus a glow for the texels the mask marks emissive (signs, neon).
 AMBIENT = f"""
 float3 t = saturate({ENC.format(x='Tex')} * (255.0 / 128.0));
-return {DEC.format(x='t')} * AlbedoScale * Baked * BakedAmbient;
+float3 a = {DEC.format(x='t')};
+return a * AlbedoScale * Baked * BakedAmbient + a * M.b * Emissive;
 """
 AO = "return lerp(1.0, dot(Baked, float3(0.299, 0.587, 0.114)), BakedWeight) * M.a;"
 ROUGH = "return clamp(BaseRough + (M.r - 0.5) - M.g * 0.25, 0.05, 1.0);"
@@ -67,6 +72,39 @@ return min(floor(at * av / 128.0), 255.0);
 PROP_ATEST = "return As > 1.0 ? 1.0 : 0.0;"
 PROP_CORE = "return As >= 128.0 ? 1.0 : 0.0;"
 DRAW_CLIP = "return (Depth <= DrawDistance ? 1.0 : 0.0) * Alpha;"
+# 0x318080: the Classic rider light rig, ambient + sum max(0, N . D_i) C_i in PS2 units (1.0 = 0x80).
+RIDER_LIGHT = """
+float3 v = Ambient + saturate(dot(N, normalize(D0))) * C0 + saturate(dot(N, normalize(D1))) * C1
+         + saturate(dot(N, normalize(D2))) * C2;
+return clamp(v, 0.0, 255.0 / 128.0);
+"""
+RIDER_ALBEDO = f"""
+float3 t = saturate({ENC.format(x='Tex')} * (255.0 / 128.0));
+return {DEC.format(x='t')} * AlbedoScale;
+"""
+RIDER_FILL = f"""
+float3 v = saturate(V * 0.5);
+float3 rim = {DEC.format(x='saturate(C2 * 0.5)')} * pow(1.0 - saturate(dot(N, normalize(Dir))), 3.0);   // Dir: pixel to camera
+return Albedo * {DEC.format(x='v')} * 2.0 * RiderFill + rim * RiderRim;
+"""
+RIDER_ROUGH = "return clamp(0.65 - Fix * 0.5, 0.2, 1.0);"
+# 0x1364D0 / 0x1DCC10
+RIDER_DEPTH = """float wp = dot(RootRel, F);
+float w = dot(Rel, F);
+if (Pull <= 0.0 || View.ViewToClip[3][3] >= 1.0 || wp - Pull < Near || wp > Far || !(w >= Near && w <= Far)) return float3(0.0, 0.0, 0.0);
+float d = 1.0 / (wp - Pull) - 1.0 / wp;
+float s = 1.0 / (1.0 + d * w);
+return Rel * (s - 1.0);
+"""
+# 0x318080
+RIDER_CLIP = """float w = dot(Rel, F);
+if (Pull <= 0.0 || View.ViewToClip[3][3] >= 1.0) return 0.0;
+if (!(w >= Near && w <= Far)) return 1.0;
+float2 ndc = float2(View.ViewToClip[0][0] * dot(Rel, R), View.ViewToClip[1][1] * dot(Rel, U)) / w;
+return (abs(ndc.x) <= Guard.x && abs(ndc.y) <= Guard.y) ? 0.0 : 1.0;
+"""
+RIDER_KEEP = """return Clip > 0.0 ? 0.0 : 1.0;
+"""
 PP_SCENE = f"""
 float3 s = max(Scene.rgb / View.PreExposure, 0.0);
 if (SM.r < 0.001) return saturate(s * Brightness);
@@ -204,15 +242,16 @@ def surface(m, rm, base, baked, uv=None):
                      ("AlbedoScale", (coll(m, rm, "AlbedoScale", -700, -350), "")),
                      ("BakedWeight", (coll(m, rm, "BakedWeight", -700, -280), ""))], "RmAlbedo")
     connect_prop(albedo, "", unreal.MaterialProperty.MP_BASE_COLOR)
-    amb = custom(m, -400, -50, AMBIENT, F3,
-                 [("Tex", (base, "RGB")), ("Baked", (baked, "")),
-                  ("AlbedoScale", (coll(m, rm, "AlbedoScale", -700, -120), "")),
-                  ("BakedAmbient", (coll(m, rm, "BakedAmbient", -700, -50), ""))], "RmBakedAmbient")
-    connect_prop(amb, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
     connect_prop(normal, "RGB", unreal.MaterialProperty.MP_NORMAL)
     masks4 = expr(m, unreal.MaterialExpressionAppendVector, -700, 600)
     connect(masks, "RGB", masks4, "A")
     connect(masks, "A", masks4, "B")
+    amb = custom(m, -400, -50, AMBIENT, F3,
+                 [("Tex", (base, "RGB")), ("Baked", (baked, "")), ("M", (masks4, "")),
+                  ("AlbedoScale", (coll(m, rm, "AlbedoScale", -700, -120), "")),
+                  ("BakedAmbient", (coll(m, rm, "BakedAmbient", -700, -50), "")),
+                  ("Emissive", (coll(m, rm, "Emissive", -700, 20), ""))], "RmBakedAmbient")
+    connect_prop(amb, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
     rough = custom(m, -400, 100, ROUGH, F1,
                    [("M", (masks4, "")), ("BaseRough", (coll(m, rm, "BaseRoughness", -700, 100), ""))], "RmRoughness")
     connect_prop(rough, "", unreal.MaterialProperty.MP_ROUGHNESS)
@@ -245,7 +284,7 @@ else:
 old = {str(p.get_editor_property("parameter_name")): p for p in rm.get_editor_property("scalar_parameters")}
 scalars = []
 for n, v in (("BakedWeight", 0.6), ("BakedAmbient", 0.55), ("AlbedoScale", 0.9), ("BaseRoughness", 0.8),
-             ("Exposure", 1.0), ("Saturation", 1.15)):
+             ("Exposure", 1.0), ("Saturation", 1.15), ("Emissive", 3.0), ("RiderFill", 0.45), ("RiderRim", 0.6)):
     p = old.get(n) or unreal.CollectionScalarParameter()
     p.set_editor_property("parameter_name", n)
     p.set_editor_property("default_value", v)
@@ -299,6 +338,91 @@ for name, mode in (("M_RmProp", "plain"), ("M_RmProp_Masked", "atest"), ("M_RmPr
         clip(m, mpc, (alpha, ""))
     elif mode == "plain":
         clip(m, mpc, (expr(m, unreal.MaterialExpressionConstant, -700, 1000, r=1.0), ""))
+    finish(m)
+
+for name, masked, chrome in (("M_RmRider", False, False), ("M_RmRider_Masked", True, False),
+                             ("M_RmRiderChrome", False, True), ("M_RmRiderChrome_Masked", True, True)):
+    m = lit_material(name, unreal.BlendMode.BLEND_MASKED)
+    m.set_editor_property("used_with_skeletal_mesh", True)
+    m.set_editor_property("used_with_morph_targets", True)
+    base = tex_param(m, "BaseTex", -1100, -300)
+    tint = expr(m, unreal.MaterialExpressionVectorParameter, -1100, -100, parameter_name="Tint",
+                default_value=unreal.LinearColor(1, 1, 1, 1))
+    tex = expr(m, unreal.MaterialExpressionMultiply, -850, -250)
+    connect(base, "RGB", tex, "A")
+    connect(tint, "RGB", tex, "B")
+    vec = {}
+    for i, n in enumerate(("Ambient", "Light0Colour", "Light0Dir", "Light1Colour", "Light1Dir", "Light2Colour", "Light2Dir")):
+        on = (n == "Ambient", n == "Ambient", n == "Ambient" or n.endswith("Dir"))
+        vec[n] = expr(m, unreal.MaterialExpressionVectorParameter, -1500, 100 + 110 * i, parameter_name=n,
+                      default_value=unreal.LinearColor(float(on[0]), float(on[1]), float(on[2]), 1.0))
+    nrm = expr(m, unreal.MaterialExpressionVertexNormalWS, -1500, 0)
+    light = custom(m, -1150, 200, RIDER_LIGHT, F3,
+                   [("N", (nrm, "")), ("Ambient", (vec["Ambient"], "RGB")),
+                    ("C0", (vec["Light0Colour"], "RGB")), ("D0", (vec["Light0Dir"], "RGB")),
+                    ("C1", (vec["Light1Colour"], "RGB")), ("D1", (vec["Light1Dir"], "RGB")),
+                    ("C2", (vec["Light2Colour"], "RGB")), ("D2", (vec["Light2Dir"], "RGB"))], "RiderVertexLight")
+    interp = expr(m, unreal.MaterialExpressionVertexInterpolator, -800, 200)
+    connect(light, "", interp, "VS")
+    albedo = custom(m, -600, -250, RIDER_ALBEDO, F3,
+                    [("Tex", (tex, "")), ("AlbedoScale", (coll(m, rm, "AlbedoScale", -850, -350), ""))], "RmRiderAlbedo")
+    connect_prop(albedo, "", unreal.MaterialProperty.MP_BASE_COLOR)
+    view_dir = expr(m, unreal.MaterialExpressionCameraVectorWS, -800, 400)
+    fill = custom(m, -400, 0, RIDER_FILL, F3,
+                  [("Albedo", (albedo, "")), ("V", (interp, "PS")), ("C2", (vec["Light2Colour"], "RGB")),
+                   ("N", (expr(m, unreal.MaterialExpressionPixelNormalWS, -800, 330), "")), ("Dir", (view_dir, "")),
+                   ("RiderFill", (coll(m, rm, "RiderFill", -800, 480), "")),
+                   ("RiderRim", (coll(m, rm, "RiderRim", -800, 550), ""))], "RmRiderFill")
+    connect_prop(fill, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    if chrome:
+        connect_prop(expr(m, unreal.MaterialExpressionConstant, -400, 200, r=0.85), "", unreal.MaterialProperty.MP_METALLIC)
+        connect_prop(expr(m, unreal.MaterialExpressionConstant, -400, 280, r=0.18), "", unreal.MaterialProperty.MP_ROUGHNESS)
+    else:
+        fix = expr(m, unreal.MaterialExpressionScalarParameter, -700, 250, parameter_name="GlossFix", default_value=0.0)
+        connect_prop(custom(m, -400, 250, RIDER_ROUGH, F1, [("Fix", (fix, ""))], "RmRiderRoughness"), "",
+                     unreal.MaterialProperty.MP_ROUGHNESS)
+    axes = []
+    for k, axis in enumerate(((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))):
+        c = expr(m, unreal.MaterialExpressionConstant3Vector, -1900, 600 + 120 * k,
+                 constant=unreal.LinearColor(axis[0], axis[1], axis[2], 0.0))
+        t = expr(m, unreal.MaterialExpressionTransform, -1700, 600 + 120 * k,
+                 transform_source_type=unreal.MaterialVectorCoordTransformSource.TRANSFORMSOURCE_VIEW,
+                 transform_type=unreal.MaterialVectorCoordTransform.TRANSFORM_WORLD)
+        connect(c, "", t, "")
+        axes.append(t)
+    rel = expr(m, unreal.MaterialExpressionWorldPosition, -1900, 1000)
+    rel.set_editor_property("world_position_shader_offset",
+                            unreal.WorldPositionIncludedOffsets.WPT_CAMERA_RELATIVE_NO_OFFSETS)
+    root = expr(m, unreal.MaterialExpressionVectorParameter, -1900, 1100, parameter_name="RiderRoot",
+                default_value=unreal.LinearColor(0, 0, 0, 1))
+    root_rel = expr(m, unreal.MaterialExpressionSubtract, -1700, 1150)
+    connect(root, "RGB", root_rel, "A")
+    connect(expr(m, unreal.MaterialExpressionCameraPositionWS, -1900, 1200), "", root_rel, "B")
+    pull = expr(m, unreal.MaterialExpressionScalarParameter, -1900, 1300, parameter_name="RiderDepthPull", default_value=0.0)
+    near = expr(m, unreal.MaterialExpressionScalarParameter, -1900, 1400, parameter_name="RiderDepthNear", default_value=10.0)
+    far = coll(m, mpc, "DrawDistance", -1900, 1500)
+    wpo = custom(m, -1400, 1100, RIDER_DEPTH, F3,
+                 [("Rel", (rel, "")), ("RootRel", (root_rel, "")), ("F", (axes[2], "")), ("Pull", (pull, "")),
+                  ("Near", (near, "")), ("Far", (far, ""))], "RiderDepthPull")
+    sw = expr(m, unreal.MaterialExpressionShadowReplace, -1100, 1150)
+    connect(wpo, "", sw, "Default")
+    connect(expr(m, unreal.MaterialExpressionConstant3Vector, -1400, 1300, constant=unreal.LinearColor(0, 0, 0, 0)), "", sw, "Shadow")
+    connect_prop(sw, "", unreal.MaterialProperty.MP_WORLD_POSITION_OFFSET)
+    guard = expr(m, unreal.MaterialExpressionVectorParameter, -1900, 1600, parameter_name="RiderGuard",
+                 default_value=unreal.LinearColor(896.0355834960938 / 512.0, 1024.032470703125 / 448.0, 0, 0))
+    clip = custom(m, -1400, 1500, RIDER_CLIP, F1,
+                  [("Rel", (rel, "")), ("R", (axes[0], "")), ("U", (axes[1], "")), ("F", (axes[2], "")), ("Pull", (pull, "")),
+                   ("Near", (near, "")), ("Far", (far, "")), ("Guard", (guard, "RGB"))], "RiderDepthClip")
+    clip_interp = expr(m, unreal.MaterialExpressionVertexInterpolator, -1100, 1500)
+    connect(clip, "", clip_interp, "VS")
+    keep = custom(m, -800, 1500, RIDER_KEEP, F1, [("Clip", (clip_interp, "PS"))], "RiderDepthKeep")
+    if masked:
+        mask = expr(m, unreal.MaterialExpressionMultiply, -500, 1500)
+        connect(base, "A", mask, "A")
+        connect(keep, "", mask, "B")
+        connect_prop(mask, "", unreal.MaterialProperty.MP_OPACITY_MASK)
+    else:
+        connect_prop(keep, "", unreal.MaterialProperty.MP_OPACITY_MASK)
     finish(m)
 
 pp = recreate("PP_RmScene", unreal.Material, unreal.MaterialFactoryNew())

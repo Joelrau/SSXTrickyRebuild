@@ -29,9 +29,30 @@ namespace SSXRemaster
 	SSXTRICKYREBUILD_API int32 SunLight(TConstArrayView<FSSXLight> Lights);
 
 	constexpr const TCHAR* ScenePostPath = TEXT("/Game/Remastered/PP_RmScene.PP_RmScene");
-	constexpr double SunLux = 2.0;
-	constexpr float SunSaturation = 0.6f;   // share of the track light's colour kept (the rest white): the baked ambient carries the palette
-	constexpr float SkyLightIntensity = 0.5f;
+	constexpr const TCHAR* CollectionPath = TEXT("/Game/Remastered/MPC_SSXRemaster.MPC_SSXRemaster");
+	/** Lit rider parent for a Classic rider parent's name (M_SSXRiderLit, _Masked, Chrome, Chrome_Masked). */
+	SSXTRICKYREBUILD_API const TCHAR* RemasteredRiderPath(const FString& ClassicParentName);
+
+	/** Remastered tuning of one track (art direction, no original counterpart). */
+	struct FTrackTuning
+	{
+		const TCHAR* Stem = nullptr;
+		float SunLux = 2.0f;
+		float SunSaturation = 0.6f;     // share of the track light's colour kept (the rest white): the baked ambient carries the palette
+		float SkyLight = 0.5f;
+		float BakedAmbient = 0.55f;     // MPC_SSXRemaster values
+		float Exposure = 1.0f;
+		float Saturation = 1.15f;
+		float Emissive = 3.0f;
+		float FogDensity = 0.02f;
+		float LightCandela = 15.f;      // track point / spot lights: candela per unit of the original colour
+		int32 MaxLights = 48;
+	};
+	SSXTRICKYREBUILD_API const FTrackTuning& TuningFor(const FString& Stem);
+	/** Attenuation radius (cm) of a track light: where the original falloff (FSSXLightWorld::FalloffFactor) is 5 %. */
+	SSXTRICKYREBUILD_API float LightRadius(int32 FalloffKind);
+	/** Indices of the track's point and spot lights (not modulators) by falling strength, at most Max. */
+	SSXTRICKYREBUILD_API TArray<int32> StrongestLocalLights(TConstArrayView<FSSXLight> Lights, int32 Max);
 	constexpr double SkyDistance = 60000.0;   // cm: the sky dome (<= 17.5 m x 50) and beyond become the sky light
 }
 
@@ -59,6 +80,8 @@ private:
 	void SwapComponent(UMeshComponent& C);
 	UMaterialInterface* RemasteredFor(UMaterialInterface* Classic);
 	void OnLevelAdded(ULevel* Level, UWorld* World);
+	/** Lit display twins for the riders' Classic instances (new ones appear with outfit changes: every tick). */
+	void SwapRiders();
 
 	struct FSwap
 	{
@@ -68,6 +91,8 @@ private:
 	};
 	TArray<FSwap> Swaps;
 	TArray<TWeakObjectPtr<APostProcessVolume>> DisabledVolumes;
+	TArray<FSwap> RiderSwaps;
+	TMap<TWeakObjectPtr<UMaterialInstanceDynamic>, TWeakObjectPtr<UMaterialInstanceDynamic>> RiderTwins;
 
 	UPROPERTY(Transient)
 	TMap<TObjectPtr<UMaterialInterface>, TObjectPtr<UMaterialInterface>> Remastered;

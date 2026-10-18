@@ -1,6 +1,14 @@
 #include "World/SSXRemasterWorld.h"
 
 #include "Components/DirectionalLightComponent.h"
+#include "Components/ExponentialHeightFogComponent.h"
+#include "Components/PointLightComponent.h"
+#include "Components/SpotLightComponent.h"
+#include "Engine/ExponentialHeightFog.h"
+#include "Engine/PointLight.h"
+#include "Engine/SpotLight.h"
+#include "Kismet/KismetMaterialLibrary.h"
+#include "Materials/MaterialParameterCollection.h"
 #include "Components/MeshComponent.h"
 #include "Components/SkyLightComponent.h"
 #include "Engine/DirectionalLight.h"
@@ -21,6 +29,8 @@
 #include "World/SSXRenderLook.h"
 #include "World/SSXWorldLighting.h"
 #include "World/SSXWorldPresentation.h"
+#include "SnowboarderPawn.h"
+#include "UI/SSXFeRiderActor.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SSXRemasterWorld)
 
@@ -91,6 +101,66 @@ int32 SSXRemaster::SunLight(TConstArrayView<FSSXLight> Lights)
 	return Best;
 }
 
+const SSXRemaster::FTrackTuning& SSXRemaster::TuningFor(const FString& Stem)
+{
+	auto Make = [](const TCHAR* S, float Sun, float SunSat, float Sky, float Amb, float Emis, float Cd)
+	{
+		FTrackTuning T;
+		T.Stem = S; T.SunLux = Sun; T.SunSaturation = SunSat; T.SkyLight = Sky; T.BakedAmbient = Amb; T.Emissive = Emis; T.LightCandela = Cd;
+		return T;
+	};
+	// Night (Snowdream, Merqury City): a faint coloured moon, the baked light and the lamps carry the scene; indoor
+	// (Tokyo Megaplex): hardly any sun.
+	static const FTrackTuning Table[] = {
+		Make(TEXT("snow"), 0.25f, 0.9f, 0.2f, 0.85f, 5.f, 30.f),
+		Make(TEXT("merquer"), 0.25f, 0.9f, 0.2f, 0.85f, 5.f, 30.f),
+		Make(TEXT("megaple"), 0.2f, 0.6f, 0.3f, 0.85f, 4.f, 25.f),
+	};
+	static const FTrackTuning Default;
+	for (const FTrackTuning& T : Table)
+	{
+		if (Stem == T.Stem) { return T; }
+	}
+	return Default;
+}
+
+const TCHAR* SSXRemaster::RemasteredRiderPath(const FString& ClassicParentName)
+{
+	if (ClassicParentName == TEXT("M_SSXRiderLit")) { return TEXT("/Game/Remastered/M_RmRider.M_RmRider"); }
+	if (ClassicParentName == TEXT("M_SSXRiderLit_Masked")) { return TEXT("/Game/Remastered/M_RmRider_Masked.M_RmRider_Masked"); }
+	if (ClassicParentName == TEXT("M_SSXRiderLitChrome")) { return TEXT("/Game/Remastered/M_RmRiderChrome.M_RmRiderChrome"); }
+	if (ClassicParentName == TEXT("M_SSXRiderLitChrome_Masked")) { return TEXT("/Game/Remastered/M_RmRiderChrome_Masked.M_RmRiderChrome_Masked"); }
+	return nullptr;
+}
+
+float SSXRemaster::LightRadius(int32 FalloffKind)
+{
+	switch (FalloffKind)
+	{
+	case 1: return 2000.f;   // 100 / d
+	case 2: return 450.f;    // 1e4 / d^2
+	case 3: return 270.f;    // 1e6 / d^3
+	default: return 3000.f;
+	}
+}
+
+TArray<int32> SSXRemaster::StrongestLocalLights(TConstArrayView<FSSXLight> Lights, int32 Max)
+{
+	TArray<int32> Out;
+	for (int32 I = 0; I < Lights.Num(); ++I)
+	{
+		const FSSXLight& L = Lights[I];
+		if ((L.Type == FSSXLight::Point || L.Type == FSSXLight::Spot) && !(L.Flags & FSSXLight::FlagModulator)
+			&& L.Colour.GetMax() > 0.0)
+		{
+			Out.Add(I);
+		}
+	}
+	Out.StableSort([&Lights](int32 A, int32 B) { return Lights[A].Colour.GetMax() > Lights[B].Colour.GetMax(); });
+	if (Out.Num() > Max) { Out.SetNum(Max); }
+	return Out;
+}
+
 bool USSXRemasterWorld::ShouldCreateSubsystem(UObject* Outer) const
 {
 	const UWorld* W = Cast<UWorld>(Outer);
@@ -123,6 +193,45 @@ void USSXRemasterWorld::Tick(float DeltaTime)
 	{
 		bWant ? Apply() : Revert();
 	}
+	if (bApplied)
+	{
+		SwapRiders();
+	}
+}
+
+void USSXRemasterWorld::SwapRiders()
+{
+	UWorld* W = GetWorld();
+	USSXWorldPresentation* Pres = W ? W->GetSubsystem<USSXWorldPresentation>() : nullptr;
+	if (!Pres) { return; }
+	auto Swap = [this, Pres](AActor& Actor)
+	{
+		TInlineComponentArray<UMeshComponent*> Meshes(&Actor);
+		for (UMeshComponent* Mesh : Meshes)
+		{
+			for (int32 S = 0; Mesh && S < Mesh->GetNumMaterials(); ++S)
+			{
+				UMaterialInstanceDynamic* Classic = Cast<UMaterialInstanceDynamic>(Mesh->GetMaterial(S));
+				if (!Classic || !Pres->IsRiderMaterial(Classic)) { continue; }
+				UMaterialInstanceDynamic* Twin = nullptr;
+				if (const TWeakObjectPtr<UMaterialInstanceDynamic>* Found = RiderTwins.Find(Classic)) { Twin = Found->Get(); }
+				if (!Twin)
+				{
+					const TCHAR* Path = SSXRemaster::RemasteredRiderPath(Classic->Parent ? Classic->Parent->GetName() : FString());
+					UMaterialInterface* Parent = Path ? LoadObject<UMaterialInterface>(nullptr, Path) : nullptr;
+					if (!Parent) { continue; }
+					Twin = UMaterialInstanceDynamic::Create(Parent, Mesh);
+					Twin->CopyInterpParameters(Classic);
+					RiderTwins.Add(Classic, Twin);
+				}
+				Mesh->SetMaterial(S, Twin);
+				Pres->SetDisplayedRiderMaterial(Classic, Twin);
+				RiderSwaps.Add({ Mesh, S, Classic });
+			}
+		}
+	};
+	for (TActorIterator<ASnowboarderPawn> It(W); It; ++It) { Swap(**It); }
+	for (TActorIterator<ASSXFeRiderActor> It(W); It; ++It) { Swap(**It); }
 }
 
 void USSXRemasterWorld::OnLevelAdded(ULevel* Level, UWorld* World)
@@ -240,12 +349,30 @@ void USSXRemasterWorld::Apply()
 		Spawned.Add(V);
 	}
 
+	const FString Stem = UWorld::RemovePIEPrefix(W->GetMapName()).ToLower();
+	const SSXRemaster::FTrackTuning& T = SSXRemaster::TuningFor(Stem);
+	if (UMaterialParameterCollection* Mpc = LoadObject<UMaterialParameterCollection>(nullptr, SSXRemaster::CollectionPath))
+	{
+		UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("BakedAmbient"), T.BakedAmbient);
+		UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("Exposure"), T.Exposure);
+		UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("Saturation"), T.Saturation);
+		UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("Emissive"), T.Emissive);
+	}
+
 	const USSXWorldPresentation* Pres = W->GetSubsystem<USSXWorldPresentation>();
 	FSSXLightWorld EditorLights;   // editor worlds (captures) have no presentation subsystem
+	FSSXTrackPresentation EditorTrack;
+	const FSSXTrackPresentation* Track = Pres ? Pres->GetTrack() : nullptr;
 	if (!Pres)
 	{
-		const FString Stem = UWorld::RemovePIEPrefix(W->GetMapName()).ToLower();
 		EditorLights.Load(FSSXLightWorld::DefaultPath(Stem == TEXT("frontend") ? FString(TEXT("ssxfe")) : Stem));
+		TArray<FSSXTrackPresentation> Table;
+		const int32 Id = FSSXTrackPresentation::IdForStem(Stem);
+		if (Id >= 0 && FSSXTrackPresentation::LoadTable(FSSXTrackPresentation::DefaultTablePath(), Table) && Table.IsValidIndex(Id))
+		{
+			EditorTrack = Table[Id];
+			Track = &EditorTrack;
+		}
 	}
 	const TArray<FSSXLight>& Lights = Pres ? Pres->GetLightWorld().GetLights() : EditorLights.GetLights();
 	const int32 Sun = SSXRemaster::SunLight(Lights);
@@ -258,14 +385,14 @@ void USSXRemasterWorld::Apply()
 		const double Max = FMath::Max3(L.Colour.X, L.Colour.Y, L.Colour.Z);
 		if (Max > 0.0)
 		{
-			SunColour = FMath::Lerp(FLinearColor::White, FLinearColor(L.Colour.X / Max, L.Colour.Y / Max, L.Colour.Z / Max), SSXRemaster::SunSaturation);
+			SunColour = FMath::Lerp(FLinearColor::White, FLinearColor(L.Colour.X / Max, L.Colour.Y / Max, L.Colour.Z / Max), T.SunSaturation);
 		}
 	}
 	if (ADirectionalLight* D = W->SpawnActor<ADirectionalLight>(FVector::ZeroVector, SunDir.Rotation(), P))
 	{
 		UDirectionalLightComponent* C = CastChecked<UDirectionalLightComponent>(D->GetLightComponent());
 		C->SetMobility(EComponentMobility::Movable);
-		C->SetIntensity(float(SSXRemaster::SunLux));
+		C->SetIntensity(T.SunLux);
 		C->SetLightColor(SunColour);
 		C->SetCastShadows(true);
 		Spawned.Add(D);
@@ -276,9 +403,58 @@ void USSXRemasterWorld::Apply()
 		C->SetMobility(EComponentMobility::Movable);
 		C->SourceType = SLS_CapturedScene;
 		C->SkyDistanceThreshold = float(SSXRemaster::SkyDistance);
-		C->SetIntensity(SSXRemaster::SkyLightIntensity);
+		C->SetIntensity(T.SkyLight);
 		C->RecaptureSky();
 		Spawned.Add(K);
+	}
+
+	for (const int32 I : SSXRemaster::StrongestLocalLights(Lights, T.MaxLights))
+	{
+		const FSSXLight& L = Lights[I];
+		const FVector At = SSXSim::GameToUnreal(L.Position);
+		const double Max = L.Colour.GetMax();
+		const FLinearColor Colour(L.Colour.X / Max, L.Colour.Y / Max, L.Colour.Z / Max);
+		ULocalLightComponent* C = nullptr;
+		if (L.Type == FSSXLight::Spot)
+		{
+			ASpotLight* A = W->SpawnActor<ASpotLight>(At, SSXSim::GameToUnreal(L.Direction).Rotation(), P);
+			if (!A) { continue; }
+			USpotLightComponent* S = CastChecked<USpotLightComponent>(A->GetLightComponent());
+			const float Outer = FMath::Clamp(FMath::RadiansToDegrees(FMath::Acos(FMath::Clamp(float(L.CosCone), -1.f, 1.f))), 1.f, 80.f);
+			S->SetOuterConeAngle(Outer);
+			S->SetInnerConeAngle(Outer * 0.7f);
+			C = S;
+			Spawned.Add(A);
+		}
+		else
+		{
+			APointLight* A = W->SpawnActor<APointLight>(At, FRotator::ZeroRotator, P);
+			if (!A) { continue; }
+			C = CastChecked<ULocalLightComponent>(A->GetLightComponent());
+			Spawned.Add(A);
+		}
+		C->SetMobility(EComponentMobility::Movable);
+		C->SetIntensityUnits(ELightUnits::Candelas);
+		C->SetIntensity(T.LightCandela * float(FMath::Min(Max, 2.0)));
+		C->SetLightColor(Colour);
+		C->SetAttenuationRadius(SSXRemaster::LightRadius(L.Falloff));
+		C->SetCastShadows(false);
+	}
+
+	if (Track)
+	{
+		if (AExponentialHeightFog* F = W->SpawnActor<AExponentialHeightFog>(P))
+		{
+			UExponentialHeightFogComponent* C = F->GetComponent();
+			C->SetFogInscatteringColor(FLinearColor(Track->ClearColour()));
+			C->SetFogDensity(T.FogDensity);
+			C->SetFogHeightFalloff(0.0002f);
+			C->SetStartDistance(float(Track->DrawDist1P * 0.35));
+			C->SetFogMaxOpacity(0.85f);
+			C->SetFogCutoffDistance(float(SSXRemaster::SkyDistance * 0.8));   // the sky dome keeps its own colours
+			C->SetVolumetricFog(true);
+			Spawned.Add(F);
+		}
 	}
 }
 
@@ -292,6 +468,17 @@ void USSXRemasterWorld::Revert()
 		if (UMeshComponent* C = S.Component.Get()) { C->SetMaterial(S.Slot, S.Original.Get()); }
 	}
 	Swaps.Reset();
+	USSXWorldPresentation* Pres = GetWorld() ? GetWorld()->GetSubsystem<USSXWorldPresentation>() : nullptr;
+	for (int32 I = RiderSwaps.Num() - 1; I >= 0; --I)
+	{
+		const FSwap& S = RiderSwaps[I];
+		UMeshComponent* C = S.Component.Get();
+		UMaterialInstanceDynamic* Classic = Cast<UMaterialInstanceDynamic>(S.Original.Get());
+		if (C && Classic && C->GetMaterial(S.Slot) != Classic) { C->SetMaterial(S.Slot, Classic); }
+		if (Pres && Classic) { Pres->SetDisplayedRiderMaterial(Classic, nullptr); }
+	}
+	RiderSwaps.Reset();
+	RiderTwins.Reset();
 	for (const TWeakObjectPtr<APostProcessVolume>& V : DisabledVolumes)
 	{
 		if (V.IsValid()) { V->bEnabled = true; }

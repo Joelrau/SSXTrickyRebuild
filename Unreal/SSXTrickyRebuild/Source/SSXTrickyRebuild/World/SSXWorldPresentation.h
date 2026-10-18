@@ -87,6 +87,11 @@ public:
 	static void ApplyRiderDepth(UMaterialInstanceDynamic& Mid, double Pull, const FVector& Root, double Near,
 		const FVector2D& Guard = FVector2D(SSXRiderDepth::GuardSpanX / SSXRiderDepth::FrameW, SSXRiderDepth::GuardSpanY / SSXRiderDepth::FrameH));
 
+	/** Remastered look (World/SSXRemasterWorld.h): Displayed is drawn in the slot instead of the Classic rider instance;
+	 *  the per-frame rider values still go to Classic and are copied to Displayed. Null Displayed removes the pair. */
+	void SetDisplayedRiderMaterial(UMaterialInstanceDynamic* Classic, UMaterialInstanceDynamic* Displayed);
+	/** M is a rider instance this subsystem drives (parent M_SSXRiderLit(_Masked) or a chrome rider material). */
+	bool IsRiderMaterial(const UMaterialInterface* M) const;
 private:
 	void UpdateSky();
 	void SpawnClearShell(UWorld& InWorld);
@@ -105,6 +110,8 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UMaterialParameterCollection> Collection;
 	UPROPERTY(Transient) TObjectPtr<UMaterialInterface> RiderMaterial;
 	UPROPERTY(Transient) TObjectPtr<UMaterialInterface> RiderMaskedMaterial;
+	TMap<TWeakObjectPtr<UMaterialInstanceDynamic>, TWeakObjectPtr<UMaterialInstanceDynamic>> DisplayedRider;   // Classic -> displayed
+	TMap<TWeakObjectPtr<UMaterialInstanceDynamic>, TWeakObjectPtr<UMaterialInstanceDynamic>> ClassicRider;     // displayed -> Classic
 	UPROPERTY(Transient) TArray<TWeakObjectPtr<AActor>> SkyActors;
 	TArray<TWeakObjectPtr<class USSXTerrainLodComponent>> TerrainLods;
 	UPROPERTY(Transient) TWeakObjectPtr<AActor> ClearShell;
