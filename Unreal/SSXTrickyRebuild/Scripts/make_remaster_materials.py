@@ -35,12 +35,12 @@ DEC = "(lerp(pow((max({x}, 0.0) + 0.055) / 1.055, 2.4), {x} / 12.92, step({x}, 0
 TERRAIN_BAKED = f"""
 float3 t = {ENC.format(x='Tex')};
 float3 c = saturate((t - LM.rgb) * LM.a * (255.0 / 128.0));
-float3 r = saturate(c / max(t * (255.0 / 128.0), 1.0 / 255.0));
+float3 r = min(c / max(t * (255.0 / 128.0), 1.0 / 255.0), 2.0);   // lightmap alpha > 0x80 brightens (lamp halos)
 return {DEC.format(x='r')};
 """
 # Classic props: c = t * VC * 2 in display space.
 PROP_BAKED = f"""
-float3 r = saturate(VC.rgb * (255.0 / 128.0));
+float3 r = VC.rgb * (255.0 / 128.0);   // up to 2: vertex light brighter than the texture
 return {DEC.format(x='r')};
 """
 # PS2 textures: 0x80 is full brightness.
