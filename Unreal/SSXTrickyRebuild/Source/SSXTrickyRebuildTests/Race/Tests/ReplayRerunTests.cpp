@@ -178,8 +178,8 @@ namespace SSXReplayRerun
 		// Run after this one (same set-up); Baseline: an earlier run whose live race this one must match bit for bit
 		// (stream A, the presentation stream, is reported only: front-end and render timing differ between live runs).
 		TSharedPtr<struct FRun> Next, Baseline;
-		// Two live races that must match: skip the intro after a count of pre-race sim steps (not engine ticks, whose
-		// pacing differs between runs) and start both from the same stream A.
+		// Two live races that must match: one sim step per tick, the intro skipped after a count of pre-race sim steps,
+		// both started from the same stream A.
 		bool bSameStart = false;
 		uint32 PreRaceSteps = 0;
 		uint32 Need = LiveFrames;
@@ -302,7 +302,8 @@ namespace SSXReplayRerun
 		}
 		// PIE-like pacing: the engine delta varies tick to tick (0, 1 or several 60 Hz steps per tick)
 		static const double Dts[] = { 1.0 / 60.0, 1.0 / 25.0, 1.0 / 144.0, 1.0 / 60.0, 1.0 / 37.0, 1.0 / 90.0, 1.0 / 20.0, 1.0 / 240.0, 1.0 / 48.0 };
-		FApp::SetFixedDeltaTime(Dts[R.Ticks++ % UE_ARRAY_COUNT(Dts)]);
+		// The two races of a look comparison step once per tick: UI requests (the intro skip) land on the same sim step.
+		FApp::SetFixedDeltaTime(R.bSameStart ? 1.0 / 60.0 : Dts[R.Ticks++ % UE_ARRAY_COUNT(Dts)]);
 		UWorld* World = GameWorld();
 		USSXFrontEndSubsystem* FE = World && World->GetGameInstance() ? World->GetGameInstance()->GetSubsystem<USSXFrontEndSubsystem>() : nullptr;
 		const FString Map = World ? UWorld::RemovePIEPrefix(World->GetMapName()) : FString();
