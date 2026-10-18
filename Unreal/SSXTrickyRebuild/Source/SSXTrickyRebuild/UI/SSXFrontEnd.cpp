@@ -2003,6 +2003,7 @@ void FSSXFrontEnd::OptionsSync(FSSXFeState& S)
 	O.List[2][4] = Idx(St.MaxBoarders - 2, 5);
 	O.Bar[2][5] = St.Brightness;
 	O.List[SSXFeOptions::VideoPage][0] = int32(SSXRenderLook::Get());
+	O.List[SSXFeOptions::VideoPage][1] = SSXRenderLook::GetQuality();
 }
 
 void FSSXFrontEnd::OptionsDiagram(FSSXFeState& S)
@@ -2074,6 +2075,7 @@ void FSSXFrontEnd::OptionsCommit(FSSXFeState& S, int32 P)
 	if (P == SSXFeOptions::VideoPage)
 	{
 		SSXRenderLook::Set(ESSXRenderLook(S.Opt.List[P][0]));
+		SSXRenderLook::SetQuality(S.Opt.List[P][1]);
 		SoundHooks.Add(TEXT("saveVideo"));
 		return;
 	}
@@ -2129,9 +2131,10 @@ void FSSXFrontEnd::OptionsApplyList(FSSXFeState& S, int32 Row)
 	using namespace SSXFeOptions;
 	const int32 P = S.Page;
 	const TArray<FRow>& Rows = PageRows(P);
-	if (P == VideoPage && Rows.IsValidIndex(Row) && Rows[Row].Id == 0)
+	if (P == VideoPage && Rows.IsValidIndex(Row))
 	{
-		SSXRenderLook::Set(ESSXRenderLook(S.Opt.List[P][Row]));
+		if (Rows[Row].Id == 0) { SSXRenderLook::Set(ESSXRenderLook(S.Opt.List[P][Row])); }
+		if (Rows[Row].Id == 1) { SSXRenderLook::SetQuality(S.Opt.List[P][Row]); }
 		return;
 	}
 	if (!Rows.IsValidIndex(Row) || !Profile)

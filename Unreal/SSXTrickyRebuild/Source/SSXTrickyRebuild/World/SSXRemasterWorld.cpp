@@ -196,6 +196,18 @@ void USSXRemasterWorld::Tick(float DeltaTime)
 	if (bApplied)
 	{
 		SwapRiders();
+		if (AppliedQuality != SSXRenderLook::GetQuality()) { ApplyQuality(); }
+	}
+}
+
+void USSXRemasterWorld::ApplyQuality()
+{
+	AppliedQuality = SSXRenderLook::GetQuality();
+	if (APostProcessVolume* V = Volume.Get())
+	{
+		const bool bLumen = SSXRenderLook::QualityUsesLumen(AppliedQuality);
+		V->Settings.DynamicGlobalIlluminationMethod = bLumen ? EDynamicGlobalIlluminationMethod::Lumen : EDynamicGlobalIlluminationMethod::None;
+		V->Settings.ReflectionMethod = bLumen ? EReflectionMethod::Lumen : EReflectionMethod::ScreenSpace;
 	}
 }
 
@@ -347,6 +359,8 @@ void USSXRemasterWorld::Apply()
 			S.WeightedBlendables.Array.Add(FWeightedBlendable(1.f, PP));
 		}
 		Spawned.Add(V);
+		Volume = V;
+		ApplyQuality();
 	}
 
 	const FString Stem = UWorld::RemovePIEPrefix(W->GetMapName()).ToLower();

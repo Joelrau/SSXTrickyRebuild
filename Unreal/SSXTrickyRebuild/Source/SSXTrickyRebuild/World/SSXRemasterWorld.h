@@ -99,6 +99,9 @@ private:
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<AActor>> Spawned;
 
+	TWeakObjectPtr<APostProcessVolume> Volume;
+	int32 AppliedQuality = -1;
+	void ApplyQuality();
 	bool bApplied = false;
 	FDelegateHandle LevelAddedHandle;
 };

@@ -284,7 +284,7 @@ void USSXFeWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 		TickMovie(InDeltaTime);
 		if (FE.SoundHooks.Contains(TEXT("saveVideo")))
 		{
-			USSXVideoSettings::SaveLook();
+			USSXVideoSettings::Save();
 		}
 		if (USSXAudioSubsystem* Audio = USSXAudioSubsystem::Get(this))
 		{

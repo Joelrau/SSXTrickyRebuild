@@ -31,7 +31,16 @@ namespace SSXRenderLook
 		const TCHAR* Name;
 		const TCHAR* Value;
 	};
-	/** Engine cvars the Remastered look sets; Classic puts back the values they had before (the project settings). */
+	/** Remastered quality preset (ssx.Render.Quality): 0 Low, 1 Medium, 2 High (default), 3 Epic. Classic ignores it. */
+	constexpr int32 NumQualities = 4;
+	constexpr int32 DefaultQuality = 2;
+	SSXTRICKYREBUILD_API int32 GetQuality();
+	SSXTRICKYREBUILD_API void SetQuality(int32 Quality);
+	/** Lumen GI and reflections at this preset (Low: none, screen-space reflections). */
+	SSXTRICKYREBUILD_API bool QualityUsesLumen(int32 Quality);
+
+	/** Engine cvars the Remastered look sets at the current quality (the same names at every quality); Classic puts
+	 *  back the values they had before (the project settings). */
 	SSXTRICKYREBUILD_API TConstArrayView<FCvarValue> RemasteredCvars();
 	/** Remastered: remember each cvar's current value (once) and set the new one. Classic: restore every remembered value.
 	 *  Unknown cvars are skipped. */
@@ -49,8 +58,12 @@ public:
 	UPROPERTY(config)
 	int32 Look = int32(SSXRenderLook::Default);
 
-	/** Store the current ssx.Render.Look and write the ini. */
-	static void SaveLook();
+	/** ssx.Render.Quality. */
+	UPROPERTY(config)
+	int32 Quality = SSXRenderLook::DefaultQuality;
+
+	/** Store the current ssx.Render.Look / ssx.Render.Quality and write the ini. */
+	static void Save();
 };
 
 /** Applies the saved look when the game starts. */

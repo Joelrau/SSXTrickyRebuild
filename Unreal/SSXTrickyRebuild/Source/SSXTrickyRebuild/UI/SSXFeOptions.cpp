@@ -39,7 +39,9 @@ const TArray<SSXFeOptions::FRow>& SSXFeOptions::PageRows(int32 Page)
 	{
 		FRow Look = List(0, -1, { { 0, -1, TEXT("CLASSIC") }, { 1, -1, TEXT("REMASTERED") } });
 		Look.Text = TEXT("LOOK");
-		return TArray<FRow>{ Look, Done() };
+		FRow Quality = List(1, -1, { { 0, -1, TEXT("LOW") }, { 1, -1, TEXT("MEDIUM") }, { 2, -1, TEXT("HIGH") }, { 3, -1, TEXT("EPIC") } });
+		Quality.Text = TEXT("QUALITY");
+		return TArray<FRow>{ Look, Quality, Done() };
 	}();
 	static const TArray<FRow> None;
 	switch (Page)
@@ -68,6 +70,7 @@ const TCHAR* SSXFeOptions::HelpText(int32 Page, int32 ItemId)
 {
 	if (Page == -1 && ItemId == VideoPage) { return TEXT("Change the PC display settings."); }
 	if (Page == VideoPage && ItemId == 0) { return TEXT("Classic: the original look. Remastered: modern lighting and materials."); }
+	if (Page == VideoPage && ItemId == 1) { return TEXT("Detail of the Remastered look. Low has no global illumination."); }
 	return nullptr;
 }
 

@@ -329,8 +329,10 @@ bool FSSXUIOptionsVideoTest::RunTest(const FString& Parameters)
 	using namespace SSXFeOptions;
 	if (!FOptAssets::Get().Ready()) { SSXTest::Skip(*this, TEXT("FE fonts / sprites / LOC not converted; Video page checks skipped")); return true; }
 	const ESSXRenderLook Prev = SSXRenderLook::Get();
-	ON_SCOPE_EXIT { SSXRenderLook::Set(Prev); };
+	const int32 PrevQuality = SSXRenderLook::GetQuality();
+	ON_SCOPE_EXIT { SSXRenderLook::Set(Prev); SSXRenderLook::SetQuality(PrevQuality); };
 	SSXRenderLook::Set(ESSXRenderLook::Classic);
+	SSXRenderLook::SetQuality(2);
 	{
 		FOptFe F;
 		F.Press(ESSXFeKey::Square);
@@ -362,6 +364,9 @@ bool FSSXUIOptionsVideoTest::RunTest(const FString& Parameters)
 		FOptFe F;
 		F.OpenPage(VideoPage);
 		F.Press(ESSXFeKey::Right);
+		F.Press(ESSXFeKey::Down);
+		F.Press(ESSXFeKey::Left);
+		TestEqual(TEXT("QUALITY Left previews Medium"), SSXRenderLook::GetQuality(), 1);
 		F.Press(ESSXFeKey::Down);
 		F.FE.SoundHooks.Reset();
 		F.Press(ESSXFeKey::Cross);

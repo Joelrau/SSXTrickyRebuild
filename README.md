@@ -167,6 +167,9 @@ in the Classic look, which stays the default and renders exactly as before.
 
 - **Switch:** Options → VIDEO → LOOK (Classic / Remastered), or the console variable `ssx.Render.Look 0|1`. It
   switches live and is saved in `GameUserSettings.ini` (never on the memory card).
+- **Quality:** Options → VIDEO → QUALITY, or `ssx.Render.Quality 0..3`: Low (no Lumen, screen-space reflections,
+  67 % resolution with TSR upscaling), Medium (Lumen, 75 %), High (default: Lumen, volumetric fog, full resolution),
+  Epic (highest shadow / GI / reflection quality). Only the Remastered look uses it.
 - **Extra data step:** `build_data.bat ... remaster` (with `import`) runs `tools\make_remaster_maps.py` (2x/4x upscaled
   colour, normal and detail-mask maps made from your disc's textures into `converted\remaster`) and imports them into
   `Content/RemasterData`. Both are game data and git-ignored. To redo only this step: `python tools\make_remaster_maps.py`,
