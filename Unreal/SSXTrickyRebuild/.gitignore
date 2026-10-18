@@ -1,0 +1,25 @@
+Binaries/
+Intermediate/
+Saved/
+DerivedDataCache/
+.vs/
+*.sln
+# Imported game assets are derived from the disc and never committed
+Content/Tracks/
+Content/Maps/
+# Rider-sim data converted from the disc by tools/export_sim_data.py (game data, never committed)
+SimData/
+# Character models / animations imported from converted/characters (game data, never committed)
+Content/Characters/
+# Front-end scene imported from converted/tracks/ssxfe by Scripts/build_frontend_map.py (game data)
+Content/FrontEnd/
+# Audio imported from converted/audio by Scripts/import_audio.py (game data, never committed)
+Content/Audio/
+Build/
+# Exe icon made from the game logo by tools/make_icon.py (game data, never committed)
+Build/Windows/Application.ico
+# Loose run-time data staged from extracted/, unpacked/, converted/ (game data, never committed)
+GameData/
+# Per-user editor folders
+Content/Developers/
+Content/Collections/
