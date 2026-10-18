@@ -15,6 +15,8 @@ Content/Characters/
 Content/FrontEnd/
 # Audio imported from converted/audio by Scripts/import_audio.py (game data, never committed)
 Content/Audio/
+# Remastered-look maps made from the disc textures by tools/make_remaster_maps.py (game data, never committed)
+Content/RemasterData/
 Build/
 # Exe icon made from the game logo by tools/make_icon.py (game data, never committed)
 Build/Windows/Application.ico

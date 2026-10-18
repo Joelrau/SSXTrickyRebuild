@@ -1,8 +1,9 @@
 @echo off
 rem Extract and convert all game data from the user's SSX Tricky disc image.
-rem Usage:  build_data.bat ["path\to\SLUS-20326.iso"] [refs] [import]
+rem Usage:  build_data.bat ["path\to\SLUS-20326.iso"] [refs] [import] [remaster]
 rem   refs    also writes the test reference data (tools\make_*_reference.py, make_probe_cases.py, ground_reference.py).
 rem   import  also builds the editor and runs the Unreal import / map scripts.
+rem   remaster  also makes the Remastered-look maps (tools\make_remaster_maps.py; with import, imports them too).
 rem Needs Python 3.10+ (pip install pycdlib pillow numpy). Test references that compare against recordings of the
 rem original game read them from SSX_TRACES (optional; without it those scripts print "skipped (no traces)").
 rem Unreal Engine 5.8 (only for "import") is found by tools\find_ue.bat.
@@ -16,6 +17,8 @@ set "ISO="
 if "%~1"=="" goto :argsdone
 if /i "%~1"=="import" (
     set "DOIMPORT=1"
+) else if /i "%~1"=="remaster" (
+    set "DOREMASTER=1"
 ) else if /i "%~1"=="refs" (
     set "DOREFS=1"
 ) else (
@@ -68,6 +71,11 @@ for %%S in (export_sim_data export_rails export_instance_collision export_race_d
     call :py tools\%%S.py || goto :fail
 )
 
+if not defined DOREMASTER goto :refs
+echo === Remastered-look maps
+call :py tools\make_remaster_maps.py || goto :fail
+
+:refs
 if not defined DOREFS goto :import
 echo === Test reference data
 for %%F in (tools\make_*_reference.py tools\make_probe_cases.py tools\ground_reference.py) do (
@@ -88,6 +96,9 @@ for %%T in (Alaska:alaska Aloha:aloha Elysium:elysium Gari:gari Megaple:megaple 
     )
 )
 call :ue build_frontend_map.py || goto :fail
+if defined DOREMASTER (
+    call :ue import_remaster.py || goto :fail
+)
 
 :done
 echo === Done.
