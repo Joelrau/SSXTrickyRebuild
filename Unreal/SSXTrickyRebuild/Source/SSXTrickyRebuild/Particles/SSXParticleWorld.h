@@ -29,6 +29,9 @@ class SSXTRICKYREBUILD_API USSXParticleWorld : public UTickableWorldSubsystem
 
 public:
 	static constexpr const TCHAR* AddMaterialPath = TEXT("/Game/Particles/M_SSXParticleAdd.M_SSXParticleAdd");
+	/** Remastered look (World/SSXRenderLook.h): linear, soft-faded counterparts of the additive and alpha sprites. */
+	static constexpr const TCHAR* RemasteredAddMaterialPath = TEXT("/Game/Remastered/M_RmParticleAdd.M_RmParticleAdd");
+	static constexpr const TCHAR* RemasteredAlphaMaterialPath = TEXT("/Game/Remastered/M_RmParticleAlpha.M_RmParticleAlpha");
 	static constexpr const TCHAR* AlphaMaterialPath = TEXT("/Game/Particles/M_SSXParticleAlpha.M_SSXParticleAlpha");
 	static constexpr const TCHAR* DarkenMaterialPath = TEXT("/Game/Particles/M_SSXParticleDarken.M_SSXParticleDarken");
 	static constexpr const TCHAR* ShadowMaterialPath = TEXT("/Game/Particles/M_SSXShadowProject.M_SSXShadowProject");

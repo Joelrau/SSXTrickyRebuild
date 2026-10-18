@@ -1,6 +1,7 @@
 #include "Particles/SSXParticleWorld.h"
 
 #include "Race/GameRng.h"
+#include "World/SSXRenderLook.h"
 
 #include "Camera/PlayerCameraManager.h"
 #include "Characters/SSXCharacterAppearance.h"
@@ -634,17 +635,33 @@ UMaterialInterface* USSXParticleWorld::SpriteMaterial(int32 Handle, int32 BlendM
 	{
 		Base = BaseIndexFor(BlendMode & ~TrailLayerFlag);
 	}
-	const int32 Key = (Handle * 16 + Base) | (bRepeat ? 0x1000000 : 0);
+	UMaterialInterface* Parent = BaseMaterials.IsValidIndex(Base) ? BaseMaterials[Base].Get() : nullptr;
+	bool bRemastered = false;
+	if (SSXRenderLook::Get() == ESSXRenderLook::Remastered && (Base == 0 || Base == 1))
+	{
+		static TWeakObjectPtr<UMaterialInterface> Loaded[2];
+		if (!Loaded[Base].IsValid())
+		{
+			Loaded[Base] = LoadObject<UMaterialInterface>(nullptr, Base == 0 ? RemasteredAddMaterialPath : RemasteredAlphaMaterialPath);
+		}
+		if (UMaterialInterface* R = Loaded[Base].Get())
+		{
+			Parent = R;
+			bRemastered = true;
+			Keep.AddUnique(R);
+		}
+	}
+	const int32 Key = (Handle * 16 + Base) | (bRepeat ? 0x1000000 : 0) | (bRemastered ? 0x2000000 : 0);
 	if (TObjectPtr<UMaterialInstanceDynamic>* M = SpriteMids.Find(Key))
 	{
 		return *M;
 	}
 	UTexture2D* Tex = Texture(Handle, bRepeat);
-	if (!Tex || !BaseMaterials.IsValidIndex(Base) || !BaseMaterials[Base])
+	if (!Tex || !Parent)
 	{
 		return nullptr;
 	}
-	UMaterialInstanceDynamic* Mid = UMaterialInstanceDynamic::Create(BaseMaterials[Base], this);
+	UMaterialInstanceDynamic* Mid = UMaterialInstanceDynamic::Create(Parent, this);
 	Mid->SetTextureParameterValue(TEXT("Tex"), Tex);
 	SpriteMids.Add(Key, Mid);
 	return Mid;
@@ -1130,7 +1147,9 @@ void USSXParticleWorld::UpdateShadow(FRiderFx& R, int32 Racers)
 #else
 	constexpr int32 Mode = 0;   // subtractive (the original's)
 #endif
-	const bool bOn = Pawn && ShadowMaterial && Mode >= 0 && CVarParticles.GetValueOnGameThread() != 0 && R.bHaveInput && R.RenderAlpha > 0.0;
+	// The Remastered look draws real rider shadows instead (lit riders, World/SSXRemasterWorld.h).
+	const bool bOn = Pawn && ShadowMaterial && Mode >= 0 && CVarParticles.GetValueOnGameThread() != 0 && R.bHaveInput && R.RenderAlpha > 0.0
+		&& SSXRenderLook::Get() == ESSXRenderLook::Classic;
 	USSXCharacterAppearance* App = Pawn ? Pawn->GetAppearance() : nullptr;
 	UPoseableMeshComponent* Mesh = App ? App->GetRiderMesh() : nullptr;
 	if (!bOn || !Mesh || !Mesh->IsVisible())

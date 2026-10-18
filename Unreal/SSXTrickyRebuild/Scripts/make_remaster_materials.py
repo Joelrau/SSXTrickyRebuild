@@ -9,6 +9,8 @@ bounces), so each track keeps its painted mood and shadows never go black.
 M_RmRider* are the lit riders: the original's per-vertex light rig (the same parameters the Classic rider materials get
 every frame) becomes a local fill and a rim light in the track's colours, on top of the sun, sky and Lumen; chrome
 outfits are metal, glossy parts smoother; the rider depth pull and guard band of the Classic riders stay.
+M_RmParticleAdd / M_RmParticleAlpha: the Classic sprite colours (GsSprite) as linear light, faded softly where they
+meet geometry, with the Classic soft-prop depth test.
 PP_RmScene replaces the tonemapper in the Remastered look: unlit pixels (riders, sky, particles: still the Classic
 materials, PS2 display values) pass through exactly as PP_SSXAuthoredColour shows them; lit pixels (linear light) get
 the exposure, a soft shoulder and the sRGB encode.
@@ -105,6 +107,18 @@ return (abs(ndc.x) <= Guard.x && abs(ndc.y) <= Guard.y) ? 0.0 : 1.0;
 """
 RIDER_KEEP = """return Clip > 0.0 ? 0.0 : 1.0;
 """
+# The Classic GsSprite node (Scripts/make_particle_materials.py): (Cs / 255, As / 128).
+GS_SPRITE = """float3 ct = floor(Tex.rgb * 255.0 + 0.001);
+float at = min(floor((floor(Tex.a * 255.0 + 0.001) + 1.0) * 0.5), 128.0);
+float3 cv = floor(VC.rgb * 255.0 + 0.5);
+float av = floor(VC.a * 255.0 + 0.5);
+float3 cs = min(floor(ct * cv / 128.0), 255.0);
+float sa = min(floor(at * av / 128.0), 255.0);
+return float4(cs / 255.0, sa / 128.0);
+"""
+SOFT_DEPTH_SPRITE = "return float4(S.rgb, (PD <= CD.r * 1.0005 + 0.5) ? S.a : 0.0);"
+SPRITE_ADD = f"return {DEC.format(x='saturate(S.rgb * S.a)')} * Fade;"
+SPRITE_ALPHA = f"return {DEC.format(x='saturate(S.rgb)')};"
 PP_SCENE = f"""
 float3 s = max(Scene.rgb / View.PreExposure, 0.0);
 if (SM.r < 0.001) return saturate(s * Brightness);
@@ -284,7 +298,8 @@ else:
 old = {str(p.get_editor_property("parameter_name")): p for p in rm.get_editor_property("scalar_parameters")}
 scalars = []
 for n, v in (("BakedWeight", 0.6), ("BakedAmbient", 0.55), ("AlbedoScale", 0.9), ("BaseRoughness", 0.8),
-             ("Exposure", 1.0), ("Saturation", 1.15), ("Emissive", 3.0), ("RiderFill", 0.45), ("RiderRim", 0.6)):
+             ("Exposure", 1.0), ("Saturation", 1.15), ("Emissive", 3.0), ("RiderFill", 0.45), ("RiderRim", 0.6),
+             ("ParticleSoftness", 40.0)):
     p = old.get(n) or unreal.CollectionScalarParameter()
     p.set_editor_property("parameter_name", n)
     p.set_editor_property("default_value", v)
@@ -425,6 +440,43 @@ for name, masked, chrome in (("M_RmRider", False, False), ("M_RmRider_Masked", T
         connect_prop(keep, "", unreal.MaterialProperty.MP_OPACITY_MASK)
     finish(m)
 
+for name, additive in (("M_RmParticleAdd", True), ("M_RmParticleAlpha", False)):
+    m = recreate(name, unreal.Material, unreal.MaterialFactoryNew())
+    m.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_UNLIT)
+    m.set_editor_property("blend_mode", unreal.BlendMode.BLEND_ADDITIVE if additive else unreal.BlendMode.BLEND_TRANSLUCENT)
+    m.set_editor_property("two_sided", True)
+    tex = tex_param(m, "Tex", -1100, -100, "lightmap")   # PARTICLE.SSH textures load linear (stored bytes)
+    tex4 = expr(m, unreal.MaterialExpressionAppendVector, -900, -100)
+    connect(tex, "RGB", tex4, "A")
+    connect(tex, "A", tex4, "B")
+    vc = expr(m, unreal.MaterialExpressionVertexColor, -1100, 150)
+    vc4 = expr(m, unreal.MaterialExpressionAppendVector, -900, 150)
+    connect(vc, "", vc4, "A")
+    connect(vc, "A", vc4, "B")
+    node = custom(m, -700, 0, GS_SPRITE, unreal.CustomMaterialOutputType.CMOT_FLOAT4,
+                  [("Tex", (tex4, "")), ("VC", (vc4, ""))], "GsSprite")
+    cd = expr(m, unreal.MaterialExpressionSceneTexture, -800, 450, scene_texture_id=unreal.SceneTextureId.PPI_CUSTOM_DEPTH)
+    soft = custom(m, -500, 250, SOFT_DEPTH_SPRITE, unreal.CustomMaterialOutputType.CMOT_FLOAT4,
+                  [("S", (node, "")), ("PD", (expr(m, unreal.MaterialExpressionPixelDepth, -800, 350), "")), ("CD", (cd, "Color"))],
+                  "SoftDepth")
+    fade = expr(m, unreal.MaterialExpressionDepthFade, -500, 500)
+    connect(coll(m, rm, "ParticleSoftness", -700, 600), "", fade, "FadeDistance")
+    if additive:
+        connect_prop(custom(m, -250, 0, SPRITE_ADD, F3, [("S", (soft, "")), ("Fade", (fade, ""))], "RmSpriteAdd"), "",
+                     unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    else:
+        connect_prop(custom(m, -250, 0, SPRITE_ALPHA, F3, [("S", (soft, ""))], "RmSpriteAlpha"), "",
+                     unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+        a = expr(m, unreal.MaterialExpressionComponentMask, -300, 200, r=False, g=False, b=False, a=True)
+        connect(soft, "", a, "")
+        sat = expr(m, unreal.MaterialExpressionSaturate, -200, 200)
+        connect(a, "", sat, "")
+        op = expr(m, unreal.MaterialExpressionMultiply, -100, 250)
+        connect(sat, "", op, "A")
+        connect(fade, "", op, "B")
+        connect_prop(op, "", unreal.MaterialProperty.MP_OPACITY)
+    finish(m)
+
 pp = recreate("PP_RmScene", unreal.Material, unreal.MaterialFactoryNew())
 pp.set_editor_property("material_domain", unreal.MaterialDomain.MD_POST_PROCESS)
 pp.set_editor_property("blendable_location", unreal.BlendableLocation.BL_REPLACING_TONEMAPPER)
@@ -437,3 +489,6 @@ enc = custom(pp, -350, 0, PP_SCENE, F3,
               ("Saturation", (coll(pp, rm, "Saturation", -700, 600), ""))], "RmScene")
 connect_prop(enc, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
 finish(pp)
+
+# With a real RHI (-AllowCommandletRendering) this compiles the shaders now, so HLSL errors show in the log.
+unreal.SSXRemasterLibrary.finish_loading_for_capture()
