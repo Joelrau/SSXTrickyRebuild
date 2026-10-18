@@ -174,9 +174,21 @@ in the Classic look, which stays the default and renders exactly as before.
   colour, normal and detail-mask maps made from your disc's textures into `converted\remaster`) and imports them into
   `Content/RemasterData`. Both are game data and git-ignored. To redo only this step: `python tools\make_remaster_maps.py`,
   then the editor script `Scripts\import_remaster.py`. Without the maps the Remastered look still works, with flat detail.
+- **What changes:** terrain and props become lit materials (the original lightmaps and vertex light stay in as the
+  tint and ambient light, so every track keeps its colours); a sun from the track's own strongest light, a sky light,
+  the track's point / spot lights as real lights, height fog towards the track's clear colour; riders are lit (the
+  original light rig becomes their fill and rim light, chrome outfits are metal) and cast real shadows instead of the
+  projected one; snow spray and other additive / alpha sprites fade softly into the snow. Night and indoor tracks have
+  their own tuning (`SSXRemaster::TuningFor`).
 - **Materials:** `Scripts\make_remaster_materials.py` creates `Content/Remastered` (no game data; committed).
+- **Checking it without running the game:** `Scripts\capture_look.py <Map> <out dir>` renders the map offscreen in
+  both looks (editor world, `-AllowCommandletRendering -RenderOffscreen`); the test `SSX.Replay.InGameLookSwitch` races
+  with the look flipping every 97 frames and requires the race and its replays to match the Classic race bit for bit.
 - **Requirements:** a GPU with Shader Model 6 for Lumen (software ray tracing; no RT hardware needed). The project builds
-  mesh distance fields for this, which makes the first editor load and the first cook slower.
+  mesh distance fields for this, which makes the first editor load, the first capture of a track and the first cook
+  slower (about half an hour per track once; cached afterwards).
+- **Not (yet) in:** hardware ray tracing (needs `r.RayTracing` set before start-up and RT shaders in the package),
+  bloom (the Remastered post pass still replaces the tonemapper so unlit parts look exactly like Classic).
 
 ## Project layout
 
