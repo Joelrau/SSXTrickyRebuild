@@ -159,6 +159,22 @@ package.bat Development     logging build      -> Packaged-Dev\Windows\SSXTricky
 Run `build_data.bat ... import` first (the cook needs the imported maps). Double-click `SSXTricky.exe` to play.
 **The package contains data converted from your own disc: keep it to yourself, never share or upload it.**
 
+## Remastered look
+
+An optional modern presentation on top of the faithful game: lit materials, a sun and sky light, Lumen global
+illumination and reflections. Only the picture changes. Gameplay, timing, audio, HUD, menus and replays are the same as
+in the Classic look, which stays the default and renders exactly as before.
+
+- **Switch:** Options → VIDEO → LOOK (Classic / Remastered), or the console variable `ssx.Render.Look 0|1`. It
+  switches live and is saved in `GameUserSettings.ini` (never on the memory card).
+- **Extra data step:** `build_data.bat ... remaster` (with `import`) runs `tools\make_remaster_maps.py` (2x/4x upscaled
+  colour, normal and detail-mask maps made from your disc's textures into `converted\remaster`) and imports them into
+  `Content/RemasterData`. Both are game data and git-ignored. To redo only this step: `python tools\make_remaster_maps.py`,
+  then the editor script `Scripts\import_remaster.py`. Without the maps the Remastered look still works, with flat detail.
+- **Materials:** `Scripts\make_remaster_materials.py` creates `Content/Remastered` (no game data; committed).
+- **Requirements:** a GPU with Shader Model 6 for Lumen (software ray tracing; no RT hardware needed). The project builds
+  mesh distance fields for this, which makes the first editor load and the first cook slower.
+
 ## Project layout
 
 | Folder / file | What it is |

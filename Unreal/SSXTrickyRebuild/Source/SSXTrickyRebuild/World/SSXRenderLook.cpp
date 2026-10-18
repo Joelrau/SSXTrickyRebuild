@@ -41,7 +41,11 @@ namespace SSXRenderLook
 
 	TConstArrayView<FCvarValue> RemasteredCvars()
 	{
-		return {};
+		static const FCvarValue Cvars[] = {
+			{ TEXT("r.DynamicGlobalIlluminationMethod"), TEXT("1") },   // Lumen
+			{ TEXT("r.ReflectionMethod"), TEXT("1") },                  // Lumen
+		};
+		return Cvars;
 	}
 
 	void ApplyCvars(TConstArrayView<FCvarValue> Cvars, ESSXRenderLook Look)

@@ -6,10 +6,12 @@ The Remastered look finds them by path; a texture without maps falls back to sha
 """
 import json
 import os
+import sys
 
 import unreal
 
-import ssx_content
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import ssx_content  # noqa: E402
 
 REPO = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".."))
 SRC = os.path.join(REPO, "converted", "remaster")

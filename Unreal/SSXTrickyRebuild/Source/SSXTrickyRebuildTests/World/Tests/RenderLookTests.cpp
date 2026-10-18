@@ -70,6 +70,7 @@ namespace
 		{ TEXT("r.DefaultFeature.Bloom"), TEXT("False"), 0 },
 		{ TEXT("r.DefaultFeature.LensFlare"), TEXT("False"), 0 },
 		{ TEXT("r.TranslucentSortPolicy"), TEXT("1"), 1 },
+		{ TEXT("r.GenerateMeshDistanceFields"), TEXT("True"), 1 },
 	};
 
 	TArray<FString> IniSection(const FString& File, const FString& Section)
