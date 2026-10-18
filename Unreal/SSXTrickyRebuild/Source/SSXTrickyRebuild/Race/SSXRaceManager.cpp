@@ -121,6 +121,8 @@ private:
 	ASSXRaceManager& M;
 };
 
+TFunction<void()> ASSXRaceManager::TestBeforeSeed;
+
 ASSXRaceManager::ASSXRaceManager()
 {
 	PrimaryActorTick.bCanEverTick = true;
@@ -463,6 +465,7 @@ bool ASSXRaceManager::Setup()
 	}
 	else
 	{
+		if (TestBeforeSeed) { TestBeforeSeed(); }
 		FGameRng& A = FGameRng::StreamA();
 		Seed2B04 = A.Next();
 		Seed2B00 = A.Next();

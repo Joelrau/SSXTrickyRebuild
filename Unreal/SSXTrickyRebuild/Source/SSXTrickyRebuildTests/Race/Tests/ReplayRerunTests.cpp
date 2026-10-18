@@ -20,6 +20,7 @@
 #include "UI/SSXFrontEndSubsystem.h"
 #include "UI/SSXPlayerController.h"
 #include "UI/SSXRaceOverlays.h"
+#include "World/SSXRenderLook.h"
 #if WITH_EDITOR
 #include "Editor.h"
 #include "Tests/AutomationEditorCommon.h"
@@ -172,6 +173,15 @@ namespace SSXReplayRerun
 	{
 		bool bContact = false;
 		bool bRestart = false;
+		// > 0: flip ssx.Render.Look every LookPeriod sim frames, half a period later in playback than in the live race.
+		uint32 LookPeriod = 0;
+		// Run after this one (same set-up); Baseline: an earlier run whose live race this one must match bit for bit
+		// (stream A, the presentation stream, is reported only: front-end and render timing differ between live runs).
+		TSharedPtr<struct FRun> Next, Baseline;
+		// Two live races that must match: skip the intro after a count of pre-race sim steps (not engine ticks, whose
+		// pacing differs between runs) and start both from the same stream A.
+		bool bSameStart = false;
+		uint32 PreRaceSteps = 0;
 		uint32 Need = LiveFrames;
 		bool bRestarted = false;
 		bool bEndWait = false;
@@ -219,6 +229,8 @@ namespace SSXReplayRerun
 		return true;
 	}
 
+	void QueueNext(FAutomationTestBase* Test, const TSharedRef<FRun>& Run);
+
 	class FCommand : public IAutomationLatentCommand
 	{
 	public:
@@ -228,9 +240,16 @@ namespace SSXReplayRerun
 		bool Finish(const FString& Failure = FString())
 		{
 			if (!Failure.IsEmpty()) { Test->AddError(FString::Printf(TEXT("[stage %d] %s"), Run->Stage, *Failure)); }
+			if (Run->LookPeriod > 0) { SSXRenderLook::Set(ESSXRenderLook::Classic); }
+			if (Failure.IsEmpty() && Run->Baseline.IsValid())
+			{
+				Compare(Test, TEXT("live race vs the baseline run"), Run->Baseline->Live, Run->Live, Run->Need);
+			}
 			FApp::SetUseFixedTimeStep(Run->bPrevFixed);
 			FApp::SetFixedDeltaTime(Run->PrevFixedDt);
 			if (GEditor && GEditor->PlayWorld) { GEditor->RequestEndPlayMap(); }
+			if (Run->bSameStart) { ASSXRaceManager::TestBeforeSeed = nullptr; }
+			if (Failure.IsEmpty() && Run->Next.IsValid()) { QueueNext(Test, Run); }
 			return true;
 		}
 		void Hook(ASSXRaceManager* Race, bool bScript)
@@ -239,6 +258,16 @@ namespace SSXReplayRerun
 			Race->TestOnFrame = [R](ASSXRaceManager& M)
 			{
 				const FSSXReplay& Rp = M.GetReplay();
+				if (R->bSameStart && M.GetSession() && M.GetSession()->GetPhase() == ERacePhase::PreRace && ++R->PreRaceSteps % 700 == 0)
+				{
+					M.GetUIHost().PressIntroSkip();
+				}
+				if (const uint32 P = R->LookPeriod)
+				{
+					const bool bPlay = Rp.GetState() == SSXReplay::Play;
+					const uint32 F = (bPlay ? Rp.GetPlayFrame() : Rp.GetRecordFrame()) + (bPlay ? P / 2 : 0);
+					SSXRenderLook::Set((F / P) % 2 ? ESSXRenderLook::Remastered : ESSXRenderLook::Classic);
+				}
 				if (Rp.GetState() == SSXReplay::Record && Rp.GetRecordFrame() > 0)
 				{
 					if (Rp.IsRebuilding()) { R->Rebuild.Add(Rp.GetRecordFrame() - 1, Capture(M)); }
@@ -294,7 +323,7 @@ namespace SSXReplayRerun
 		case 1:
 			if (!Race || Map != TEXT("Snow") || !Race->GetSession() || !Race->GetPlayerPawn()) return false;
 			if (!R.bHooked) { Hook(Race, true); R.bHooked = true; }
-			if (Race->GetSession()->GetPhase() == ERacePhase::PreRace && ++R.Frames % 700 == 0)
+			if (!R.bSameStart && Race->GetSession()->GetPhase() == ERacePhase::PreRace && ++R.Frames % 700 == 0)
 			{
 				Race->GetUIHost().PressIntroSkip();
 			}
@@ -457,7 +486,36 @@ namespace SSXReplayRerun
 
 namespace SSXReplayRerun
 {
-	bool Start(FAutomationTestBase* Test, bool bContact, bool bRestart = false)
+	void Begin(FAutomationTestBase* Test, const TSharedRef<FRun>& Run)
+	{
+		Run->WallStart = FPlatformTime::Seconds();
+		FGameRng::StreamA() = FGameRng(0x5EED1234u);
+		FGameRng::StreamB() = FGameRng();
+		Run->bPrevFixed = FApp::UseFixedTimeStep();
+		Run->PrevFixedDt = FApp::GetFixedDeltaTime();
+		FApp::SetUseFixedTimeStep(true);
+		FApp::SetFixedDeltaTime(1.0 / 60.0);
+		if (Run->bSameStart)
+		{
+			ASSXRaceManager::TestBeforeSeed = []() { FGameRng::StreamA() = FGameRng(0x5EED1234u); };
+		}
+		AutomationOpenMap(TEXT("/Game/Maps/FrontEnd"), true);
+		ADD_LATENT_AUTOMATION_COMMAND(FCommand(Test, Run));
+	}
+
+	void QueueNext(FAutomationTestBase* Test, const TSharedRef<FRun>& Run)
+	{
+		const TSharedRef<FRun> Next = Run->Next.ToSharedRef();
+		Run->Next.Reset();
+		ADD_LATENT_AUTOMATION_COMMAND(FFunctionLatentCommand([Test, Next]()
+		{
+			if (GEditor && GEditor->PlayWorld) { return false; }
+			Begin(Test, Next);
+			return true;
+		}));
+	}
+
+	bool Start(FAutomationTestBase* Test, bool bContact, bool bRestart = false, uint32 LookPeriod = 0)
 	{
 		const FString Sim = FPaths::Combine(FPaths::ProjectDir(), TEXT("SimData"));
 		for (const TCHAR* F : { TEXT("snow.patches.bin"), TEXT("snow.race.bin"), TEXT("snow.effects.bin"), TEXT("anim_clips.bin") })
@@ -475,15 +533,21 @@ namespace SSXReplayRerun
 		TSharedRef<FRun> Run = MakeShared<FRun>();
 		Run->bContact = bContact;
 		Run->bRestart = bRestart;
-		Run->WallStart = FPlatformTime::Seconds();
-		FGameRng::StreamA() = FGameRng(0x5EED1234u);
-		FGameRng::StreamB() = FGameRng();
-		Run->bPrevFixed = FApp::UseFixedTimeStep();
-		Run->PrevFixedDt = FApp::GetFixedDeltaTime();
-		FApp::SetUseFixedTimeStep(true);
-		FApp::SetFixedDeltaTime(1.0 / 60.0);
-		AutomationOpenMap(TEXT("/Game/Maps/FrontEnd"), true);
-		ADD_LATENT_AUTOMATION_COMMAND(FCommand(Test, Run));
+		Run->LookPeriod = LookPeriod;
+		if (LookPeriod > 0)
+		{
+			TSharedRef<FRun> Baseline = MakeShared<FRun>();
+			Baseline->bContact = bContact;
+			Baseline->bRestart = bRestart;
+			Baseline->Next = Run;
+			Baseline->bSameStart = Run->bSameStart = true;
+			Run->Baseline = Baseline;
+			Begin(Test, Baseline);
+		}
+		else
+		{
+			Begin(Test, Run);
+		}
 		return true;
 	}
 }
@@ -504,6 +568,15 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSSXReplayInGameRestartRerunTest, "SSX.Replay.I
 bool FSSXReplayInGameRestartRerunTest::RunTest(const FString& Parameters)
 {
 	return SSXReplayRerun::Start(this, true, true);
+}
+
+// The render look never touches the sim: a Classic race, then the same race with ssx.Render.Look flipping every 97
+// frames (half a period later in the playbacks). Both live races match bit for bit and the second race's replays
+// match it as usual.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSSXReplayInGameLookSwitchTest, "SSX.Replay.InGameLookSwitch", SSXReplayRerun::Flags)
+bool FSSXReplayInGameLookSwitchTest::RunTest(const FString& Parameters)
+{
+	return SSXReplayRerun::Start(this, false, false, 97);
 }
 
 #endif

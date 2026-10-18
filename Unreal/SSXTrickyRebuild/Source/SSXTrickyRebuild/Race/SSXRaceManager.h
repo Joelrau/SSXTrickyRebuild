@@ -119,6 +119,8 @@ public:
 	static constexpr int32 ReplayRebuildStepsPerTick = 600;
 	/** Automation only (SSX.Replay.InGameRerun): called after every world-running game frame. */
 	TFunction<void(ASSXRaceManager&)> TestOnFrame;
+	/** Automation only (SSX.Replay.InGameLookSwitch): called before a live race takes its seeds from stream A. */
+	static TFunction<void()> TestBeforeSeed;
 
 	/** Event mode: the FE launch's DAT_0032DE8C (BeginPlay); this default (World Circuit race) only without an FE selection (tests). */
 	UPROPERTY(EditAnywhere, Category = "Race") int32 EventMode = int32(ERaceEventMode::CircuitRace);
