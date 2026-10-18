@@ -24,7 +24,7 @@ machine. Never commit or share those folders, or the packaged game made from the
   copyrights of Electronic Arts Inc. and their respective owners.
 - **No game assets are included**: no textures, models, audio, video, text or executable files from
   the game. The tools convert them on your own machine from your own, legally owned copy of the game.
-- The MIT license in `LICENSE` covers only the code, tools and scripts in this repository, not the game or its data.
+- The MIT license in `LICENSE` covers only the code, tools and scripts in this repository, not the game or its data (see `NOTICE`).
 
 ## What you need
 
