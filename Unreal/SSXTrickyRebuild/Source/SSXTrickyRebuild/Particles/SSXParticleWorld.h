@@ -130,7 +130,8 @@ private:
 	FRiderFx* FindRider(const FRiderSim* Sim);
 	void SyncRiders();
 
-	UTexture2D* Texture(int32 Handle, bool bRepeat = false);
+	/** bRemastered: the upscaled image from tools/make_remaster_maps.py (converted/remaster/...), else the original. */
+	UTexture2D* Texture(int32 Handle, bool bRepeat = false, bool bRemastered = false);
 	UMaterialInterface* SpriteMaterial(int32 Handle, int32 BlendMode);
 
 	TArray<FTrackEmitter> Emitters;

@@ -2,7 +2,8 @@
 
     python tools/make_remaster_maps.py [--force] [--only <substring>]
 
-For every texture under converted/tracks/<track>/textures/ and converted/characters/<rider>/textures/ it writes,
+For every texture under converted/tracks/<track>/textures/, converted/characters/<rider>/textures/ and
+converted/textures/TEXTURES/PARTICLE/ (loaded at run time from the PNG; the game uses only its _C map) it writes,
 under converted/remaster/<same relative path without .png>:
     _C.png  colour + alpha upscaled (x4 up to 128 px, x2 up to 256 px, else x1): Lanczos + a light unsharp mask
             (no machine-learning upscaler: nothing here invents detail the original texture does not have)
@@ -27,7 +28,7 @@ from PIL import Image, ImageFilter
 ROOT = Path(__file__).resolve().parents[1]
 CONVERTED = ROOT / "converted"
 OUT = CONVERTED / "remaster"
-SOURCES = ("tracks/*/textures/*.png", "characters/*/textures/*.png")
+SOURCES = ("tracks/*/textures/*.png", "characters/*/textures/*.png", "textures/TEXTURES/PARTICLE/*.png")
 
 NORMAL_STRENGTH = 2.0     # height gradient scale at the upscaled resolution (heights 0..1)
 SPARKLE_LUMA = 0.72       # fraction of the texture's brightest luminance above which a desaturated texel may sparkle

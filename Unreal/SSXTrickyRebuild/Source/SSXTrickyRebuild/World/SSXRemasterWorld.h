@@ -67,9 +67,19 @@ namespace SSXRemaster
 	SSXTRICKYREBUILD_API UMaterialInstanceDynamic* ClassicMid(UMeshComponent& C, int32 Slot);
 	/** How many of the strongest track lights cast shadows at a quality: Epic all, High 16, Medium / Low none. */
 	SSXTRICKYREBUILD_API int32 ShadowedLights(int32 Quality, int32 NumLights);
+	/** Remastered surface class of a sim surface id (SimData/surfaces.bin physics): 0 snow, 1 ice (no grip, fast),
+	 *  2 powder (deep sink), 3 wet / slush (no grip, heavy drag). */
+	SSXTRICKYREBUILD_API int32 SurfaceClass(float Grip, float DragQuadratic, float SinkDepth, float CruiseKmh);
+	/** Terrain texture index -> surface class for a track: each texture takes the most common class of the sim patches
+	 *  that use it (SimData/<stem>.patches.bin source index = <stem>.terrainlod.bin pbd index). */
+	SSXTRICKYREBUILD_API TMap<int32, int32> TerrainSurfaceClasses(const FString& Stem);
 	/** The Remastered draw distance as a multiple of the original's: Low 1.5, Medium 2, High 3, Epic 4. */
 	SSXTRICKYREBUILD_API float DrawDistanceScale(int32 Quality);
-	constexpr double SkyDistance = 60000.0;   // cm: the sky dome (<= 17.5 m x 50) and beyond become the sky light
+	constexpr double SkyDistance = 60000.0;
+	constexpr int32 TrailTexels = 2048;
+	constexpr double TrailSize = 8000.0;    // cm covered by the trail map
+	constexpr double TrailRadius = 22.0;    // cm, board groove half width
+	constexpr double TrailStep = 10.0;      // cm between stamps   // cm: the sky dome (<= 17.5 m x 50) and beyond become the sky light
 }
 
 UCLASS()
@@ -117,6 +127,17 @@ private:
 	UMaterialInstanceDynamic* MakeFollower(FSwap& S, UMaterialInstanceDynamic& Classic, UMeshComponent& C);
 	void SyncFollowers();
 	void UpdateFrontEndSpots();
+	/** Depth of field on the rider nearest the view centre in the front end and replays (never while racing). */
+	void UpdateDepthOfField();
+	/** Snow trails: grounded riders' boards stamp the trail map around the camera, which follows the camera. */
+	void UpdateTrails();
+	void SetTrailParams();
+	UPROPERTY(Transient) TObjectPtr<class UTextureRenderTarget2D> TrailMap;
+	UPROPERTY(Transient) TObjectPtr<class UTextureRenderTarget2D> TrailScratch;
+	UPROPERTY(Transient) TObjectPtr<UMaterialInstanceDynamic> TrailStamp;
+	UPROPERTY(Transient) TObjectPtr<UMaterialInstanceDynamic> TrailShift;
+	FVector2D TrailOrigin = FVector2D::ZeroVector;
+	TMap<TWeakObjectPtr<AActor>, FVector> TrailLast;   // each rider's last stamped board position
 	TMap<TWeakObjectPtr<AActor>, TWeakObjectPtr<AActor>> FrontEndSpots;   // carousel rider -> its stage spotlight
 	TArray<TWeakObjectPtr<APostProcessVolume>> DisabledVolumes;
 	TArray<FSwap> RiderSwaps;
@@ -135,7 +156,8 @@ private:
 	TWeakObjectPtr<class UExponentialHeightFogComponent> Fog;
 	double FogStartBase = 0.0;   // fog start at draw distance scale 1, cm
 	struct FShadowFlags { TWeakObjectPtr<UPrimitiveComponent> Component; bool bCast = false; bool bHidden = false; };
-	TArray<FShadowFlags> TerrainShadows;   // the hidden full-detail terrain meshes, made to cast the sun's shadow
+	TArray<FShadowFlags> TerrainShadows;
+	TMap<int32, int32> SurfaceClasses;   // terrain texture index -> SSXRemaster::SurfaceClass   // the hidden full-detail terrain meshes, made to cast the sun's shadow
 	bool bAllLightShadows = false;
 	int32 AppliedQuality = -1;
 	void ApplyQuality();

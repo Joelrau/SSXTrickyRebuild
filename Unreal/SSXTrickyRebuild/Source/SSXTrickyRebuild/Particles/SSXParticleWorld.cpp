@@ -581,7 +581,7 @@ void USSXParticleWorld::Tick(float DeltaTime)
 	Render();
 }
 
-UTexture2D* USSXParticleWorld::Texture(int32 Handle, bool bRepeat)
+UTexture2D* USSXParticleWorld::Texture(int32 Handle, bool bRepeat, bool bRemastered)
 {
 	// 0x1CAEF8
 	const int32 Image = SSXParticles::ImageOfHandle(Handle);
@@ -589,7 +589,7 @@ UTexture2D* USSXParticleWorld::Texture(int32 Handle, bool bRepeat)
 	{
 		return nullptr;
 	}
-	const int32 TexKey = bRepeat ? Image + 0x10000 : Image;
+	const int32 TexKey = Image + (bRepeat ? 0x10000 : 0) + (bRemastered ? 0x20000 : 0);
 	if (TObjectPtr<UTexture2D>* T = Textures.Find(TexKey))
 	{
 		return *T;
@@ -601,7 +601,14 @@ UTexture2D* USSXParticleWorld::Texture(int32 Handle, bool bRepeat)
 	const FString Dir = FPaths::Combine(SSXFrontEnd::TextureDir(), TEXT("PARTICLE"));
 	TArray<FString> Found;
 	IFileManager::Get().FindFiles(Found, *FPaths::Combine(Dir, FString::Printf(TEXT("%03d_*.png"), Image)), true, false);
-	UTexture2D* Tex = Found.Num() ? FImageUtils::ImportFileAsTexture2D(FPaths::Combine(Dir, Found[0])) : nullptr;
+	FString File = Found.Num() ? FPaths::Combine(Dir, Found[0]) : FString();
+	if (bRemastered && Found.Num())
+	{
+		const FString Up = FPaths::Combine(SSXFrontEnd::RepoRoot(), TEXT("converted"), TEXT("remaster"), TEXT("textures"), TEXT("TEXTURES"),
+			TEXT("PARTICLE"), FPaths::GetBaseFilename(Found[0]) + TEXT("_C.png"));
+		if (FPaths::FileExists(Up)) { File = Up; }
+	}
+	UTexture2D* Tex = File.IsEmpty() ? nullptr : FImageUtils::ImportFileAsTexture2D(File);
 	if (!Tex)
 	{
 		MissingTextures.Add(Image);
@@ -657,7 +664,7 @@ UMaterialInterface* USSXParticleWorld::SpriteMaterial(int32 Handle, int32 BlendM
 	{
 		return *M;
 	}
-	UTexture2D* Tex = Texture(Handle, bRepeat);
+	UTexture2D* Tex = Texture(Handle, bRepeat, bRemastered);
 	if (!Tex || !Parent)
 	{
 		return nullptr;

@@ -15,6 +15,9 @@ colour as linear light, so the post pass treats the whole background like the li
 front of it (soft props, snowfall) blends in the same space.
 M_RmProp_Translucent: the soft edges of the soft props (the Classic M_SSXProp_Translucent pass: same alpha, soft-prop
 depth and draw distance), unlit like Classic but as linear light, so they match their lit core.
+Snow trails: the terrain materials read the trail map (RmTrails, a render target the game stamps where riders carve,
+World/SSXRemasterWorld.cpp; MPC TrailX / TrailY / TrailSize place it in world space) as grooves: normals in world space
+and a little shade. M_RmTrailStamp / M_RmTrailShift draw into that map.
 M_RmParticleAdd / M_RmParticleAlpha: the Classic sprite colours (GsSprite) as linear light, faded softly where they
 meet geometry, with the Classic soft-prop depth test.
 PP_RmScene replaces the tonemapper in the Remastered look (it adds the engine's bloom itself): unlit pixels (riders, sky, particles: still the Classic
@@ -62,8 +65,46 @@ float3 t2 = saturate({ENC.format(x='Tex')} * (255.0 / 128.0));
 float3 r = saturate(Baked / max(t2, 1.0 / 255.0));
 return lerp(1.0, dot({DEC.format(x='r')}, float3(0.2126, 0.7152, 0.0722)), BakedWeight) * M.a;
 """
-ROUGH = "return clamp(BaseRough + (M.r - 0.5) - M.g * 0.25, 0.05, 1.0);"
-SPEC = "return 0.35 + M.g * 0.3;"
+# RmSurface (per terrain texture, from the sim's surface types; World/SSXRemasterWorld.cpp): 0 snow, 1 ice, 2 powder,
+# 3 wet / slush. Props keep 0.
+ROUGH = """
+float snow = clamp(BaseRough + (M.r - 0.5) - M.g * 0.25, 0.05, 1.0);
+if (Surface > 2.5) return 0.2;
+if (Surface > 1.5) return saturate(snow + 0.1);
+if (Surface > 0.5) return clamp(0.08 + (M.r - 0.5) * 0.2, 0.03, 0.3);
+return snow;
+"""
+SPEC = """
+if (Surface > 2.5) return 0.6;
+if (Surface > 0.5 && Surface < 1.5) return 0.7;
+return 0.35 + M.g * 0.3;
+"""
+# Ice and slush: smoother normals (the derived bumps are for snow).
+SURF_NORMAL = "return (Surface > 0.5 && Surface < 1.5) || Surface > 2.5 ? normalize(lerp(N, float3(0.0, 0.0, 1.0), 0.7)) : N;"
+# Snow trails: groove depth h from the trail map around (TX, TY), TS wide; world-space normal tilted by its gradient
+# (the surface sinks where h is high); .a = h for the shade. Not on ice or slush.
+TRAIL = """
+float2 uv = (WP.xy - float2(TX, TY)) / TS + 0.5;
+if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0 || (Surface > 0.5 && Surface < 1.5) || Surface > 2.5) return float4(N, 0.0);
+float e = 1.0 / 2048.0;
+float h = saturate(Trails.SampleLevel(TrailsSampler, uv, 0).r);
+float hx = Trails.SampleLevel(TrailsSampler, uv + float2(e, 0.0), 0).r - Trails.SampleLevel(TrailsSampler, uv - float2(e, 0.0), 0).r;
+float hy = Trails.SampleLevel(TrailsSampler, uv + float2(0.0, e), 0).r - Trails.SampleLevel(TrailsSampler, uv - float2(0.0, e), 0).r;
+return float4(normalize(N + float3(hx, hy, 0.0) * 1.5), h);
+"""
+TRAIL_SHADE = "return C * (1.0 - 0.2 * T.a);"
+TRAIL_AO = "return A * (1.0 - 0.35 * T.a);"
+STAMP = "float r = length(UV - 0.5) * 2.0; return saturate(1.0 - r * r) * Strength;"
+SHIFT = "float2 uv = UV + Offset; return (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) ? 0.0 : Prev.SampleLevel(PrevSampler, uv, 0).r;"
+# Snow sparkle: sparse view-dependent glints on bright, desaturated texels (mask G), lit by the baked light.
+GLINT = f"""
+if (Surface > 0.5 && Surface < 1.5) return float3(0.0, 0.0, 0.0);
+float3 cell = floor(WP / 1.5);
+float3 vq = floor(normalize(V) * 6.0);
+float h = frac(sin(dot(cell + vq * 17.0, float3(12.9898, 78.233, 37.719))) * 43758.5453);
+float g = pow(saturate((h - 0.985) / 0.015), 4.0) * M.g;
+return g * Sparkle * (0.2 + {DEC.format(x='Baked')});
+"""
 LIGHTMAP_UV = """
 float2 l = Local;
 if (SwapUV > 0.5) l = l.yx;
@@ -133,6 +174,7 @@ return float4(cs / 255.0, sa / 128.0);
 SOFT_DEPTH_SPRITE = "return float4(S.rgb, (PD <= CD.r * 1.0005 + 0.5) ? S.a : 0.0);"
 SPRITE_ADD = f"return {DEC.format(x='saturate(S.rgb * S.a)')} * Fade;"
 SPRITE_ALPHA = f"return {DEC.format(x='saturate(S.rgb)')};"
+SPRITE_ALPHA_GLOW = "return C * 0.35;"   # lit spray keeps a little of its own brightness
 PP_SCENE = f"""
 float3 s = max(Scene.rgb / View.PreExposure, 0.0);
 float3 b = max(Bloom.rgb / View.PreExposure, 0.0);
@@ -258,9 +300,9 @@ def lit_material(name, blend):
     return m
 
 
-def surface(m, rm, base, baked, uv=None):
+def surface(m, rm, base, baked, uv=None, trails=False):
     """Base colour, normal, roughness, specular and AO of a lit world material from the texture sample and the
-    original's baked light (linear float3)."""
+    original's baked light (linear float3). trails: the snow trail grooves (terrain; normals in world space)."""
     normal = tex_param(m, "RmNormal", -1000, 300, "normal")
     masks = tex_param(m, "RmMasks", -1000, 550, "masks")
     if uv is not None:
@@ -270,8 +312,31 @@ def surface(m, rm, base, baked, uv=None):
                     [("Tex", (base, "RGB")), ("Baked", (baked, "")),
                      ("AlbedoScale", (coll(m, rm, "AlbedoScale", -700, -350), "")),
                      ("BakedWeight", (coll(m, rm, "BakedWeight", -700, -280), ""))], "RmAlbedo")
-    connect_prop(albedo, "", unreal.MaterialProperty.MP_BASE_COLOR)
-    connect_prop(normal, "RGB", unreal.MaterialProperty.MP_NORMAL)
+    surf = expr(m, unreal.MaterialExpressionScalarParameter, -1000, 800, parameter_name="RmSurface", default_value=0.0)
+    snorm = custom(m, -700, 300, SURF_NORMAL, F3, [("N", (normal, "RGB")), ("Surface", (surf, ""))], "RmSurfaceNormal")
+    trail = None
+    if trails:
+        m.set_editor_property("tangent_space_normal", False)
+        world_n = expr(m, unreal.MaterialExpressionTransform, -550, 300,
+                       transform_source_type=unreal.MaterialVectorCoordTransformSource.TRANSFORMSOURCE_TANGENT,
+                       transform_type=unreal.MaterialVectorCoordTransform.TRANSFORM_WORLD)
+        connect(snorm, "", world_n, "")
+        tmap = expr(m, unreal.MaterialExpressionTextureObjectParameter, -900, 950, parameter_name="RmTrails")
+        tmap.set_editor_property("texture", unreal.load_asset("/Engine/EngineResources/Black"))
+        tmap.set_editor_property("sampler_type", unreal.MaterialSamplerType.SAMPLERTYPE_LINEAR_GRAYSCALE)
+        trail = custom(m, -400, 400, TRAIL, unreal.CustomMaterialOutputType.CMOT_FLOAT4,
+                       [("N", (world_n, "")), ("WP", (expr(m, unreal.MaterialExpressionWorldPosition, -700, 1000), "")),
+                        ("Trails", (tmap, "")), ("Surface", (surf, "")),
+                        ("TX", (coll(m, rm, "TrailX", -700, 1060), "")), ("TY", (coll(m, rm, "TrailY", -700, 1120), "")),
+                        ("TS", (coll(m, rm, "TrailSize", -700, 1180), ""))], "RmTrail")
+        tn = expr(m, unreal.MaterialExpressionComponentMask, -200, 400, r=True, g=True, b=True, a=False)
+        connect(trail, "", tn, "")
+        connect_prop(tn, "", unreal.MaterialProperty.MP_NORMAL)
+        connect_prop(custom(m, -200, -200, TRAIL_SHADE, F3, [("C", (albedo, "")), ("T", (trail, ""))], "RmTrailShade"), "",
+                     unreal.MaterialProperty.MP_BASE_COLOR)
+    else:
+        connect_prop(albedo, "", unreal.MaterialProperty.MP_BASE_COLOR)
+        connect_prop(snorm, "", unreal.MaterialProperty.MP_NORMAL)
     masks4 = expr(m, unreal.MaterialExpressionAppendVector, -700, 600)
     connect(masks, "RGB", masks4, "A")
     connect(masks, "A", masks4, "B")
@@ -279,14 +344,26 @@ def surface(m, rm, base, baked, uv=None):
                  [("Tex", (base, "RGB")), ("Baked", (baked, "")), ("M", (masks4, "")),
                   ("BakedAmbient", (coll(m, rm, "BakedAmbient", -700, -50), "")),
                   ("Emissive", (coll(m, rm, "Emissive", -700, 20), ""))], "RmBakedAmbient")
-    connect_prop(amb, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    glint = custom(m, -400, -120, GLINT, F3,
+                   [("WP", (expr(m, unreal.MaterialExpressionWorldPosition, -700, -200), "")),
+                    ("V", (expr(m, unreal.MaterialExpressionCameraVectorWS, -700, -160), "")),
+                    ("M", (masks4, "")), ("Baked", (baked, "")), ("Surface", (surf, "")),
+                    ("Sparkle", (coll(m, rm, "Sparkle", -700, -100), ""))], "RmGlint")
+    emis = expr(m, unreal.MaterialExpressionAdd, -200, -80)
+    connect(amb, "", emis, "A")
+    connect(glint, "", emis, "B")
+    connect_prop(emis, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
     rough = custom(m, -400, 100, ROUGH, F1,
-                   [("M", (masks4, "")), ("BaseRough", (coll(m, rm, "BaseRoughness", -700, 100), ""))], "RmRoughness")
+                   [("M", (masks4, "")), ("BaseRough", (coll(m, rm, "BaseRoughness", -700, 100), "")), ("Surface", (surf, ""))],
+                   "RmRoughness")
     connect_prop(rough, "", unreal.MaterialProperty.MP_ROUGHNESS)
-    connect_prop(custom(m, -400, 200, SPEC, F1, [("M", (masks4, ""))], "RmSpecular"), "", unreal.MaterialProperty.MP_SPECULAR)
+    connect_prop(custom(m, -400, 200, SPEC, F1, [("M", (masks4, "")), ("Surface", (surf, ""))], "RmSpecular"), "",
+                 unreal.MaterialProperty.MP_SPECULAR)
     ao = custom(m, -400, 300, AO, F1,
                 [("Tex", (base, "RGB")), ("Baked", (baked, "")), ("M", (masks4, "")),
                  ("BakedWeight", (coll(m, rm, "BakedWeight", -700, 400), ""))], "RmAO")
+    if trail is not None:
+        ao = custom(m, -200, 300, TRAIL_AO, F1, [("A", (ao, "")), ("T", (trail, ""))], "RmTrailAO")
     connect_prop(ao, "", unreal.MaterialProperty.MP_AMBIENT_OCCLUSION)
 
 
@@ -319,7 +396,8 @@ old = {str(p.get_editor_property("parameter_name")): p for p in rm.get_editor_pr
 scalars = []
 for n, v in (("BakedWeight", 0.6), ("BakedAmbient", 0.55), ("AlbedoScale", 0.9), ("BaseRoughness", 0.8),
              ("Exposure", 1.0), ("Saturation", 1.15), ("Emissive", 3.0), ("RiderFill", 0.6), ("RiderRim", 0.35),
-             ("ParticleSoftness", 40.0), ("DrawDistanceScale", 3.0)):
+             ("ParticleSoftness", 40.0), ("DrawDistanceScale", 3.0), ("Sparkle", 3.0),
+             ("TrailX", 0.0), ("TrailY", 0.0), ("TrailSize", 1.0e9)):
     p = old.get(n) or unreal.CollectionScalarParameter()
     p.set_editor_property("parameter_name", n)
     p.set_editor_property("default_value", v)
@@ -344,7 +422,7 @@ for name, masked, clipped in (("M_RmTerrain", False, True), ("M_RmTerrain_Masked
     connect(lm, "RGB", lm4, "A")
     connect(lm, "A", lm4, "B")
     baked = custom(m, -700, 0, TERRAIN_BAKED, F3, [("Tex", (base, "RGB")), ("LM", (lm4, ""))], "RmTerrainBaked")
-    surface(m, rm, base, baked)
+    surface(m, rm, base, baked, trails=True)
     if clipped:
         one = expr(m, unreal.MaterialExpressionConstant, -700, 1000, r=1.0)
         clip(m, mpc, (base, "A") if masked else (one, ""))
@@ -402,6 +480,9 @@ for name, masked, chrome in (("M_RmRider", False, False), ("M_RmRider_Masked", T
     albedo = custom(m, -600, -250, RIDER_ALBEDO, F3,
                     [("Tex", (tex, "")), ("AlbedoScale", (coll(m, rm, "AlbedoScale", -850, -350), ""))], "RmRiderAlbedo")
     connect_prop(albedo, "", unreal.MaterialProperty.MP_BASE_COLOR)
+    # Upscaled outfit / normal / detail maps from tools/make_remaster_maps.py (flat and neutral without them).
+    rnormal = tex_param(m, "RmNormal", -1000, 350, "normal")
+    connect_prop(rnormal, "RGB", unreal.MaterialProperty.MP_NORMAL)
     view_dir = expr(m, unreal.MaterialExpressionCameraVectorWS, -800, 400)
     fill = custom(m, -400, 0, RIDER_FILL, F3,
                   [("Tex", (tex, "")), ("V", (interp, "PS")), ("C2", (vec["Light2Colour"], "RGB")),
@@ -462,7 +543,11 @@ for name, masked, chrome in (("M_RmRider", False, False), ("M_RmRider_Masked", T
 
 for name, additive in (("M_RmParticleAdd", True), ("M_RmParticleAlpha", False)):
     m = recreate(name, unreal.Material, unreal.MaterialFactoryNew())
-    m.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_UNLIT)
+    # Additive glows stay unlit; alpha sprites (snow spray, puffs) are lit by the sun, sky and Lumen's translucency volume.
+    m.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_UNLIT if additive
+                          else unreal.MaterialShadingModel.MSM_DEFAULT_LIT)
+    if not additive:
+        m.set_editor_property("translucency_lighting_mode", unreal.TranslucencyLightingMode.TLM_VOLUMETRIC_NON_DIRECTIONAL)
     m.set_editor_property("blend_mode", unreal.BlendMode.BLEND_ADDITIVE if additive else unreal.BlendMode.BLEND_TRANSLUCENT)
     m.set_editor_property("two_sided", True)
     tex = tex_param(m, "Tex", -1100, -100, "lightmap")   # PARTICLE.SSH textures load linear (stored bytes)
@@ -485,7 +570,9 @@ for name, additive in (("M_RmParticleAdd", True), ("M_RmParticleAlpha", False)):
         connect_prop(custom(m, -250, 0, SPRITE_ADD, F3, [("S", (soft, "")), ("Fade", (fade, ""))], "RmSpriteAdd"), "",
                      unreal.MaterialProperty.MP_EMISSIVE_COLOR)
     else:
-        connect_prop(custom(m, -250, 0, SPRITE_ALPHA, F3, [("S", (soft, ""))], "RmSpriteAlpha"), "",
+        col = custom(m, -250, 0, SPRITE_ALPHA, F3, [("S", (soft, ""))], "RmSpriteAlpha")
+        connect_prop(col, "", unreal.MaterialProperty.MP_BASE_COLOR)
+        connect_prop(custom(m, -100, -100, SPRITE_ALPHA_GLOW, F3, [("C", (col, ""))], "RmSpriteGlow"), "",
                      unreal.MaterialProperty.MP_EMISSIVE_COLOR)
         a = expr(m, unreal.MaterialExpressionComponentMask, -300, 200, r=False, g=False, b=False, a=True)
         connect(soft, "", a, "")
@@ -558,6 +645,27 @@ op = custom(m, -300, 550, DRAW_CLIP, F1,
              ("Scale", (coll(m, rm, "DrawDistanceScale", -700, 660), "")), ("Alpha", (vis, ""))],
             "DrawClip")
 connect_prop(op, "", unreal.MaterialProperty.MP_OPACITY)
+finish(m)
+
+m = recreate("M_RmTrailStamp", unreal.Material, unreal.MaterialFactoryNew())
+m.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_UNLIT)
+m.set_editor_property("blend_mode", unreal.BlendMode.BLEND_ADDITIVE)
+strength = expr(m, unreal.MaterialExpressionScalarParameter, -700, 100, parameter_name="Strength", default_value=0.35)
+connect_prop(custom(m, -300, 0, STAMP, F1, [("UV", (expr(m, unreal.MaterialExpressionTextureCoordinate, -700, 0), "")),
+                                           ("Strength", (strength, ""))], "TrailStamp"), "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+finish(m)
+
+m = recreate("M_RmTrailShift", unreal.Material, unreal.MaterialFactoryNew())
+m.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_UNLIT)
+prev = expr(m, unreal.MaterialExpressionTextureObjectParameter, -700, 100, parameter_name="Prev")
+prev.set_editor_property("texture", unreal.load_asset("/Engine/EngineResources/Black"))
+prev.set_editor_property("sampler_type", unreal.MaterialSamplerType.SAMPLERTYPE_LINEAR_GRAYSCALE)
+off = expr(m, unreal.MaterialExpressionVectorParameter, -700, 200, parameter_name="Offset", default_value=unreal.LinearColor(0, 0, 0, 0))
+offm = expr(m, unreal.MaterialExpressionComponentMask, -500, 200, r=True, g=True, b=False, a=False)
+connect(off, "", offm, "")
+connect_prop(custom(m, -300, 0, SHIFT, F1, [("UV", (expr(m, unreal.MaterialExpressionTextureCoordinate, -700, 0), "")),
+                                           ("Offset", (offm, "")), ("Prev", (prev, ""))], "TrailShift"), "",
+             unreal.MaterialProperty.MP_EMISSIVE_COLOR)
 finish(m)
 
 pp = recreate("PP_RmScene", unreal.Material, unreal.MaterialFactoryNew())

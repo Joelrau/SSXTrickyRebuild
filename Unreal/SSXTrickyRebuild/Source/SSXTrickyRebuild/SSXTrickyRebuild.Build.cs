@@ -37,6 +37,7 @@ public class SSXTrickyRebuild : ModuleRules
 				"converted/frontend/video/*.m2ts",  // FMV (Media Framework) + its separate audio track
 				"converted/frontend/video/*.wav",
 				"converted/textures/...",           // FE sprites, portraits, particles, crowd, prop flipbooks, rider textures
+				"converted/remaster/textures/...",  // Remastered look: upscaled particle images (build_data.bat remaster)
 				"converted/characters/envr.png",    // rider chrome (the per-rider glTF folders are editor-import inputs)
 				"converted/characters/specmap/...", // rider specular maps
 				"converted/hud/...",

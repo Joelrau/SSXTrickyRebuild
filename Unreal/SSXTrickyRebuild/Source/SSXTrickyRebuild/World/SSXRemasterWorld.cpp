@@ -30,11 +30,22 @@
 #include "Sim/SimCoords.h"
 #include "UObject/UObjectIterator.h"
 #include "World/SSXRenderLook.h"
+#include "World/SSXTerrainLod.h"
 #include "World/SSXTerrainLodComponent.h"
+#include "Sim/PatchWorld.h"
+#include "Sim/SurfaceTable.h"
+#include "Misc/FileHelper.h"
 #include "World/SSXWorldLighting.h"
 #include "World/SSXWorldPresentation.h"
 #include "SnowboarderPawn.h"
 #include "UI/SSXFeRiderActor.h"
+#include "Race/SSXRaceManager.h"
+#include "Characters/SSXCharacterAppearance.h"
+#include "Engine/Canvas.h"
+#include "Engine/TextureRenderTarget2D.h"
+#include "Kismet/KismetRenderingLibrary.h"
+#include "Sim/RiderSim.h"
+#include "Race/SSXReplay.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SSXRemasterWorld)
 
@@ -92,7 +103,9 @@ FString SSXRemaster::DerivedMapPath(const FString& TexturePackage, const TCHAR* 
 	const int32 Tex = Parts.Find(TEXT("Textures"));
 	if (Parts.Num() < 4 || Parts[0] != TEXT("Game") || Tex < 2 || Tex != Parts.Num() - 2) { return FString(); }
 	const FString Name = FString::Printf(TEXT("T_%s_%s"), *Parts.Last(), Suffix);
-	return FString::Printf(TEXT("/Game/RemasterData/%s/%s/textures/%s.%s"), *Parts[1].ToLower(), *Parts[Tex - 1], *Name, *Name);
+	// The front-end scene (/Game/FrontEnd/Scene/ssxfe) is converted with the tracks (converted/tracks/ssxfe).
+	const FString Root = Parts[1] == TEXT("FrontEnd") ? FString(TEXT("tracks")) : Parts[1].ToLower();
+	return FString::Printf(TEXT("/Game/RemasterData/%s/%s/textures/%s.%s"), *Root, *Parts[Tex - 1], *Name, *Name);
 }
 
 int32 SSXRemaster::SunLight(TConstArrayView<FSSXLight> Lights)
@@ -172,6 +185,55 @@ int32 SSXRemaster::ShadowedLights(int32 Quality, int32 NumLights)
 	return Quality >= 3 ? NumLights : Quality == 2 ? FMath::Min(NumLights, 16) : 0;
 }
 
+int32 SSXRemaster::SurfaceClass(float Grip, float DragQuadratic, float SinkDepth, float CruiseKmh)
+{
+	if (Grip < 0.15f && SinkDepth <= 1.f && CruiseKmh >= 60.f) { return 1; }
+	if (Grip < 0.15f && DragQuadratic > 0.05f) { return 3; }
+	if (SinkDepth >= 15.f) { return 2; }
+	return 0;
+}
+
+TMap<int32, int32> SSXRemaster::TerrainSurfaceClasses(const FString& Stem)
+{
+	TMap<int32, int32> Out;
+	FSurfaceTable Surfaces;
+	TArray<uint8> Bytes;
+	FSSXTerrainLodData Lod;
+	if (!Surfaces.LoadFromFile(FSurfaceTable::DefaultPath()) || !Lod.Load(FSSXTerrainLodData::DefaultPath(Stem))
+		|| !FFileHelper::LoadFileToArray(Bytes, *FPatchWorld::DefaultTrackPath(Stem)))
+	{
+		return Out;
+	}
+	// .patches.bin: 96-byte header (count at +8), 232-byte records (surface at +216, source index at +224).
+	constexpr int32 Header = 96, Record = 232;
+	auto I32 = [&Bytes](int64 Off) { int32 X = 0; if (Off + 4 <= Bytes.Num()) { FMemory::Memcpy(&X, Bytes.GetData() + Off, 4); } return X; };
+	const int32 Count = Bytes.Num() >= Header ? I32(8) : 0;
+	TMap<int32, int32> ClassOfSource;
+	for (int32 K = 0; K < Count && Header + int64(K + 1) * Record <= Bytes.Num(); ++K)
+	{
+		const FSurfaceParams& P = Surfaces.Get(I32(Header + int64(K) * Record + 216));
+		ClassOfSource.Add(I32(Header + int64(K) * Record + 224),
+			SurfaceClass(float(P.Grip()), float(P.DragQuadratic()), float(P.SinkDepth()), float(P.CruiseKmh())));
+	}
+	TMap<int32, TArray<int32, TInlineAllocator<4>>> Votes;
+	for (const FSSXTerrainLodData::FPatch& P : Lod.Patches)
+	{
+		if (const int32* C = ClassOfSource.Find(P.PbdIndex))
+		{
+			TArray<int32, TInlineAllocator<4>>& V = Votes.FindOrAdd(P.Texture);
+			V.SetNumZeroed(4);
+			++V[*C];
+		}
+	}
+	for (const TPair<int32, TArray<int32, TInlineAllocator<4>>>& T : Votes)
+	{
+		int32 Best = 0;
+		for (int32 C = 1; C < 4; ++C) { if (T.Value[C] > T.Value[Best]) { Best = C; } }
+		Out.Add(T.Key, Best);
+	}
+	return Out;
+}
+
 float SSXRemaster::DrawDistanceScale(int32 Quality)
 {
 	static const float Scale[] = { 1.5f, 2.f, 3.f, 4.f };
@@ -242,6 +304,8 @@ void USSXRemasterWorld::Tick(float DeltaTime)
 	{
 		SyncFollowers();
 		UpdateFrontEndSpots();
+		UpdateDepthOfField();
+		UpdateTrails();
 		SwapRiders();
 		if (AppliedQuality != SSXRenderLook::GetQuality()) { ApplyQuality(); }
 	}
@@ -267,11 +331,127 @@ void USSXRemasterWorld::ApplyQuality()
 	{
 		F->SetStartDistance(float(FogStartBase * SSXRemaster::DrawDistanceScale(AppliedQuality)));
 	}
+	if (APostProcessVolume* V = Volume.Get())
+	{
+		// Motion blur only at Epic, and gentle.
+		V->Settings.bOverride_MotionBlurAmount = true;
+		V->Settings.MotionBlurAmount = AppliedQuality >= 3 ? 0.25f : 0.f;
+		V->Settings.bOverride_MotionBlurMax = true;
+		V->Settings.MotionBlurMax = 2.f;
+	}
 	const int32 Shadowed = bAllLightShadows ? LocalLights.Num() : SSXRemaster::ShadowedLights(AppliedQuality, LocalLights.Num());
 	for (int32 I = 0; I < LocalLights.Num(); ++I)
 	{
 		if (ULocalLightComponent* C = LocalLights[I].Get()) { C->SetCastShadows(I < Shadowed); }
 	}
+}
+
+void USSXRemasterWorld::SetTrailParams()
+{
+	UWorld* W = GetWorld();
+	UMaterialParameterCollection* Mpc = LoadObject<UMaterialParameterCollection>(nullptr, SSXRemaster::CollectionPath);
+	if (!W || !Mpc) { return; }
+	UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("TrailX"), float(TrailOrigin.X));
+	UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("TrailY"), float(TrailOrigin.Y));
+	UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("TrailSize"), TrailMap ? float(SSXRemaster::TrailSize) : 1.0e9f);
+}
+
+void USSXRemasterWorld::UpdateTrails()
+{
+	UWorld* W = GetWorld();
+	const APlayerController* PC = W ? W->GetFirstPlayerController() : nullptr;
+	if (!TrailMap || !TrailStamp || !TrailShift || !PC || !PC->PlayerCameraManager || !ASSXRaceManager::Find(W)) { return; }
+	using namespace SSXRemaster;
+	// The map follows the camera: once it is a quarter of the map away, shift the contents and recentre.
+	const FVector Cam = PC->PlayerCameraManager->GetCameraLocation();
+	const FVector2D Cam2(Cam.X, Cam.Y);
+	if (FVector2D::Distance(Cam2, TrailOrigin) > TrailSize * 0.25)
+	{
+		const double Texel = TrailSize / TrailTexels;
+		const FVector2D NewOrigin(FMath::RoundToDouble(Cam2.X / Texel) * Texel, FMath::RoundToDouble(Cam2.Y / Texel) * Texel);
+		const FVector2D Delta = (NewOrigin - TrailOrigin) / TrailSize;
+		TrailShift->SetTextureParameterValue(TEXT("Prev"), TrailMap);
+		TrailShift->SetVectorParameterValue(TEXT("Offset"), FLinearColor(float(Delta.X), float(Delta.Y), 0.f, 0.f));
+		UKismetRenderingLibrary::DrawMaterialToRenderTarget(W, TrailScratch, TrailShift);
+		TrailShift->SetTextureParameterValue(TEXT("Prev"), TrailScratch);
+		TrailShift->SetVectorParameterValue(TEXT("Offset"), FLinearColor(0.f, 0.f, 0.f, 0.f));
+		UKismetRenderingLibrary::DrawMaterialToRenderTarget(W, TrailMap, TrailShift);
+		TrailOrigin = NewOrigin;
+		SetTrailParams();
+	}
+	UCanvas* Canvas = nullptr;
+	FVector2D CanvasSize;
+	FDrawToRenderTargetContext Ctx;
+	bool bDrawing = false;
+	const double PxPerCm = TrailTexels / TrailSize;
+	for (TActorIterator<ASnowboarderPawn> It(W); It; ++It)
+	{
+		const FRiderSim* Sim = It->GetSim();
+		const USSXCharacterAppearance* App = It->GetAppearance();
+		const UStaticMeshComponent* Board = App ? App->GetBoardMesh() : nullptr;
+		if (!Sim || !Board || Sim->GetState().Motion != ERiderMotion::Ground)
+		{
+			TrailLast.Remove(*It);
+			continue;
+		}
+		const FVector Now = Board->GetComponentLocation();
+		const FVector* Last = TrailLast.Find(*It);
+		const FVector From = Last && FVector::Dist(*Last, Now) < 500.0 ? *Last : Now;
+		const double Len = FVector::Dist(From, Now);
+		if (Last && Len < TrailStep) { continue; }
+		if (!bDrawing)
+		{
+			UKismetRenderingLibrary::BeginDrawCanvasToRenderTarget(W, TrailMap, Canvas, CanvasSize, Ctx);
+			bDrawing = Canvas != nullptr;
+			if (!bDrawing) { return; }
+		}
+		const int32 Steps = FMath::Max(1, FMath::CeilToInt(Len / TrailStep));
+		for (int32 S = 1; S <= Steps; ++S)
+		{
+			const FVector P = FMath::Lerp(From, Now, double(S) / Steps);
+			const FVector2D Uv = (FVector2D(P.X, P.Y) - TrailOrigin) / TrailSize + FVector2D(0.5, 0.5);
+			const FVector2D Px = Uv * TrailTexels;
+			const double R = TrailRadius * PxPerCm;
+			Canvas->K2_DrawMaterial(TrailStamp, Px - FVector2D(R, R), FVector2D(2 * R, 2 * R), FVector2D::ZeroVector);
+		}
+		TrailLast.Add(*It, Now);
+	}
+	if (bDrawing) { UKismetRenderingLibrary::EndDrawCanvasToRenderTarget(W, Ctx); }
+}
+
+void USSXRemasterWorld::UpdateDepthOfField()
+{
+	UWorld* W = GetWorld();
+	APostProcessVolume* V = Volume.Get();
+	const APlayerController* PC = W ? W->GetFirstPlayerController() : nullptr;
+	if (!V || !PC || !PC->PlayerCameraManager) { return; }
+	const ASSXRaceManager* Race = ASSXRaceManager::Find(W);
+	const int32 State = Race ? Race->GetReplay().GetState() : SSXReplay::Record;
+	const bool bReplay = Race && State != SSXReplay::Record;
+	const bool bFrontEnd = !Race;
+	float Focus = 0.f;
+	if (bReplay || bFrontEnd)
+	{
+		const FVector Cam = PC->PlayerCameraManager->GetCameraLocation();
+		const FVector Fwd = PC->PlayerCameraManager->GetCameraRotation().Vector();
+		double Best = 0.0;
+		auto Consider = [&](const AActor& A)
+		{
+			const FVector To = A.GetActorLocation() + FVector(0, 0, 90) - Cam;
+			const double D = To.Size();
+			const double Facing = D > 1.0 ? FVector::DotProduct(To / D, Fwd) : 0.0;
+			if (Facing > 0.8 && Facing > Best) { Best = Facing; Focus = float(D); }
+		};
+		if (bFrontEnd) { for (TActorIterator<ASSXFeRiderActor> It(W); It; ++It) { Consider(**It); } }
+		else { for (TActorIterator<ASnowboarderPawn> It(W); It; ++It) { Consider(**It); } }
+	}
+	FPostProcessSettings& S = V->Settings;
+	S.bOverride_DepthOfFieldFocalDistance = Focus > 0.f;
+	S.bOverride_DepthOfFieldFstop = Focus > 0.f;
+	S.bOverride_DepthOfFieldSensorWidth = Focus > 0.f;
+	S.DepthOfFieldFocalDistance = Focus;
+	S.DepthOfFieldFstop = bFrontEnd ? 2.8f : 4.f;
+	S.DepthOfFieldSensorWidth = 24.576f;
 }
 
 void USSXRemasterWorld::UpdateFrontEndSpots()
@@ -344,6 +524,11 @@ void USSXRemasterWorld::SwapRiders()
 					if (!Parent) { continue; }
 					Twin = UMaterialInstanceDynamic::Create(Parent, Mesh);
 					Twin->CopyInterpParameters(Classic);
+					UTexture* Base = nullptr;
+					if (Classic->GetTextureParameterValue(FHashedMaterialParameterInfo(TEXT("BaseTex")), Base) && Base)
+					{
+						ApplyDerivedMaps(*Twin, Base);
+					}
 					RiderTwins.Add(Classic, Twin);
 				}
 				Mesh->SetMaterial(S, Twin);
@@ -467,8 +652,18 @@ UMaterialInterface* USSXRemasterWorld::RemasteredFor(UMaterialInterface* Classic
 		UTexture* Base = nullptr;
 		if (Mid->GetTextureParameterValue(FHashedMaterialParameterInfo(TEXT("BaseTex")), Base) && Base)
 		{
+			// Terrain textures are named <index>_<n> (converted/tracks/<stem>/textures).
+			const FString N = Base->GetName();
+			int32 K = 0;
+			while (K < N.Len() && FChar::IsDigit(N[K])) { ++K; }
+			const UMaterial* Root = RootOf(Classic);
+			if (K > 0 && Root && Root->GetName().StartsWith(TEXT("M_SSXTerrain")))
+			{
+				if (const int32* C = SurfaceClasses.Find(FCString::Atoi(*N.Left(K)))) { Mid->SetScalarParameterValue(TEXT("RmSurface"), float(*C)); }
+			}
 			ApplyDerivedMaps(*Mid, Base);
 		}
+		if (TrailMap && RootOf(Classic) && RootOf(Classic)->GetName().StartsWith(TEXT("M_SSXTerrain"))) { Mid->SetTextureParameterValue(TEXT("RmTrails"), TrailMap); }
 		Result = Mid;
 	}
 	Remastered.Add(Classic, Result);
@@ -516,6 +711,36 @@ void USSXRemasterWorld::Apply()
 	UWorld* W = GetWorld();
 	if (!W || bApplied) { return; }
 	bApplied = true;
+	if (SurfaceClasses.Num() == 0)
+	{
+		SurfaceClasses = SSXRemaster::TerrainSurfaceClasses(UWorld::RemovePIEPrefix(W->GetMapName()).ToLower());
+	}
+	if (ASSXRaceManager::Find(W))
+	{
+		auto MakeRt = [this]()
+		{
+			UTextureRenderTarget2D* Rt = NewObject<UTextureRenderTarget2D>(this);
+			Rt->RenderTargetFormat = RTF_R16f;
+			Rt->ClearColor = FLinearColor::Black;
+			Rt->AddressX = TA_Clamp;
+			Rt->AddressY = TA_Clamp;
+			Rt->InitAutoFormat(SSXRemaster::TrailTexels, SSXRemaster::TrailTexels);
+			Rt->UpdateResourceImmediate(true);
+			return Rt;
+		};
+		TrailMap = MakeRt();
+		TrailScratch = MakeRt();
+		UMaterialInterface* Stamp = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Remastered/M_RmTrailStamp.M_RmTrailStamp"));
+		UMaterialInterface* Shift = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Remastered/M_RmTrailShift.M_RmTrailShift"));
+		TrailStamp = Stamp ? UMaterialInstanceDynamic::Create(Stamp, this) : nullptr;
+		TrailShift = Shift ? UMaterialInstanceDynamic::Create(Shift, this) : nullptr;
+		TrailLast.Reset();
+		if (const APlayerController* PC = W->GetFirstPlayerController())
+		{
+			if (PC->PlayerCameraManager) { const FVector C = PC->PlayerCameraManager->GetCameraLocation(); TrailOrigin = FVector2D(C.X, C.Y); }
+		}
+		SetTrailParams();
+	}
 	for (ULevel* L : W->GetLevels())
 	{
 		if (L) { SwapLevel(*L); }
@@ -756,6 +981,11 @@ void USSXRemasterWorld::Revert()
 		}
 	}
 	TerrainShadows.Reset();
+	TrailMap = nullptr;
+	TrailScratch = nullptr;
+	TrailLast.Reset();
+	Remastered.Reset();   // the cached terrain twins point at the released trail map
+	SetTrailParams();
 }
 
 int32 USSXRemasterLibrary::SetRemasteredInWorld(UObject* WorldContext, bool bRemastered)
