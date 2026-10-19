@@ -17,6 +17,13 @@ namespace
 	TAutoConsoleVariable<int32> CVarFeAllRidersSavedGear(TEXT("ssx.FE.AllRidersSavedGear"), 1,
 		TEXT("1: every FE rider wears its own saved board / outfit (user-requested port difference). 0: the original's rule ")
 		TEXT("(only the pad's rider, the others board 0 / outfit 0)."));
+
+	// PORT DEVIATION (user request): accepting a board / outfit on the Customize screens writes it to the rider's saved
+	// record at once; the original writes the records only at the character accept and the race start (0x1637F8), so a
+	// choice made after the accept is lost when the rider is changed or the menus are left without racing.
+	TAutoConsoleVariable<int32> CVarFeSaveGearOnAccept(TEXT("ssx.FE.SaveGearOnAccept"), 1,
+		TEXT("1: accepting a board / outfit on the Customize screens saves it to the rider's record (user-requested port ")
+		TEXT("difference). 0: the original (saved at the character accept and the race start only)."));
 }
 
 using namespace SSXFe;
@@ -1675,6 +1682,7 @@ void FSSXFrontEnd::Accept(FSSXFeState& S)
 	case ESSXFeScreen::CustomBoard:
 	case ESSXFeScreen::CustomBody:
 		// 0x28D5D0 / 0x28DDF8
+		if (Profile && CVarFeSaveGearOnAccept.GetValueOnAnyThread() != 0) { Profile->CommitSlotConfigs(NumPlayers); }
 		BeginBack(S, true);
 		break;
 	case ESSXFeScreen::RiderProfile:

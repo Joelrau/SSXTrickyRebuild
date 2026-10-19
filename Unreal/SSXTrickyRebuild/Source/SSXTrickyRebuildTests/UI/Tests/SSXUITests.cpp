@@ -1286,6 +1286,38 @@ bool FSSXUILockedGearPreviewTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+// 0x28DDF8 (+ ssx.FE.SaveGearOnAccept)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSSXUISaveGearOnAcceptTest, "SSX.UI.SaveGearOnAccept", UITestFlags)
+bool FSSXUISaveGearOnAcceptTest::RunTest(const FString& Parameters)
+{
+	IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("ssx.FE.SaveGearOnAccept"));
+	if (!TestNotNull(TEXT("cvar ssx.FE.SaveGearOnAccept"), CVar)) { return false; }
+	const int32 OldCVar = CVar->GetInt();
+	ON_SCOPE_EXIT { CVar->Set(OldCVar, ECVF_SetByCode); };
+	for (const int32 Save : { 0, 1 })
+	{
+		CVar->Set(Save, ECVF_SetByCode);
+		FFe F;
+		F.Cheats.bUnlockAll = true;
+		F.Profile.Slot[0].Char = 0;
+		F.Profile.Slot[0].Board = 0;
+		F.Profile.Slot[0].Outfit = 0;
+		auto RecOutfit = [&F]() { int32 Rec[5]; FMemory::Memcpy(Rec, F.Profile.RiderConfig[0], sizeof(Rec)); return Rec[3]; };
+		{ int32 Rec[5]; FMemory::Memcpy(Rec, F.Profile.RiderConfig[0], sizeof(Rec)); Rec[3] = 0; FMemory::Memcpy(F.Profile.RiderConfig[0], Rec, sizeof(Rec)); }
+		F.FE.GoTo(ESSXFeScreen::CustomBody);
+		for (int32 N = 0; N < 200 && !F.FE.IsReady(); ++N) { F.FE.Tick(); }
+		F.FE.Key(0, ESSXFeKey::Right);
+		F.FE.Tick();
+		const int32 Picked = F.Profile.Slot[0].Outfit;
+		if (!TestTrue(TEXT("moved to another outfit"), Picked > 0)) { return false; }
+		F.FE.Key(0, ESSXFeKey::Cross);
+		for (int32 N = 0; N < 200 && F.FE.Current() == ESSXFeScreen::CustomBody; ++N) { F.FE.Tick(); }
+		TestEqual(Save ? TEXT("accepted outfit saved to the rider's record") : TEXT("original: record unchanged until the race"),
+			RecOutfit(), Save ? Picked : 0);
+	}
+	return true;
+}
+
 // FUN_00267B18 / 0x263B30 / 0x163D30 / 0x163D98
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSSXUIFeRiderSpawnGearTest, "SSX.UI.FeRiderSpawnGear", UITestFlags)
 bool FSSXUIFeRiderSpawnGearTest::RunTest(const FString& Parameters)
