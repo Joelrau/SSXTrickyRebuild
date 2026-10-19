@@ -188,7 +188,8 @@ in the Classic look, which stays the default and renders exactly as before.
 - **Requirements:** a GPU with Shader Model 6 for Lumen (software ray tracing; no RT hardware needed). The project builds
   mesh distance fields for this, which makes the first editor load, the first capture of a track and the first cook
   slower (about half an hour per track once; cached afterwards).
-- **Not (yet) in:** hardware ray tracing (needs `r.RayTracing` set before start-up and RT shaders in the package).
+- **Ray tracing:** the project supports hardware ray tracing (`r.RayTracing`, DirectX 12 RT GPU). Epic runs Lumen on
+  it and shadows every track lamp; High shadows the 16 strongest lamps; without an RT GPU Lumen falls back to software.
 
 ## Project layout
 
