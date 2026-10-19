@@ -7,6 +7,8 @@
 #include "Engine/ExponentialHeightFog.h"
 #include "Engine/PointLight.h"
 #include "Engine/SpotLight.h"
+#include "Camera/PlayerCameraManager.h"
+#include "GameFramework/PlayerController.h"
 #include "Kismet/KismetMaterialLibrary.h"
 #include "Materials/MaterialParameterCollection.h"
 #include "Components/MeshComponent.h"
@@ -124,7 +126,7 @@ const SSXRemaster::FTrackTuning& SSXRemaster::TuningFor(const FString& Stem)
 		[&Make]() { FTrackTuning T = Make(TEXT("trick"), 0.25f, 0.9f, 0.2f, 1.0f, 5.f, 60.f); T.Bloom = 0.8f; return T; }(),
 		// Elysium's orange sunset light would turn its pink-purple slopes peach: a paler sun, more of the baked light.
 		Make(TEXT("elysium"), 1.6f, 0.3f, 0.5f, 0.7f, 3.f, 15.f),
-		[&Make]() { FTrackTuning T = Make(TEXT("frontend"), 0.f, 0.6f, 0.05f, 1.0f, 3.f, 15.f); T.FogDensity = 0.f; T.Saturation = 1.f; T.Bloom = 0.3f; T.bLightShadows = true; return T; }(),
+		[&Make]() { FTrackTuning T = Make(TEXT("frontend"), 0.f, 0.6f, 0.05f, 1.0f, 3.f, 15.f); T.FogDensity = 0.f; T.Saturation = 1.f; T.Bloom = 0.3f; T.MaxLights = 0; return T; }(),
 	};
 	static const FTrackTuning Default;
 	for (const FTrackTuning& T : Table)
@@ -141,6 +143,20 @@ const TCHAR* SSXRemaster::RemasteredRiderPath(const FString& ClassicParentName)
 	if (ClassicParentName == TEXT("M_SSXRiderLitChrome")) { return TEXT("/Game/Remastered/M_RmRiderChrome.M_RmRiderChrome"); }
 	if (ClassicParentName == TEXT("M_SSXRiderLitChrome_Masked")) { return TEXT("/Game/Remastered/M_RmRiderChrome_Masked.M_RmRiderChrome_Masked"); }
 	return nullptr;
+}
+
+UMaterialInterface* SSXRemaster::ClassicMaterial(UMeshComponent& C, int32 Slot)
+{
+	UWorld* W = C.GetWorld();
+	USSXRemasterWorld* R = W ? W->GetSubsystem<USSXRemasterWorld>() : nullptr;
+	return R ? R->ClassicMaterial(C, Slot) : C.GetMaterial(Slot);
+}
+
+UMaterialInstanceDynamic* SSXRemaster::ClassicMid(UMeshComponent& C, int32 Slot)
+{
+	UWorld* W = C.GetWorld();
+	USSXRemasterWorld* R = W ? W->GetSubsystem<USSXRemasterWorld>() : nullptr;
+	return R ? R->ClassicMid(C, Slot) : C.CreateAndSetMaterialInstanceDynamic(Slot);
 }
 
 bool SSXRemaster::RealRiderShadows(const UWorld& World)
@@ -216,6 +232,8 @@ void USSXRemasterWorld::Tick(float DeltaTime)
 	}
 	if (bApplied)
 	{
+		SyncFollowers();
+		UpdateFrontEndSpots();
 		SwapRiders();
 		if (AppliedQuality != SSXRenderLook::GetQuality()) { ApplyQuality(); }
 	}
@@ -234,6 +252,53 @@ void USSXRemasterWorld::ApplyQuality()
 	for (int32 I = 0; I < LocalLights.Num(); ++I)
 	{
 		if (ULocalLightComponent* C = LocalLights[I].Get()) { C->SetCastShadows(I < Shadowed); }
+	}
+}
+
+void USSXRemasterWorld::UpdateFrontEndSpots()
+{
+	UWorld* W = GetWorld();
+	if (!W) { return; }
+	// Front end: a stage spotlight above each carousel rider on the camera side (the light list's points sit inside
+	// the riders: they only light the riders' own rig).
+	FVector CamLoc = FVector::ZeroVector;
+	bool bCam = false;
+	if (const APlayerController* PC = W->GetFirstPlayerController())
+	{
+		if (PC->PlayerCameraManager) { CamLoc = PC->PlayerCameraManager->GetCameraLocation(); bCam = true; }
+	}
+	for (TActorIterator<ASSXFeRiderActor> It(W); It; ++It)
+	{
+		const FVector Target = It->GetActorLocation() + FVector(0, 0, 100);
+		FVector ToCam = bCam ? CamLoc - Target : It->GetActorForwardVector();
+		ToCam.Z = 0.0;
+		ToCam = ToCam.GetSafeNormal();
+		if (ToCam.IsNearlyZero()) { ToCam = FVector::ForwardVector; }
+		const FVector At = Target + ToCam * 250.0 + FVector(0, 0, 400);
+		const FRotator Rot = (Target - At).Rotation();
+		ASpotLight* Spot = Cast<ASpotLight>(FrontEndSpots.FindRef(*It).Get());
+		if (!Spot)
+		{
+			FActorSpawnParameters P;
+			P.ObjectFlags = RF_Transient;
+			P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+			Spot = W->SpawnActor<ASpotLight>(At, Rot, P);
+			if (!Spot) { continue; }
+			USpotLightComponent* C = CastChecked<USpotLightComponent>(Spot->GetLightComponent());
+			C->SetMobility(EComponentMobility::Movable);
+			C->SetIntensityUnits(ELightUnits::Candelas);
+			C->SetIntensity(40.f);
+			C->SetLightColor(FLinearColor(1.f, 0.95f, 0.88f));
+			C->SetOuterConeAngle(28.f);
+			C->SetInnerConeAngle(18.f);
+			C->SetAttenuationRadius(1200.f);
+			C->SetCastShadows(true);
+			FrontEndSpots.Add(*It, Spot);
+		}
+		else
+		{
+			Spot->SetActorLocationAndRotation(At, Rot);
+		}
 	}
 }
 
@@ -284,14 +349,92 @@ void USSXRemasterWorld::OnLevelAdded(ULevel* Level, UWorld* World)
 	if (bApplied && Level && World == GetWorld()) { SwapLevel(*Level); }
 }
 
+UMaterialInterface* USSXRemasterWorld::RemasteredParentOf(UMaterialInterface* Classic)
+{
+	const UMaterial* Root = RootOf(Classic);
+	const TCHAR* ParentPath = Root ? SSXRemaster::RemasteredParentPath(Root->GetName()) : nullptr;
+	return ParentPath ? LoadObject<UMaterialInterface>(nullptr, ParentPath) : nullptr;
+}
+
+void USSXRemasterWorld::ApplyDerivedMaps(UMaterialInstanceDynamic& Mid, UTexture* Base)
+{
+	static TWeakObjectPtr<UTexture> FlatNormal, NeutralMasks;
+	if (!FlatNormal.IsValid()) { FlatNormal = LoadObject<UTexture>(nullptr, TEXT("/Engine/EngineMaterials/FlatNormal.FlatNormal")); }
+	if (!NeutralMasks.IsValid()) { NeutralMasks = LoadObject<UTexture>(nullptr, TEXT("/Game/Remastered/T_RmMasksNeutral.T_RmMasksNeutral")); }
+	const FString Pkg = Base ? Base->GetOutermost()->GetName() : FString();
+	UTexture* C = Base ? LoadIfExists(SSXRemaster::DerivedMapPath(Pkg, TEXT("C"))) : nullptr;
+	UTexture* N = Base ? LoadIfExists(SSXRemaster::DerivedMapPath(Pkg, TEXT("N"))) : nullptr;
+	UTexture* M = Base ? LoadIfExists(SSXRemaster::DerivedMapPath(Pkg, TEXT("M"))) : nullptr;
+	if (Base) { Mid.SetTextureParameterValue(TEXT("BaseTex"), C ? C : Base); }
+	if (N || FlatNormal.IsValid()) { Mid.SetTextureParameterValue(TEXT("RmNormal"), N ? N : FlatNormal.Get()); }
+	if (M || NeutralMasks.IsValid()) { Mid.SetTextureParameterValue(TEXT("RmMasks"), M ? M : NeutralMasks.Get()); }
+}
+
+UMaterialInstanceDynamic* USSXRemasterWorld::MakeFollower(FSwap& S, UMaterialInstanceDynamic& Classic, UMeshComponent& C)
+{
+	UMaterialInterface* Parent = RemasteredParentOf(&Classic);
+	if (!Parent) { return nullptr; }
+	UMaterialInstanceDynamic* F = UMaterialInstanceDynamic::Create(Parent, &C);
+	F->CopyInterpParameters(&Classic);
+	S.Follower = F;
+	S.FollowedBase = nullptr;
+	C.SetMaterial(S.Slot, F);
+	return F;
+}
+
+USSXRemasterWorld::FSwap* USSXRemasterWorld::FindSwap(UMeshComponent& C, int32 Slot)
+{
+	const int32* I = SwapIndex.Find(TPair<TWeakObjectPtr<UMeshComponent>, int32>(&C, Slot));
+	return I && Swaps.IsValidIndex(*I) ? &Swaps[*I] : nullptr;
+}
+
+UMaterialInterface* USSXRemasterWorld::ClassicMaterial(UMeshComponent& C, int32 Slot)
+{
+	const FSwap* S = FindSwap(C, Slot);
+	return S ? S->Original.Get() : C.GetMaterial(Slot);
+}
+
+UMaterialInstanceDynamic* USSXRemasterWorld::ClassicMid(UMeshComponent& C, int32 Slot)
+{
+	FSwap* S = FindSwap(C, Slot);
+	if (!S) { return C.CreateAndSetMaterialInstanceDynamic(Slot); }
+	UMaterialInstanceDynamic* Classic = Cast<UMaterialInstanceDynamic>(S->Original.Get());
+	if (!Classic)
+	{
+		UMaterialInterface* Orig = S->Original.Get();
+		if (!Orig) { return nullptr; }
+		Classic = UMaterialInstanceDynamic::Create(Orig, &C);
+		ClassicMids.Add(Classic);
+		S->Original = Classic;
+	}
+	if (!S->Follower.IsValid()) { MakeFollower(*S, *Classic, C); }
+	return Classic;
+}
+
+void USSXRemasterWorld::SyncFollowers()
+{
+	for (FSwap& S : Swaps)
+	{
+		UMaterialInstanceDynamic* F = S.Follower.Get();
+		const UMaterialInstanceDynamic* Classic = Cast<UMaterialInstanceDynamic>(S.Original.Get());
+		if (!F || !Classic) { continue; }
+		for (const FScalarParameterValue& V : Classic->ScalarParameterValues) { F->SetScalarParameterValue(V.ParameterInfo.Name, V.ParameterValue); }
+		for (const FVectorParameterValue& V : Classic->VectorParameterValues) { F->SetVectorParameterValue(V.ParameterInfo.Name, V.ParameterValue); }
+		UTexture* Base = nullptr;
+		Classic->GetTextureParameterValue(FHashedMaterialParameterInfo(TEXT("BaseTex")), Base);
+		if (Base != S.FollowedBase.Get())
+		{
+			ApplyDerivedMaps(*F, Base);
+			S.FollowedBase = Base;
+		}
+	}
+}
+
 UMaterialInterface* USSXRemasterWorld::RemasteredFor(UMaterialInterface* Classic)
 {
 	if (TObjectPtr<UMaterialInterface>* Found = Remastered.Find(Classic)) { return *Found; }
 	UMaterialInterface* Result = nullptr;
-	const UMaterial* Root = RootOf(Classic);
-	const TCHAR* ParentPath = Root ? SSXRemaster::RemasteredParentPath(Root->GetName()) : nullptr;
-	UMaterialInterface* Parent = ParentPath ? LoadObject<UMaterialInterface>(nullptr, ParentPath) : nullptr;
-	if (Parent)
+	if (UMaterialInterface* Parent = RemasteredParentOf(Classic))
 	{
 		UMaterialInstanceDynamic* Mid = UMaterialInstanceDynamic::Create(Parent, this);
 		TArray<const UMaterialInstance*> Chain;
@@ -305,10 +448,7 @@ UMaterialInterface* USSXRemasterWorld::RemasteredFor(UMaterialInterface* Classic
 		UTexture* Base = nullptr;
 		if (Mid->GetTextureParameterValue(FHashedMaterialParameterInfo(TEXT("BaseTex")), Base) && Base)
 		{
-			const FString Pkg = Base->GetOutermost()->GetName();
-			if (UTexture* C = LoadIfExists(SSXRemaster::DerivedMapPath(Pkg, TEXT("C")))) { Mid->SetTextureParameterValue(TEXT("BaseTex"), C); }
-			if (UTexture* N = LoadIfExists(SSXRemaster::DerivedMapPath(Pkg, TEXT("N")))) { Mid->SetTextureParameterValue(TEXT("RmNormal"), N); }
-			if (UTexture* M = LoadIfExists(SSXRemaster::DerivedMapPath(Pkg, TEXT("M")))) { Mid->SetTextureParameterValue(TEXT("RmMasks"), M); }
+			ApplyDerivedMaps(*Mid, Base);
 		}
 		Result = Mid;
 	}
@@ -321,9 +461,22 @@ void USSXRemasterWorld::SwapComponent(UMeshComponent& C)
 	for (int32 S = 0; S < C.GetNumMaterials(); ++S)
 	{
 		UMaterialInterface* M = C.GetMaterial(S);
+		if (UMaterialInstanceDynamic* Classic = Cast<UMaterialInstanceDynamic>(M))
+		{
+			// A Classic instance game code already animates: a per-slot twin that follows it.
+			if (!RemasteredParentOf(Classic)) { continue; }
+			FSwap& Sw = Swaps.AddDefaulted_GetRef();
+			Sw.Component = &C;
+			Sw.Slot = S;
+			Sw.Original = Classic;
+			SwapIndex.Add(TPair<TWeakObjectPtr<UMeshComponent>, int32>(&C, S), Swaps.Num() - 1);
+			MakeFollower(Sw, *Classic, C);
+			continue;
+		}
 		UMaterialInterface* R = M ? RemasteredFor(M) : nullptr;
 		if (!R) { continue; }
 		Swaps.Add({ &C, S, M });
+		SwapIndex.Add(TPair<TWeakObjectPtr<UMeshComponent>, int32>(&C, S), Swaps.Num() - 1);
 		C.SetMaterial(S, R);
 	}
 }
@@ -522,6 +675,13 @@ void USSXRemasterWorld::Revert()
 		if (UMeshComponent* C = S.Component.Get()) { C->SetMaterial(S.Slot, S.Original.Get()); }
 	}
 	Swaps.Reset();
+	SwapIndex.Reset();
+	ClassicMids.Reset();
+	for (const TPair<TWeakObjectPtr<AActor>, TWeakObjectPtr<AActor>>& P : FrontEndSpots)
+	{
+		if (AActor* A = P.Value.Get()) { A->Destroy(); }
+	}
+	FrontEndSpots.Reset();
 	USSXWorldPresentation* Pres = GetWorld() ? GetWorld()->GetSubsystem<USSXWorldPresentation>() : nullptr;
 	for (int32 I = RiderSwaps.Num() - 1; I >= 0; --I)
 	{

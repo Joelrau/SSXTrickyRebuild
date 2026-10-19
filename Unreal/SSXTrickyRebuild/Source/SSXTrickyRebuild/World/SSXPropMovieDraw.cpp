@@ -10,6 +10,7 @@
 #include "GameFramework/Actor.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "SSXTrickyRebuild.h"
+#include "World/SSXRemasterWorld.h"
 #include "TextureResource.h"
 
 namespace
@@ -106,14 +107,14 @@ void USSXPropAnimation::ApplyMovies()
 				{
 					for (int32 Slot = 0; Slot < Comp->GetNumMaterials(); ++Slot)
 					{
-						UMaterialInterface* Mat = Comp->GetMaterial(Slot);
+						UMaterialInterface* Mat = SSXRemaster::ClassicMaterial(*Comp, Slot);
 						UTexture* Own = nullptr;
 						if (!Mat || !Mat->GetTextureParameterValue(FHashedMaterialParameterInfo(MovieBaseTexParam), Own))
 						{
 							continue;
 						}
 						// 0x148D28 / 0x1E1F70 / 0x200390
-						if (UMaterialInstanceDynamic* Mid = Comp->CreateAndSetMaterialInstanceDynamic(Slot))
+						if (UMaterialInstanceDynamic* Mid = SSXRemaster::ClassicMid(*Comp, Slot))
 						{
 							Mid->SetTextureParameterValue(MovieBaseTexParam, MovieTexture);
 							Slots.Add({ Mid, INDEX_NONE, Own });
@@ -211,13 +212,13 @@ void USSXPropAnimation::ApplyTextureOverrides()
 					{
 						for (int32 Slot = 0; Slot < Comp->GetNumMaterials(); ++Slot)
 						{
-							UMaterialInterface* Mat = Comp->GetMaterial(Slot);
+							UMaterialInterface* Mat = SSXRemaster::ClassicMaterial(*Comp, Slot);
 							UTexture* Own = nullptr;
 							if (!Mat || !Mat->GetTextureParameterValue(FHashedMaterialParameterInfo(MovieBaseTexParam), Own))
 							{
 								continue;
 							}
-							if (UMaterialInstanceDynamic* Mid = Comp->CreateAndSetMaterialInstanceDynamic(Slot))
+							if (UMaterialInstanceDynamic* Mid = SSXRemaster::ClassicMid(*Comp, Slot))
 							{
 								New.Add({ Mid, INDEX_NONE, Own });
 								Flat.AddUnique(Comp);

@@ -1,4 +1,5 @@
 #include "World/SSXPropAnimation.h"
+#include "World/SSXRemasterWorld.h"
 #include "Sim/SimCoords.h"
 #include "Race/GameRng.h"
 
@@ -1178,7 +1179,7 @@ void USSXPropAnimation::ApplyRender()
 					{
 						for (int32 Slot = 0; Slot < Comp->GetNumMaterials(); ++Slot)
 						{
-							if (UMaterialInstanceDynamic* MID = Comp->CreateAndSetMaterialInstanceDynamic(Slot))
+							if (UMaterialInstanceDynamic* MID = SSXRemaster::ClassicMid(*Comp, Slot))
 							{
 								MIDs->Add(MID);
 							}

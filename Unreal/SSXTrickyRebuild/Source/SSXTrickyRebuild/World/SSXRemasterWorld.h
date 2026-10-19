@@ -59,6 +59,12 @@ namespace SSXRemaster
 	/** The Remastered look draws real rider shadows in this world (a sun of at least 1 lux); elsewhere the original
 	 *  projected shadow stays (Particles/SSXParticleWorld.cpp). */
 	SSXTRICKYREBUILD_API bool RealRiderShadows(const UWorld& World);
+	/** The Classic material of a slot, also while the Remastered look shows a lit twin there (game code reading
+	 *  parameters, e.g. the flipbooks' BaseTex). */
+	SSXTRICKYREBUILD_API UMaterialInterface* ClassicMaterial(UMeshComponent& C, int32 Slot);
+	/** CreateAndSetMaterialInstanceDynamic on the Classic side: game code that animates a slot (UV scroll, flipbooks,
+	 *  movie screens) always drives a Classic instance; in the Remastered look its lit twin follows it every frame. */
+	SSXTRICKYREBUILD_API UMaterialInstanceDynamic* ClassicMid(UMeshComponent& C, int32 Slot);
 	/** How many of the strongest track lights cast shadows at a quality: Epic all, High 16, Medium / Low none. */
 	SSXTRICKYREBUILD_API int32 ShadowedLights(int32 Quality, int32 NumLights);
 	constexpr double SkyDistance = 60000.0;   // cm: the sky dome (<= 17.5 m x 50) and beyond become the sky light
@@ -80,6 +86,8 @@ public:
 
 	void Apply();
 	void Revert();
+	UMaterialInterface* ClassicMaterial(UMeshComponent& C, int32 Slot);
+	UMaterialInstanceDynamic* ClassicMid(UMeshComponent& C, int32 Slot);
 	bool IsApplied() const { return bApplied; }
 	int32 NumSwapped() const { return Swaps.Num(); }
 
@@ -96,8 +104,18 @@ private:
 		TWeakObjectPtr<UMeshComponent> Component;
 		int32 Slot = 0;
 		TWeakObjectPtr<UMaterialInterface> Original;
+		TWeakObjectPtr<UMaterialInstanceDynamic> Follower;   // per-slot twin of a Classic instance game code animates
+		TWeakObjectPtr<UTexture> FollowedBase;
 	};
 	TArray<FSwap> Swaps;
+	TMap<TPair<TWeakObjectPtr<UMeshComponent>, int32>, int32> SwapIndex;
+	FSwap* FindSwap(UMeshComponent& C, int32 Slot);
+	UMaterialInterface* RemasteredParentOf(UMaterialInterface* Classic);
+	void ApplyDerivedMaps(UMaterialInstanceDynamic& Mid, UTexture* Base);
+	UMaterialInstanceDynamic* MakeFollower(FSwap& S, UMaterialInstanceDynamic& Classic, UMeshComponent& C);
+	void SyncFollowers();
+	void UpdateFrontEndSpots();
+	TMap<TWeakObjectPtr<AActor>, TWeakObjectPtr<AActor>> FrontEndSpots;   // carousel rider -> its stage spotlight
 	TArray<TWeakObjectPtr<APostProcessVolume>> DisabledVolumes;
 	TArray<FSwap> RiderSwaps;
 	TArray<TWeakObjectPtr<UMeshComponent>> ShadowCasters;   // rider parts made to cast shadows (Classic: none do)
@@ -107,6 +125,8 @@ private:
 	TMap<TObjectPtr<UMaterialInterface>, TObjectPtr<UMaterialInterface>> Remastered;
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<AActor>> Spawned;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UMaterialInstanceDynamic>> ClassicMids;   // Classic instances made while a twin is shown
 
 	TWeakObjectPtr<APostProcessVolume> Volume;
 	TArray<TWeakObjectPtr<class ULocalLightComponent>> LocalLights;   // strongest first
