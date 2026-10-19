@@ -119,7 +119,9 @@ float av = floor(VA * 255.0 + 0.5);
 return min(floor(at * av / 128.0), 255.0);
 """
 PROP_ATEST = "return As > 1.0 ? 1.0 : 0.0;"
-PROP_BLEND = "return (As > 1.0 && As < 128.0) ? As / 128.0 : 0.0;"
+# The Classic blend factor As / 128, made thinner: blending in linear light shows a semi-transparent layer much
+# stronger than the PS2's display-space blend (Alaska's light curtains turned into white sheets).
+PROP_BLEND = "return (As > 1.0 && As < 128.0) ? pow(As / 128.0, 1.6) : 0.0;"
 SOFT_DEPTH = "return (PD <= CD.r * 1.0005 + 0.5) ? 1.0 : 0.0;"
 SKY_SHADE = f"return {DEC.format(x='saturate(' + ENC.format(x='Tex') + ' * Factor)')};"
 CLEAR_SHADE = f"return {DEC.format(x='saturate(C.rgb)')};"
