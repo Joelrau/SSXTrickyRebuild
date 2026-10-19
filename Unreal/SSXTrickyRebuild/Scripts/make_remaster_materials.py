@@ -12,7 +12,7 @@ every frame) becomes a local fill and a rim light in the track's colours, on top
 outfits are metal, glossy parts smoother; the rider depth pull and guard band of the Classic riders stay.
 M_RmParticleAdd / M_RmParticleAlpha: the Classic sprite colours (GsSprite) as linear light, faded softly where they
 meet geometry, with the Classic soft-prop depth test.
-PP_RmScene replaces the tonemapper in the Remastered look: unlit pixels (riders, sky, particles: still the Classic
+PP_RmScene replaces the tonemapper in the Remastered look (it adds the engine's bloom itself): unlit pixels (riders, sky, particles: still the Classic
 materials, PS2 display values) pass through exactly as PP_SSXAuthoredColour shows them; lit pixels (linear light) get
 the exposure, a soft shoulder and the sRGB encode.
 """
@@ -122,8 +122,9 @@ SPRITE_ADD = f"return {DEC.format(x='saturate(S.rgb * S.a)')} * Fade;"
 SPRITE_ALPHA = f"return {DEC.format(x='saturate(S.rgb)')};"
 PP_SCENE = f"""
 float3 s = max(Scene.rgb / View.PreExposure, 0.0);
-if (SM.r < 0.001) return saturate(s * Brightness);
-float3 c = s * Exposure;
+float3 b = max(Bloom.rgb / View.PreExposure, 0.0);
+if (SM.r < 0.001) return saturate((s + {ENC.format(x='saturate(b)')} * 0.5) * Brightness);   // unlit: Classic + a share of the glow
+float3 c = (s + b) * Exposure;
 c = max(lerp(dot(c, float3(0.2126, 0.7152, 0.0722)).xxx, c, Saturation), 0.0);
 float k = 0.8;
 c = c < k ? c : k + (1.0 - k) * (1.0 - exp(-(c - k) / (1.0 - k)));
@@ -481,9 +482,10 @@ pp = recreate("PP_RmScene", unreal.Material, unreal.MaterialFactoryNew())
 pp.set_editor_property("material_domain", unreal.MaterialDomain.MD_POST_PROCESS)
 pp.set_editor_property("blendable_location", unreal.BlendableLocation.BL_REPLACING_TONEMAPPER)
 scene = expr(pp, unreal.MaterialExpressionSceneTexture, -700, 0, scene_texture_id=unreal.SceneTextureId.PPI_POST_PROCESS_INPUT0)
+bloom = expr(pp, unreal.MaterialExpressionSceneTexture, -700, 100, scene_texture_id=unreal.SceneTextureId.PPI_POST_PROCESS_INPUT2)   # combined bloom
 sm = expr(pp, unreal.MaterialExpressionSceneTexture, -700, 200, scene_texture_id=unreal.SceneTextureId.PPI_SHADING_MODEL_ID)
 enc = custom(pp, -350, 0, PP_SCENE, F3,
-             [("Scene", (scene, "Color")), ("SM", (sm, "Color")),
+             [("Scene", (scene, "Color")), ("Bloom", (bloom, "Color")), ("SM", (sm, "Color")),
               ("Brightness", (coll(pp, mpc, "Brightness", -700, 400), "")),
               ("Exposure", (coll(pp, rm, "Exposure", -700, 500), "")),
               ("Saturation", (coll(pp, rm, "Saturation", -700, 600), ""))], "RmScene")

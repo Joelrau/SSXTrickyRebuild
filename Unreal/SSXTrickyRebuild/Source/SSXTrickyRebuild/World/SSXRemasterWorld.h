@@ -45,6 +45,7 @@ namespace SSXRemaster
 		float Saturation = 1.15f;
 		float Emissive = 3.0f;
 		float FogDensity = 0.02f;
+		float Bloom = 0.5f;             // bloom intensity, threshold 1 (highlights only)
 		float LightCandela = 15.f;      // track point / spot lights: candela per unit of the original colour
 		int32 MaxLights = 48;
 	};

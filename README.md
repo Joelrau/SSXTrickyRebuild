@@ -178,7 +178,8 @@ in the Classic look, which stays the default and renders exactly as before.
   tint and ambient light, so every track keeps its colours); a sun from the track's own strongest light, a sky light,
   the track's point / spot lights as real lights, height fog towards the track's clear colour; riders are lit (the
   original light rig becomes their fill and rim light, chrome outfits are metal) and cast real shadows instead of the
-  projected one; snow spray and other additive / alpha sprites fade softly into the snow. Night and indoor tracks have
+  projected one; snow spray and other additive / alpha sprites fade softly into the snow; highlights (lamps, neon,
+  sun glints) bloom. Night and indoor tracks have
   their own tuning (`SSXRemaster::TuningFor`).
 - **Materials:** `Scripts\make_remaster_materials.py` creates `Content/Remastered` (no game data; committed).
 - **Checking it without running the game:** `Scripts\capture_look.py <Map> <out dir>` renders the map offscreen in
@@ -187,8 +188,7 @@ in the Classic look, which stays the default and renders exactly as before.
 - **Requirements:** a GPU with Shader Model 6 for Lumen (software ray tracing; no RT hardware needed). The project builds
   mesh distance fields for this, which makes the first editor load, the first capture of a track and the first cook
   slower (about half an hour per track once; cached afterwards).
-- **Not (yet) in:** hardware ray tracing (needs `r.RayTracing` set before start-up and RT shaders in the package),
-  bloom (the Remastered post pass still replaces the tonemapper so unlit parts look exactly like Classic).
+- **Not (yet) in:** hardware ray tracing (needs `r.RayTracing` set before start-up and RT shaders in the package).
 
 ## Project layout
 
