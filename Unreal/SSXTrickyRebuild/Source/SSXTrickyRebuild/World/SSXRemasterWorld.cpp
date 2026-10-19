@@ -110,11 +110,12 @@ const SSXRemaster::FTrackTuning& SSXRemaster::TuningFor(const FString& Stem)
 		return T;
 	};
 	// Night (Snowdream, Merqury City): a faint coloured moon, the baked light and the lamps carry the scene; indoor
-	// (Tokyo Megaplex): hardly any sun.
+	// (Tokyo Megaplex): hardly any sun; the front end's dark ice backdrop: no sun, only its own light.
 	static const FTrackTuning Table[] = {
 		Make(TEXT("snow"), 0.25f, 0.9f, 0.2f, 1.0f, 5.f, 60.f),
 		Make(TEXT("merquer"), 0.25f, 0.9f, 0.2f, 1.0f, 5.f, 60.f),
 		Make(TEXT("megaple"), 0.2f, 0.6f, 0.3f, 0.95f, 4.f, 40.f),
+		[&Make]() { FTrackTuning T = Make(TEXT("frontend"), 0.f, 0.6f, 0.05f, 1.0f, 3.f, 15.f); T.FogDensity = 0.f; return T; }(),
 	};
 	static const FTrackTuning Default;
 	for (const FTrackTuning& T : Table)
@@ -402,7 +403,7 @@ void USSXRemasterWorld::Apply()
 			SunColour = FMath::Lerp(FLinearColor::White, FLinearColor(L.Colour.X / Max, L.Colour.Y / Max, L.Colour.Z / Max), T.SunSaturation);
 		}
 	}
-	if (ADirectionalLight* D = W->SpawnActor<ADirectionalLight>(FVector::ZeroVector, SunDir.Rotation(), P))
+	if (ADirectionalLight* D = T.SunLux > 0.f ? W->SpawnActor<ADirectionalLight>(FVector::ZeroVector, SunDir.Rotation(), P) : nullptr)
 	{
 		UDirectionalLightComponent* C = CastChecked<UDirectionalLightComponent>(D->GetLightComponent());
 		C->SetMobility(EComponentMobility::Movable);
@@ -455,7 +456,7 @@ void USSXRemasterWorld::Apply()
 		C->SetCastShadows(false);
 	}
 
-	if (Track)
+	if (Track && T.FogDensity > 0.f)
 	{
 		if (AExponentialHeightFog* F = W->SpawnActor<AExponentialHeightFog>(P))
 		{

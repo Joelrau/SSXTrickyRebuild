@@ -6,7 +6,7 @@
 Never starts the game: the map is loaded as an editor world, the Remastered look is applied with
 USSXRemasterLibrary.SetRemasteredInWorld and a SceneCapture2D renders <out>/<Map>_classic.png and _remastered.png
 (final colour, post-process volumes included). Without a camera pose the shot looks at the terrain from above its
-highest corner. Editor worlds have no track presentation (MPC values, LOD terrain), so Classic here is an approximation.
+highest corner (the front end: from the side of all its meshes). Editor worlds have no track presentation (MPC values, LOD terrain), so Classic here is an approximation.
 """
 import os
 import sys
@@ -38,10 +38,17 @@ def main():
                 if mesh and mesh.get_name().endswith("_terrain"):
                     o, e = a.get_actor_bounds(False)
                     lo, hi = o - e, o + e
-        if lo is None:
-            raise RuntimeError("no *_terrain mesh in the map")
-        centre = (lo + hi) * 0.5
-        loc = unreal.Vector(hi.x, hi.y, hi.z + 3000.0)
+        if lo is None:   # front end: frame every static mesh from the side
+            for a in unreal.get_editor_subsystem(unreal.EditorActorSubsystem).get_all_level_actors():
+                if a.get_components_by_class(unreal.StaticMeshComponent):
+                    o, e = a.get_actor_bounds(False)
+                    lo = o - e if lo is None else unreal.Vector(min(lo.x, o.x - e.x), min(lo.y, o.y - e.y), min(lo.z, o.z - e.z))
+                    hi = o + e if hi is None else unreal.Vector(max(hi.x, o.x + e.x), max(hi.y, o.y + e.y), max(hi.z, o.z + e.z))
+            centre = (lo + hi) * 0.5
+            loc = unreal.Vector(centre.x + (hi.x - lo.x) * 0.6, centre.y, centre.z + (hi.z - lo.z) * 0.25)
+        else:
+            centre = (lo + hi) * 0.5
+            loc = unreal.Vector(hi.x, hi.y, hi.z + 3000.0)
         rot = unreal.MathLibrary.find_look_at_rotation(loc, centre)
     unreal.log(f"[ssx] capture camera {loc} {rot}")
 
