@@ -103,6 +103,11 @@ class SSXTRICKYREBUILD_API FRaceTrackData
 {
 public:
 	int32 TrackId = -1;
+	/** The game's track index (DAT_0032DE88, the front end's venue id): TrackId except the trick tutorial (data 9,
+	 *  game 10) and Alaska (data 10, game 11). Indexes the game's per-track tables: showoff time limit 0x332F34,
+	 *  catch-up, showoff medal thresholds, records. */
+	int32 GameTrack = -1;
+	static int32 GameTrackOf(int32 DataTrackId);
 	bool bHasWorldFloor = false;
 	double WorldFloorZ = 0.0;
 	FVector LtgBoundsMin = FVector::ZeroVector;
