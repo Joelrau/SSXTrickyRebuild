@@ -489,6 +489,7 @@ void FSSXOverlayManager::DrawPause(FSSXFeDrawList& D) const
 void FSSXOverlayManager::DrawPauseTrickBook(FSSXFeDrawList& D, float Top) const
 {
 	// 0x1AC7E0
+	const FSSXPromptScope Prompts(D, ESSXPromptContext::Race);   // the combos are pressed while racing
 	(void)Top;
 	const int32 Char = Profile ? FMath::Clamp(Profile->Slot[PausePlayer].Char, 0, SSXProg::NumRiders - 1) : 0;
 	const int32 Ch = TrickBookChapter();

@@ -486,6 +486,7 @@ void FSSXHudOverlay::Draw(FSSXFeDrawList& D, const FSSXHudInput& In) const
 {
 	if (IsHidden(In)) return;
 	if (In.LessonState >= 0 && In.LessonState != 5 && In.LessonState != 7 && In.LessonState != 8) return;
+	const FSSXPromptScope Prompts(D, In.LessonState >= 0 ? ESSXPromptContext::Original : ESSXPromptContext::Race);
 	const uint32 Mask = MaskFor(In.HudDetail);
 	for (int32 I = 0; I < In.Players.Num() && I < MaxPlayers; ++I)
 	{

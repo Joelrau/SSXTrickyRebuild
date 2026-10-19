@@ -29,6 +29,8 @@ public class SSXTrickyRebuild : ModuleRules
 			{
 				RuntimeDependencies.Add("$(ProjectDir)/SimData/" + Rel, StagedFileType.NonUFS);
 			}
+			// Button prompt images (UI/SSXPrompts.h), committed: CC0, not game data.
+			RuntimeDependencies.Add("$(ProjectDir)/Prompts/...", StagedFileType.NonUFS);
 			string[] RepoData = {
 				"converted/audio/...",              // manifest, pathfinder music, speech, crowd, INF configs
 				"converted/frontend/*.json",        // FE tables, sprites, cameras, strings, progression

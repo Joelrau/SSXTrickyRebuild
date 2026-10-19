@@ -135,6 +135,7 @@ namespace
 
 void FSSXOverlayManager::DrawLesson(FSSXFeDrawList& D) const
 {
+	const FSSXPromptScope Prompts(D, ESSXPromptContext::Original);   // the lessons keep the PS2 pad
 	const SSXLesson::FLessonMan* Ls = Host ? Host->GetLesson() : nullptr;
 	if (!Ls || !Loc)
 	{

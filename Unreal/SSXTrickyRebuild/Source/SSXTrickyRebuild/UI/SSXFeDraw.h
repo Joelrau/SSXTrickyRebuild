@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Styling/SlateBrush.h"
 #include "UI/SSXFeTypes.h"
+#include "UI/SSXPrompts.h"
 #include "Widgets/SLeafWidget.h"
 
 class UTexture;
@@ -47,6 +48,8 @@ struct SSXTRICKYREBUILD_API FSSXSprite
 	FName Page;
 	float W = 0.f, H = 0.f;
 	float U0 = 0.f, V0 = 0.f, U1 = 1.f, V1 = 1.f;
+	/** A button prompt (SSXPrompts): the image's w / h, drawn centred in the box at that aspect, never mirrored. 0 = fill the box. */
+	float FitAspect = 0.f;
 };
 
 class SSXTRICKYREBUILD_API FSSXSpriteTable
@@ -115,6 +118,9 @@ public:
 	static FLinearColor ScreenColor(const FSSXFeDrawCmd& C);
 	explicit FSSXFeDrawList(const FSSXFeAssets* InAssets = nullptr) : Assets(InAssets) {}
 
+	/** The key map button prompts describe (SSXPrompts); FSSXPromptScope sets it for a block of draws. */
+	ESSXPromptContext PromptContext = ESSXPromptContext::Menu;
+
 	void Reset() { Cmds.Reset(); Texts.Reset(); TextRecs.Reset(); }
 
 	void Rect(float X, float Y, float W, float H, const FLinearColor& Color, int32 Layer = 0);
@@ -181,4 +187,12 @@ private:
 	const FSSXFeDrawList* DrawList = nullptr;
 	bool bFillBlack = false;
 	mutable TMap<TWeakObjectPtr<UObject>, TSharedPtr<FSlateBrush>> Brushes;
+};
+
+struct FSSXPromptScope
+{
+	FSSXFeDrawList& D;
+	ESSXPromptContext Old;
+	FSSXPromptScope(FSSXFeDrawList& InD, ESSXPromptContext Ctx) : D(InD), Old(InD.PromptContext) { D.PromptContext = Ctx; }
+	~FSSXPromptScope() { D.PromptContext = Old; }
 };

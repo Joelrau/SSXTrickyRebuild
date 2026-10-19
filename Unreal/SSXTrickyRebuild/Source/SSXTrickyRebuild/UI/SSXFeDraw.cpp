@@ -288,7 +288,8 @@ void SSXFeDrawHud::SetSheet(const FSSXSpriteTable* Sprites, const TMap<FName, UT
 
 const FSSXSpriteTable* SSXFeDrawHud::GetSheet() { return GHudSheet; }
 
-static const FSSXSprite* ResolveSprite(const FSSXFeAssets* Assets, int32 Id, bool bHud, UTexture*& OutPage)
+static const FSSXSprite* ResolveSprite(const FSSXFeAssets* Assets, int32 Id, bool bHud, UTexture*& OutPage,
+	ESSXPromptContext Prompts = ESSXPromptContext::Original)
 {
 	OutPage = nullptr;
 	const FSSXSpriteTable* Table = Assets ? (bHud ? Assets->HudSprites : Assets->FeSprites) : nullptr;
@@ -307,6 +308,12 @@ static const FSSXSprite* ResolveSprite(const FSSXFeAssets* Assets, int32 Id, boo
 		Page = GHudPages->Find(S->Page);
 	}
 	OutPage = Page ? *Page : nullptr;
+	if (OutPage && Prompts != ESSXPromptContext::Original)
+	{
+		static FSSXSprite Prompt;
+		Prompt = *S;
+		if (SSXPrompts::Substitute(Id, bHud, Prompts, Prompt, OutPage)) { return &Prompt; }
+	}
 	return OutPage ? S : nullptr;
 }
 
@@ -319,7 +326,7 @@ bool FSSXFeDrawList::SpriteEx(int32 Id, float X, float Y, float W, float H, cons
 	bool bFlipX, bool bFlipY)
 {
 	UTexture* Page = nullptr;
-	const FSSXSprite* S = ResolveSprite(Assets, Id, bHud, Page);
+	const FSSXSprite* S = ResolveSprite(Assets, Id, bHud, Page, PromptContext);
 	if (!S)
 	{
 		return false;
@@ -329,6 +336,14 @@ bool FSSXFeDrawList::SpriteEx(int32 Id, float X, float Y, float W, float H, cons
 	C.Layer = Layer;
 	C.Pos = FVector2f(X, Y);
 	C.Size = FVector2f(W < 0.f ? S->W : W, H < 0.f ? S->H : H);
+	if (S->FitAspect > 0.f && C.Size.Y > 0.f)
+	{
+		const FVector2f Fit = S->FitAspect > C.Size.X / C.Size.Y ? FVector2f(C.Size.X, C.Size.X / S->FitAspect)
+			: FVector2f(C.Size.Y * S->FitAspect, C.Size.Y);
+		C.Pos += (C.Size - Fit) * 0.5f;
+		C.Size = Fit;
+		bFlipX = bFlipY = false;
+	}
 	C.UV0 = FVector2f(bFlipX ? S->U1 : S->U0, bFlipY ? S->V1 : S->V0);
 	C.UV1 = FVector2f(bFlipX ? S->U0 : S->U1, bFlipY ? S->V0 : S->V1);
 	C.Texture = Page;

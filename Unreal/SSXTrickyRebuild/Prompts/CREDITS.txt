@@ -1,0 +1,2 @@
+Button prompt images from "Free Input Prompts" by Julio Cacko, https://juliocacko.itch.io/free-input-prompts
+License: CC0 1.0 Universal. Copied and cropped by tools/import_prompts.py.
