@@ -91,6 +91,7 @@ const TCHAR* SSXRemaster::RemasteredParentPath(const FString& ClassicRootName)
 		{ TEXT("M_SSXSky"), TEXT("/Game/Remastered/M_RmSky.M_RmSky") },
 		{ TEXT("M_SSXClearColour"), TEXT("/Game/Remastered/M_RmClearColour.M_RmClearColour") },
 		{ TEXT("M_SSXProp_Translucent_TwoSided"), TEXT("/Game/Remastered/M_RmProp_Translucent.M_RmProp_Translucent") },
+		{ TEXT("M_SSXPropCrowd"), TEXT("/Game/Remastered/M_RmPropCrowd.M_RmPropCrowd") },
 	};
 	const TCHAR* const* P = Map.Find(ClassicRootName);
 	return P ? *P : nullptr;
@@ -174,6 +175,14 @@ UMaterialInstanceDynamic* SSXRemaster::ClassicMid(UMeshComponent& C, int32 Slot)
 	UWorld* W = C.GetWorld();
 	USSXRemasterWorld* R = W ? W->GetSubsystem<USSXRemasterWorld>() : nullptr;
 	return R ? R->ClassicMid(C, Slot) : C.CreateAndSetMaterialInstanceDynamic(Slot);
+}
+
+void SSXRemaster::SetClassicMaterial(UMeshComponent& C, int32 Slot, UMaterialInterface* M)
+{
+	UWorld* W = C.GetWorld();
+	USSXRemasterWorld* R = W ? W->GetSubsystem<USSXRemasterWorld>() : nullptr;
+	if (R) { R->SetClassicMaterial(C, Slot, M); }
+	else { C.SetMaterial(Slot, M); }
 }
 
 bool SSXRemaster::RealRiderShadows(const UWorld& World)
@@ -635,6 +644,24 @@ UMaterialInstanceDynamic* USSXRemasterWorld::ClassicMid(UMeshComponent& C, int32
 	return Classic;
 }
 
+void USSXRemasterWorld::SetClassicMaterial(UMeshComponent& C, int32 Slot, UMaterialInterface* M)
+{
+	FSwap* S = bApplied ? FindSwap(C, Slot) : nullptr;
+	if (!S)
+	{
+		C.SetMaterial(Slot, M);
+		if (bApplied) { SwapSlot(C, Slot); }
+		return;
+	}
+	S->Original = M;
+	S->Follower = nullptr;
+	S->FollowedBase = nullptr;
+	UMaterialInstanceDynamic* Mid = Cast<UMaterialInstanceDynamic>(M);
+	UMaterialInterface* R = Mid ? nullptr : (M ? RemasteredFor(M) : nullptr);
+	if (Mid && RemasteredParentOf(Mid)) { MakeFollower(*S, *Mid, C); }
+	else { C.SetMaterial(Slot, R ? R : M); }
+}
+
 void USSXRemasterWorld::SyncFollowers()
 {
 	for (FSwap& S : Swaps)
@@ -692,27 +719,29 @@ UMaterialInterface* USSXRemasterWorld::RemasteredFor(UMaterialInterface* Classic
 
 void USSXRemasterWorld::SwapComponent(UMeshComponent& C)
 {
-	for (int32 S = 0; S < C.GetNumMaterials(); ++S)
+	for (int32 S = 0; S < C.GetNumMaterials(); ++S) { SwapSlot(C, S); }
+}
+
+void USSXRemasterWorld::SwapSlot(UMeshComponent& C, int32 S)
+{
+	UMaterialInterface* M = C.GetMaterial(S);
+	if (UMaterialInstanceDynamic* Classic = Cast<UMaterialInstanceDynamic>(M))
 	{
-		UMaterialInterface* M = C.GetMaterial(S);
-		if (UMaterialInstanceDynamic* Classic = Cast<UMaterialInstanceDynamic>(M))
-		{
-			// A Classic instance game code already animates: a per-slot twin that follows it.
-			if (!RemasteredParentOf(Classic)) { continue; }
-			FSwap& Sw = Swaps.AddDefaulted_GetRef();
-			Sw.Component = &C;
-			Sw.Slot = S;
-			Sw.Original = Classic;
-			SwapIndex.Add(TPair<TWeakObjectPtr<UMeshComponent>, int32>(&C, S), Swaps.Num() - 1);
-			MakeFollower(Sw, *Classic, C);
-			continue;
-		}
-		UMaterialInterface* R = M ? RemasteredFor(M) : nullptr;
-		if (!R) { continue; }
-		Swaps.Add({ &C, S, M });
+		// A Classic instance game code already animates: a per-slot twin that follows it.
+		if (!RemasteredParentOf(Classic)) { return; }
+		FSwap& Sw = Swaps.AddDefaulted_GetRef();
+		Sw.Component = &C;
+		Sw.Slot = S;
+		Sw.Original = Classic;
 		SwapIndex.Add(TPair<TWeakObjectPtr<UMeshComponent>, int32>(&C, S), Swaps.Num() - 1);
-		C.SetMaterial(S, R);
+		MakeFollower(Sw, *Classic, C);
+		return;
 	}
+	UMaterialInterface* R = M ? RemasteredFor(M) : nullptr;
+	if (!R) { return; }
+	Swaps.Add({ &C, S, M });
+	SwapIndex.Add(TPair<TWeakObjectPtr<UMeshComponent>, int32>(&C, S), Swaps.Num() - 1);
+	C.SetMaterial(S, R);
 }
 
 void USSXRemasterWorld::SwapLevel(ULevel& Level)

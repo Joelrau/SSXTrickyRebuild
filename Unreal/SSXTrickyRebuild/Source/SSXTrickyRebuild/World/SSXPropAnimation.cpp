@@ -1284,7 +1284,7 @@ void USSXPropAnimation::ApplyCrowd()
 				{
 					UMaterialInstanceDynamic* Mid = UMaterialInstanceDynamic::Create(CrowdMaterial, this);
 					Mid->SetTextureParameterValue(TEXT("BaseTex"), Tex);
-					for (int32 Slot = 0; Slot < Comp->GetNumMaterials(); ++Slot) { Comp->SetMaterial(Slot, Mid); }
+					for (int32 Slot = 0; Slot < Comp->GetNumMaterials(); ++Slot) { SSXRemaster::SetClassicMaterial(*Comp, Slot, Mid); }
 					Mids.Add(Mid);
 				}
 			}

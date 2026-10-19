@@ -193,6 +193,16 @@ c = c < k ? c : k + (1.0 - k) * (1.0 - exp(-(c - k) / (1.0 - k)));
 return saturate({ENC.format(x='c')} * Brightness);
 """
 
+# As make_world_materials.CROWD_UV: crowd slot UV1.x picks one of 16 frame indices (CrowdFrames0..3), a 4x4 atlas cell.
+CROWD_UV = """
+float idx = floor(UV1.x + 0.5);
+float4 f = idx < 4 ? F0 : (idx < 8 ? F1 : (idx < 12 ? F2 : F3));
+float j = idx - 4.0 * floor(idx / 4.0);
+float fr = floor((j < 1 ? f.x : (j < 2 ? f.y : (j < 3 ? f.z : f.w))) + 0.5);
+float2 cell = float2(fr - 4.0 * floor(fr / 4.0), floor(fr / 4.0));
+return (cell + clamp(UV0, 0.5 / 128.0, 1.0 - 0.5 / 128.0)) / 4.0;
+"""
+
 F1, F2, F3 = (unreal.CustomMaterialOutputType.CMOT_FLOAT1, unreal.CustomMaterialOutputType.CMOT_FLOAT2,
               unreal.CustomMaterialOutputType.CMOT_FLOAT3)
 
@@ -290,6 +300,16 @@ def tex_param(mat, name, x, y, kind="color"):
         e.set_editor_property("texture", unreal.load_asset("/Engine/EngineResources/WhiteSquareTexture"))
         e.set_editor_property("sampler_type", unreal.MaterialSamplerType.SAMPLERTYPE_COLOR)
     return e
+
+
+def rgba_param(mat, name, x, y):
+    """A vector parameter as one float4 (its bare output is RGB only)."""
+    p = expr(mat, unreal.MaterialExpressionVectorParameter, x, y, parameter_name=name,
+             default_value=unreal.LinearColor(0, 0, 0, 0))
+    a = expr(mat, unreal.MaterialExpressionAppendVector, x + 200, y)
+    connect(p, "", a, "A")
+    connect(p, "A", a, "B")
+    return a
 
 
 def finish(m):
@@ -441,7 +461,7 @@ for name, masked, clipped in (("M_RmTerrain", False, True), ("M_RmTerrain_Masked
     finish(m)
 
 for name, mode in (("M_RmProp", "plain"), ("M_RmProp_Masked", "atest"), ("M_RmPropOpaque", "opaque"),
-                   ("M_RmProp_Core", "core")):
+                   ("M_RmProp_Core", "core"), ("M_RmPropCrowd", "crowd")):
     m = lit_material(name, unreal.BlendMode.BLEND_OPAQUE if mode == "opaque" else unreal.BlendMode.BLEND_MASKED)
     base = tex_param(m, "BaseTex", -1100, -200)
     uv0 = expr(m, unreal.MaterialExpressionTextureCoordinate, -1700, -200, coordinate_index=0)
@@ -453,13 +473,18 @@ for name, mode in (("M_RmProp", "plain"), ("M_RmProp_Masked", "atest"), ("M_RmPr
     uvs = expr(m, unreal.MaterialExpressionAdd, -1300, -150)
     connect(uv0, "", uvs, "A")
     connect(suv, "", uvs, "B")
+    if mode == "crowd":   # M_SSXPropCrowd: the animated people atlas (USSXPropAnimation::ApplyCrowd)
+        uvs = custom(m, -1300, -150, CROWD_UV, F2,
+                     [("UV0", (uv0, "")),
+                      ("UV1", (expr(m, unreal.MaterialExpressionTextureCoordinate, -1700, -300, coordinate_index=1), ""))]
+                     + [(f"F{k}", (rgba_param(m, f"CrowdFrames{k}", -1900, 200 + 120 * k), "")) for k in range(4)], "CrowdUV")
     connect(uvs, "", base, "UVs")
     vc = expr(m, unreal.MaterialExpressionVertexColor, -1000, 100)
     baked = custom(m, -700, 0, PROP_BAKED, F3, [("Tex", (base, "RGB")), ("VC", (vc, ""))], "RmPropBaked")
     surface(m, rm, base, baked, uvs)
-    if mode in ("atest", "core"):
+    if mode in ("atest", "core", "crowd"):
         gs_a = custom(m, -1000, 800, PROP_GS_ALPHA, F1, [("A", (base, "A")), ("VA", (vc, "A"))], "PropGsAlpha")
-        alpha = custom(m, -800, 800, PROP_ATEST if mode == "atest" else PROP_CORE, F1, [("As", (gs_a, ""))], "PropAlpha")
+        alpha = custom(m, -800, 800, PROP_CORE if mode == "core" else PROP_ATEST, F1, [("As", (gs_a, ""))], "PropAlpha")
         clip(m, mpc, (alpha, ""))
     elif mode == "plain":
         clip(m, mpc, (expr(m, unreal.MaterialExpressionConstant, -700, 1000, r=1.0), ""))

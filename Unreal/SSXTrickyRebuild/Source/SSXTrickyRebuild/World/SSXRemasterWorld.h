@@ -67,6 +67,9 @@ namespace SSXRemaster
 	/** CreateAndSetMaterialInstanceDynamic on the Classic side: game code that animates a slot (UV scroll, flipbooks,
 	 *  movie screens) always drives a Classic instance; in the Remastered look its lit twin follows it every frame. */
 	SSXTRICKYREBUILD_API UMaterialInstanceDynamic* ClassicMid(UMeshComponent& C, int32 Slot);
+	/** SetMaterial on the Classic side (game code replacing a slot's material, e.g. the crowd): in the Remastered look
+	 *  the slot shows the lit twin of the new material. */
+	SSXTRICKYREBUILD_API void SetClassicMaterial(UMeshComponent& C, int32 Slot, UMaterialInterface* M);
 	/** How many of the strongest track lights cast shadows at a quality: Epic all, High 16, Medium / Low none. */
 	SSXTRICKYREBUILD_API int32 ShadowedLights(int32 Quality, int32 NumLights);
 	/** Remastered surface class of a sim surface id (SimData/surfaces.bin physics): 0 snow, 1 ice (no grip, fast),
@@ -102,12 +105,14 @@ public:
 	void Revert();
 	UMaterialInterface* ClassicMaterial(UMeshComponent& C, int32 Slot);
 	UMaterialInstanceDynamic* ClassicMid(UMeshComponent& C, int32 Slot);
+	void SetClassicMaterial(UMeshComponent& C, int32 Slot, UMaterialInterface* M);
 	bool IsApplied() const { return bApplied; }
 	int32 NumSwapped() const { return Swaps.Num(); }
 
 private:
 	void SwapLevel(ULevel& Level);
 	void SwapComponent(UMeshComponent& C);
+	void SwapSlot(UMeshComponent& C, int32 Slot);
 	UMaterialInterface* RemasteredFor(UMaterialInterface* Classic);
 	void OnLevelAdded(ULevel* Level, UWorld* World);
 	/** Lit display twins for the riders' Classic instances (new ones appear with outfit changes: every tick). */
