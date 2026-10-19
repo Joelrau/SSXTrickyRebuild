@@ -145,7 +145,11 @@ RIDER_FILL = f"""
 float3 c = saturate({ENC.format(x='Tex')} * V);
 float3 g = saturate({ENC.format(x='G')} * V);
 c = Chrome > 0.5 ? saturate(c + (g - c) * (33.0 / 128.0)) : saturate(c + g * Fix);   // Classic chrome / gloss pass
-float3 rim = {DEC.format(x='saturate(C2 * 0.5)')} * pow(1.0 - saturate(dot(N, normalize(Dir))), 3.0);   // Dir: pixel to camera
+// Rim tint: the strongest rig light's hue, scaled (not clipped: Pipedream's 3.2 / 2.4 / 0.3 lamp clipped to pure yellow)
+// and mostly desaturated.
+float3 rc = max(C2, 0.0) / max(1.0, max(C2.r, max(C2.g, C2.b)));
+rc = lerp(dot(rc, float3(0.2126, 0.7152, 0.0722)).xxx, rc, 0.35);
+float3 rim = {DEC.format(x='saturate(rc * 0.5)')} * pow(1.0 - saturate(dot(N, normalize(Dir))), 3.0);   // Dir: pixel to camera
 return {DEC.format(x='c')} * RiderFill + rim * RiderRim;
 """
 RIDER_ROUGH = "return clamp(0.65 - Fix * 0.5, 0.2, 1.0);"
