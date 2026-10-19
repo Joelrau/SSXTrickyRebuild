@@ -937,7 +937,18 @@ void USSXRemasterWorld::Apply()
 			C->SetStartDistance(float(FogStartBase * SSXRemaster::DrawDistanceScale(SSXRenderLook::GetQuality())));
 			Fog = C;
 			C->SetFogMaxOpacity(0.85f);
-			C->SetFogCutoffDistance(float(SSXRemaster::SkyDistance * 0.8));   // the sky dome keeps its own colours
+			// No fog on the sky dome: cut it off before the dome's nearest point (some domes are low, wide caps whose
+			// top is far nearer than their horizon; the dome is centred on the camera at run time).
+			double Nearest = SSXRemaster::SkyDistance;
+			for (TActorIterator<AActor> It(W); It; ++It)
+			{
+				if (!It->ActorHasTag(USSXWorldPresentation::SkyTag)) { continue; }
+				FVector Origin, Extent;
+				It->GetActorBounds(false, Origin, Extent);
+				const FVector Lo = Origin - Extent - It->GetActorLocation(), Hi = Origin + Extent - It->GetActorLocation();
+				for (const double D : { Hi.Z, Hi.X, -Lo.X, Hi.Y, -Lo.Y }) { if (D > 100.0) { Nearest = FMath::Min(Nearest, D); } }
+			}
+			C->SetFogCutoffDistance(float(Nearest * 0.8));
 			C->SetVolumetricFog(true);
 			Spawned.Add(F);
 		}
