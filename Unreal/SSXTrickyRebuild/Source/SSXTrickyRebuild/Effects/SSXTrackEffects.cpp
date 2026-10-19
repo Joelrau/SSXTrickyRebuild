@@ -15,6 +15,7 @@
 #include "Sound/SoundAttenuation.h"
 #include "Sound/SoundWave.h"
 #include "Race/GameRng.h"
+#include "Race/RaceTrackData.h"
 #include "SSXTrickyRebuild.h"
 #include "SSXShowOffDraw.h"
 #include "Sim/Ground/PropCollision.h"
@@ -793,7 +794,7 @@ void USSXTrackEffects::RollSnowfall(int32 Humans, int32 Racers)
 		{
 			for (const FSSXTrackPresentation& T : Table)
 			{
-				if (T.Id == World.GetTrack()) { Chance = T.SnowChance; }
+				if (T.Id == FRaceTrackData::GameTrackOf(World.GetTrack())) { Chance = T.SnowChance; }
 			}
 		}
 		Draw = FGameRng::StreamA().Uniform(0.f, 1.f);

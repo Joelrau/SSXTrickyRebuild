@@ -3,6 +3,7 @@
 #include "Dom/JsonObject.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
+#include "Race/RaceTrackData.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 
@@ -23,6 +24,12 @@ int32 FSSXTrackPresentation::IdForStem(const FString& Stem)
 		}
 	}
 	return -1;
+}
+
+int32 FSSXTrackPresentation::RowForStem(const FString& Stem)
+{
+	const int32 Id = IdForStem(Stem);
+	return Id == 11 ? Id : FRaceTrackData::GameTrackOf(Id);
 }
 
 FString FSSXTrackPresentation::DefaultTablePath()

@@ -20,6 +20,9 @@ bool FSSXWorldTrackTableTest::RunTest(const FString&)
 	TestEqual(TEXT("gari id"), FSSXTrackPresentation::IdForStem(TEXT("Gari")), 0);
 	TestEqual(TEXT("alaska id"), FSSXTrackPresentation::IdForStem(TEXT("alaska")), 10);
 	TestEqual(TEXT("front end id"), FSSXTrackPresentation::IdForStem(TEXT("FrontEnd")), 11);
+	TestEqual(TEXT("alaska table record"), FSSXTrackPresentation::RowForStem(TEXT("alaska")), 11);
+	TestEqual(TEXT("trick table record"), FSSXTrackPresentation::RowForStem(TEXT("trick")), 10);
+	TestEqual(TEXT("front end table record"), FSSXTrackPresentation::RowForStem(TEXT("frontend")), 11);
 	TestEqual(TEXT("unknown id"), FSSXTrackPresentation::IdForStem(TEXT("nowhere")), -1);
 
 	TArray<FSSXTrackPresentation> T;
@@ -117,8 +120,7 @@ bool FSSXWorldRiderProbeTest::RunTest(const FString&)
 			}
 		}
 		auto V = [&](int32 K) { return FVector(FCString::Atod(*C[K]), FCString::Atod(*C[K + 1]), FCString::Atod(*C[K + 2])); };
-		const int32 Id = FSSXTrackPresentation::IdForStem(Stem);
-		const FSSXRiderLight R = W->Probe(V(1), FSSXRiderLightAdjust::From(Table[Id]));
+		const FSSXRiderLight R = W->Probe(V(1), FSSXRiderLightAdjust::From(Table[FSSXTrackPresentation::RowForStem(Stem)]));
 		const double Tol = 2e-4;
 		bool bOk = NearV(R.Ambient, V(4), Tol) && NearV(R.Modulator, V(25), Tol) && NearV(R.Total, V(28), Tol);
 		for (int32 S = 0; S < FSSXRiderLight::Slots; ++S)

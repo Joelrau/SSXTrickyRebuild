@@ -38,6 +38,8 @@ struct SSXTRICKYREBUILD_API FSSXTrackPresentation
 	FIntVector MipLodParams1P() const;
 
 	static int32 IdForStem(const FString& Stem);
+	/** The table record for a map: the game's track index (trick tutorial 10, Alaska 11); the front end reads 11. */
+	static int32 RowForStem(const FString& Stem);
 	static bool LoadTable(const FString& Path, TArray<FSSXTrackPresentation>& Out, FString* OutError = nullptr);
 	static FString DefaultTablePath();
 };
