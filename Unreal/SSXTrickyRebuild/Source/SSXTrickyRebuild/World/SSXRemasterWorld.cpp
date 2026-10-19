@@ -129,6 +129,7 @@ const SSXRemaster::FTrackTuning& SSXRemaster::TuningFor(const FString& Stem)
 		FTrackTuning T;
 		T.Stem = S; T.SunLux = Sun; T.SunSaturation = SunSat; T.SkyLight = Sky; T.BakedAmbient = Amb; T.Emissive = Emis; T.LightCandela = Cd;
 		T.RiderFill = Sun < 1.f ? 1.f : 0.6f;
+		T.SpriteGlow = Sun > 0.f && Sun < 1.f ? 0.5f : 0.35f;
 		return T;
 	};
 	// Night (Snowdream, Merqury City, the trick tutorial): a faint coloured moon, the baked light and the lamps carry the
@@ -141,7 +142,8 @@ const SSXRemaster::FTrackTuning& SSXRemaster::TuningFor(const FString& Stem)
 		[&Make]() { FTrackTuning T = Make(TEXT("trick"), 0.25f, 0.9f, 0.2f, 1.0f, 5.f, 60.f); T.Bloom = 0.8f; return T; }(),
 		// Elysium's orange sunset light would turn its pink-purple slopes peach: a paler sun, more of the baked light.
 		Make(TEXT("elysium"), 1.6f, 0.3f, 0.5f, 0.7f, 3.f, 15.f),
-		[&Make]() { FTrackTuning T = Make(TEXT("frontend"), 0.f, 0.6f, 0.05f, 1.0f, 3.f, 15.f); T.FogDensity = 0.f; T.Saturation = 1.f; T.Bloom = 0.3f; T.MaxLights = 0; return T; }(),
+		[&Make]() { FTrackTuning T = Make(TEXT("frontend"), 0.f, 0.6f, 0.05f, 1.0f, 3.f, 15.f); T.FogDensity = 0.f; T.Saturation = 1.f; T.Bloom = 0.3f; T.MaxLights = 0; T.RiderFill = 0.85f;
+			T.Emissive = 0.f; T.Sparkle = 0.f; return T; }(),   // the ice backdrop's bright texels are not lamps
 	};
 	static const FTrackTuning Default;
 	for (const FTrackTuning& T : Table)
@@ -466,6 +468,20 @@ void USSXRemasterWorld::UpdateFrontEndSpots()
 	{
 		if (PC->PlayerCameraManager) { CamLoc = PC->PlayerCameraManager->GetCameraLocation(); bCam = true; }
 	}
+	// Only the rider nearest the view centre casts its spotlight's shadow (every spot shadowing the whole stage
+	// overflowed the virtual shadow maps).
+	const AActor* Centre = nullptr;
+	if (bCam)
+	{
+		const FVector Fwd = W->GetFirstPlayerController()->PlayerCameraManager->GetCameraRotation().Vector();
+		double Best = 0.0;
+		for (TActorIterator<ASSXFeRiderActor> It(W); It; ++It)
+		{
+			const FVector To = (It->GetActorLocation() - CamLoc).GetSafeNormal();
+			const double F = FVector::DotProduct(To, Fwd);
+			if (F > Best) { Best = F; Centre = *It; }
+		}
+	}
 	for (TActorIterator<ASSXFeRiderActor> It(W); It; ++It)
 	{
 		const FVector Target = It->GetActorLocation() + FVector(0, 0, 100);
@@ -486,17 +502,21 @@ void USSXRemasterWorld::UpdateFrontEndSpots()
 			USpotLightComponent* C = CastChecked<USpotLightComponent>(Spot->GetLightComponent());
 			C->SetMobility(EComponentMobility::Movable);
 			C->SetIntensityUnits(ELightUnits::Candelas);
-			C->SetIntensity(40.f);
+			C->SetIntensity(18.f);
 			C->SetLightColor(FLinearColor(1.f, 0.95f, 0.88f));
 			C->SetOuterConeAngle(28.f);
 			C->SetInnerConeAngle(18.f);
-			C->SetAttenuationRadius(1200.f);
-			C->SetCastShadows(true);
+			C->SetAttenuationRadius(800.f);
 			FrontEndSpots.Add(*It, Spot);
 		}
 		else
 		{
 			Spot->SetActorLocationAndRotation(At, Rot);
+		}
+		if (ULightComponent* L = Spot->GetLightComponent())
+		{
+			const bool bShadow = *It == Centre;
+			if (L->CastShadows != bShadow) { L->SetCastShadows(bShadow); }
 		}
 	}
 }
@@ -817,6 +837,8 @@ void USSXRemasterWorld::Apply()
 		UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("Saturation"), T.Saturation);
 		UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("Emissive"), T.Emissive);
 		UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("RiderFill"), T.RiderFill);
+		UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("SpriteGlow"), T.SpriteGlow);
+		UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("Sparkle"), T.Sparkle);
 	}
 
 	const USSXWorldPresentation* Pres = W->GetSubsystem<USSXWorldPresentation>();

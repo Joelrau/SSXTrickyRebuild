@@ -141,10 +141,15 @@ return {DEC.format(x='t')} * AlbedoScale;
 # no other light looks exactly as in Classic; sun, lamps and Lumen add to it. Plus a rim in the strongest rig light's colour.
 RIDER_FILL = f"""
 float3 c = saturate({ENC.format(x='Tex')} * V);
+float3 g = saturate({ENC.format(x='G')} * V);
+c = Chrome > 0.5 ? saturate(c + (g - c) * (33.0 / 128.0)) : saturate(c + g * Fix);   // Classic chrome / gloss pass
 float3 rim = {DEC.format(x='saturate(C2 * 0.5)')} * pow(1.0 - saturate(dot(N, normalize(Dir))), 3.0);   // Dir: pixel to camera
 return {DEC.format(x='c')} * RiderFill + rim * RiderRim;
 """
 RIDER_ROUGH = "return clamp(0.65 - Fix * 0.5, 0.2, 1.0);"
+# 0x318080: the Classic rider gloss / chrome sphere-map coordinates from the world normal and the view axes.
+CHROME_UV = "return float2(N.x * R.x - N.y * U.x + N.z * F.x, -N.x * R.y + N.y * U.y - N.z * F.y);"
+GLOSS_UV = "return saturate(float2(N.x * R.x - N.y * U.x + N.z * F.x, -N.x * R.y + N.y * U.y - N.z * F.y));"
 # 0x1364D0 / 0x1DCC10
 RIDER_DEPTH = """float wp = dot(RootRel, F);
 float w = dot(Rel, F);
@@ -174,7 +179,7 @@ return float4(cs / 255.0, sa / 128.0);
 SOFT_DEPTH_SPRITE = "return float4(S.rgb, (PD <= CD.r * 1.0005 + 0.5) ? S.a : 0.0);"
 SPRITE_ADD = f"return {DEC.format(x='saturate(S.rgb * S.a)')} * Fade;"
 SPRITE_ALPHA = f"return {DEC.format(x='saturate(S.rgb)')};"
-SPRITE_ALPHA_GLOW = "return C * 0.35;"   # lit spray keeps a little of its own brightness
+SPRITE_ALPHA_GLOW = "return C * Glow;"   # lit spray keeps a share of its own brightness (MPC SpriteGlow, per track)
 PP_SCENE = f"""
 float3 s = max(Scene.rgb / View.PreExposure, 0.0);
 float3 b = max(Bloom.rgb / View.PreExposure, 0.0);
@@ -301,6 +306,7 @@ def lit_material(name, blend):
 
 
 def surface(m, rm, base, baked, uv=None, trails=False):
+    # trails also marks terrain: only terrain gets the snow glints (props such as the front end's backdrop do not)
     """Base colour, normal, roughness, specular and AO of a lit world material from the texture sample and the
     original's baked light (linear float3). trails: the snow trail grooves (terrain; normals in world space)."""
     normal = tex_param(m, "RmNormal", -1000, 300, "normal")
@@ -344,15 +350,18 @@ def surface(m, rm, base, baked, uv=None, trails=False):
                  [("Tex", (base, "RGB")), ("Baked", (baked, "")), ("M", (masks4, "")),
                   ("BakedAmbient", (coll(m, rm, "BakedAmbient", -700, -50), "")),
                   ("Emissive", (coll(m, rm, "Emissive", -700, 20), ""))], "RmBakedAmbient")
-    glint = custom(m, -400, -120, GLINT, F3,
+    glint = None if not trails else custom(m, -400, -120, GLINT, F3,
                    [("WP", (expr(m, unreal.MaterialExpressionWorldPosition, -700, -200), "")),
                     ("V", (expr(m, unreal.MaterialExpressionCameraVectorWS, -700, -160), "")),
                     ("M", (masks4, "")), ("Baked", (baked, "")), ("Surface", (surf, "")),
                     ("Sparkle", (coll(m, rm, "Sparkle", -700, -100), ""))], "RmGlint")
-    emis = expr(m, unreal.MaterialExpressionAdd, -200, -80)
-    connect(amb, "", emis, "A")
-    connect(glint, "", emis, "B")
-    connect_prop(emis, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    if glint is not None:
+        emis = expr(m, unreal.MaterialExpressionAdd, -200, -80)
+        connect(amb, "", emis, "A")
+        connect(glint, "", emis, "B")
+        connect_prop(emis, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    else:
+        connect_prop(amb, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
     rough = custom(m, -400, 100, ROUGH, F1,
                    [("M", (masks4, "")), ("BaseRough", (coll(m, rm, "BaseRoughness", -700, 100), "")), ("Surface", (surf, ""))],
                    "RmRoughness")
@@ -396,7 +405,7 @@ old = {str(p.get_editor_property("parameter_name")): p for p in rm.get_editor_pr
 scalars = []
 for n, v in (("BakedWeight", 0.6), ("BakedAmbient", 0.55), ("AlbedoScale", 0.9), ("BaseRoughness", 0.8),
              ("Exposure", 1.0), ("Saturation", 1.15), ("Emissive", 3.0), ("RiderFill", 0.6), ("RiderRim", 0.35),
-             ("ParticleSoftness", 40.0), ("DrawDistanceScale", 3.0), ("Sparkle", 3.0),
+             ("ParticleSoftness", 40.0), ("SpriteGlow", 0.35), ("DrawDistanceScale", 3.0), ("Sparkle", 3.0),
              ("TrailX", 0.0), ("TrailY", 0.0), ("TrailSize", 1.0e9)):
     p = old.get(n) or unreal.CollectionScalarParameter()
     p.set_editor_property("parameter_name", n)
@@ -484,8 +493,27 @@ for name, masked, chrome in (("M_RmRider", False, False), ("M_RmRider_Masked", T
     rnormal = tex_param(m, "RmNormal", -1000, 350, "normal")
     connect_prop(rnormal, "RGB", unreal.MaterialProperty.MP_NORMAL)
     view_dir = expr(m, unreal.MaterialExpressionCameraVectorWS, -800, 400)
+    gaxes = []
+    for k, axis in enumerate(((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))):
+        c = expr(m, unreal.MaterialExpressionConstant3Vector, -2300, 600 + 120 * k,
+                 constant=unreal.LinearColor(axis[0], axis[1], axis[2], 0.0))
+        t = expr(m, unreal.MaterialExpressionTransform, -2100, 600 + 120 * k,
+                 transform_source_type=unreal.MaterialVectorCoordTransformSource.TRANSFORMSOURCE_VIEW,
+                 transform_type=unreal.MaterialVectorCoordTransform.TRANSFORM_WORLD)
+        connect(c, "", t, "")
+        gaxes.append(t)
+    guv = custom(m, -1450, 600, CHROME_UV if chrome else GLOSS_UV, F2,
+                 [("N", (nrm, "")), ("R", (gaxes[0], "")), ("U", (gaxes[1], "")), ("F", (gaxes[2], ""))], "RmRiderGlossUV")
+    guv_i = expr(m, unreal.MaterialExpressionVertexInterpolator, -1200, 600)
+    connect(guv, "", guv_i, "VS")
+    gtex = tex_param(m, "EnvTex" if chrome else "GlossTex", -950, 500)
+    gtex.set_editor_property("texture", unreal.load_asset("/Engine/EngineResources/Black"))
+    connect(guv_i, "PS", gtex, "UVs")
+    gfix = expr(m, unreal.MaterialExpressionScalarParameter, -950, 750, parameter_name="GlossFix", default_value=0.0)
     fill = custom(m, -400, 0, RIDER_FILL, F3,
                   [("Tex", (tex, "")), ("V", (interp, "PS")), ("C2", (vec["Light2Colour"], "RGB")),
+                   ("G", (gtex, "RGB")), ("Fix", (gfix, "")),
+                   ("Chrome", (expr(m, unreal.MaterialExpressionConstant, -800, 620, r=1.0 if chrome else 0.0), "")),
                    ("N", (expr(m, unreal.MaterialExpressionPixelNormalWS, -800, 330), "")), ("Dir", (view_dir, "")),
                    ("RiderFill", (coll(m, rm, "RiderFill", -800, 480), "")),
                    ("RiderRim", (coll(m, rm, "RiderRim", -800, 550), ""))], "RmRiderFill")
@@ -494,8 +522,7 @@ for name, masked, chrome in (("M_RmRider", False, False), ("M_RmRider_Masked", T
         connect_prop(expr(m, unreal.MaterialExpressionConstant, -400, 200, r=0.85), "", unreal.MaterialProperty.MP_METALLIC)
         connect_prop(expr(m, unreal.MaterialExpressionConstant, -400, 280, r=0.18), "", unreal.MaterialProperty.MP_ROUGHNESS)
     else:
-        fix = expr(m, unreal.MaterialExpressionScalarParameter, -700, 250, parameter_name="GlossFix", default_value=0.0)
-        connect_prop(custom(m, -400, 250, RIDER_ROUGH, F1, [("Fix", (fix, ""))], "RmRiderRoughness"), "",
+        connect_prop(custom(m, -400, 250, RIDER_ROUGH, F1, [("Fix", (gfix, ""))], "RmRiderRoughness"), "",
                      unreal.MaterialProperty.MP_ROUGHNESS)
     axes = []
     for k, axis in enumerate(((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))):
@@ -572,7 +599,8 @@ for name, additive in (("M_RmParticleAdd", True), ("M_RmParticleAlpha", False)):
     else:
         col = custom(m, -250, 0, SPRITE_ALPHA, F3, [("S", (soft, ""))], "RmSpriteAlpha")
         connect_prop(col, "", unreal.MaterialProperty.MP_BASE_COLOR)
-        connect_prop(custom(m, -100, -100, SPRITE_ALPHA_GLOW, F3, [("C", (col, ""))], "RmSpriteGlow"), "",
+        connect_prop(custom(m, -100, -100, SPRITE_ALPHA_GLOW, F3,
+                            [("C", (col, "")), ("Glow", (coll(m, rm, "SpriteGlow", -300, -150), ""))], "RmSpriteGlow"), "",
                      unreal.MaterialProperty.MP_EMISSIVE_COLOR)
         a = expr(m, unreal.MaterialExpressionComponentMask, -300, 200, r=False, g=False, b=False, a=True)
         connect(soft, "", a, "")
