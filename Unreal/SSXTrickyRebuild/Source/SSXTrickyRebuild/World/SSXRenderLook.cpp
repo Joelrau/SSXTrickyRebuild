@@ -118,6 +118,10 @@ void USSXVideoSettings::Save()
 void USSXRenderLookSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
+	if (GIsAutomationTesting)
+	{
+		return;   // tests run the Classic default unless they set the look themselves, whatever the user saved
+	}
 	SSXRenderLook::SetQuality(GetDefault<USSXVideoSettings>()->Quality);
 	SSXRenderLook::Set(FromInt(GetDefault<USSXVideoSettings>()->Look));
 }
