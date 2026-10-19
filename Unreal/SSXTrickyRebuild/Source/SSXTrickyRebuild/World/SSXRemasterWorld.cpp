@@ -113,12 +113,14 @@ const SSXRemaster::FTrackTuning& SSXRemaster::TuningFor(const FString& Stem)
 		T.Stem = S; T.SunLux = Sun; T.SunSaturation = SunSat; T.SkyLight = Sky; T.BakedAmbient = Amb; T.Emissive = Emis; T.LightCandela = Cd;
 		return T;
 	};
-	// Night (Snowdream, Merqury City): a faint coloured moon, the baked light and the lamps carry the scene; indoor
-	// (Tokyo Megaplex): hardly any sun; the front end's dark ice backdrop: no sun, only its own light.
+	// Night (Snowdream, Merqury City, the trick tutorial): a faint coloured moon, the baked light and the lamps carry the
+	// scene; indoor (Tokyo Megaplex, Pipedream): hardly any sun; the front end's dark ice backdrop: no sun, only its own light.
 	static const FTrackTuning Table[] = {
 		[&Make]() { FTrackTuning T = Make(TEXT("snow"), 0.25f, 0.9f, 0.2f, 1.0f, 5.f, 60.f); T.Bloom = 0.8f; return T; }(),
 		[&Make]() { FTrackTuning T = Make(TEXT("merquer"), 0.25f, 0.9f, 0.2f, 1.0f, 5.f, 60.f); T.Bloom = 0.8f; return T; }(),
 		Make(TEXT("megaple"), 0.2f, 0.6f, 0.3f, 0.95f, 4.f, 40.f),
+		Make(TEXT("pipe"), 0.2f, 0.6f, 0.3f, 0.95f, 4.f, 40.f),
+		[&Make]() { FTrackTuning T = Make(TEXT("trick"), 0.25f, 0.9f, 0.2f, 1.0f, 5.f, 60.f); T.Bloom = 0.8f; return T; }(),
 		// Elysium's orange sunset light would turn its pink-purple slopes peach: a paler sun, more of the baked light.
 		Make(TEXT("elysium"), 1.6f, 0.3f, 0.5f, 0.7f, 3.f, 15.f),
 		[&Make]() { FTrackTuning T = Make(TEXT("frontend"), 0.f, 0.6f, 0.05f, 1.0f, 3.f, 15.f); T.FogDensity = 0.f; T.Saturation = 1.f; T.Bloom = 0.3f; return T; }(),
