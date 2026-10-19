@@ -102,6 +102,7 @@ bool FSSXAudioTrickyRaceTest::RunTest(const FString&)
 				Ctx.LastPhraseBase, Audio->GetSpeech().IsLoaded()));
 			return false;
 		}
+		TestEqual(TEXT("Tricky phrase = PhrasesPerBank (default 4) - 1: the stereo phrase 48 (FUN_002246A8)"), Ctx.LastPhraseBase, 48);
 		const FTrickyRun R = Run(*Audio, 1, 1300);
 		AddInfo(FString::Printf(TEXT("on: #107 at %s, MC 0x204C posted %d played %d, %d slices from %d (%s), #1 at %d, #2 at %d"),
 			*FString::JoinBy(R.Frame107, TEXT(","), [](int32 V) { return FString::FromInt(V); }), R.McPost, R.McPlayed, R.Slices.Num(), R.FirstSlice,
