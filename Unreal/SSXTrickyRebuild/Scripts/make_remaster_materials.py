@@ -84,7 +84,8 @@ SKY_SHADE = f"return {DEC.format(x='saturate(' + ENC.format(x='Tex') + ' * Facto
 CLEAR_SHADE = f"return {DEC.format(x='saturate(C.rgb)')};"
 PROP_SOFT_SHADE = f"return {DEC.format(x='saturate(' + ENC.format(x='Tex') + ' * VC.rgb * (255.0 / 128.0))')};"
 PROP_CORE = "return As >= 128.0 ? 1.0 : 0.0;"
-DRAW_CLIP = "return (Depth <= DrawDistance ? 1.0 : 0.0) * Alpha;"
+# The original's draw distance x MPC_SSXRemaster.DrawDistanceScale (the Remastered quality preset).
+DRAW_CLIP = "return (Depth <= DrawDistance * Scale ? 1.0 : 0.0) * Alpha;"
 # 0x318080: the Classic rider light rig, ambient + sum max(0, N . D_i) C_i in PS2 units (1.0 = 0x80).
 RIDER_LIGHT = """
 float3 v = Ambient + saturate(dot(N, normalize(D0))) * C0 + saturate(dot(N, normalize(D1))) * C1
@@ -290,11 +291,17 @@ def surface(m, rm, base, baked, uv=None):
 
 
 def clip(m, mpc, alpha):
+    """Opacity mask: the alpha test, cut at the draw distance from the camera. Not in shadow passes (there the pixel
+    depth is the distance from the light), so far and high geometry keeps casting shadows."""
     depth = expr(m, unreal.MaterialExpressionPixelDepth, -700, 800)
     c = custom(m, -300, 850, DRAW_CLIP, F1,
-               [("Depth", (depth, "")), ("DrawDistance", (coll(m, mpc, "DrawDistance", -700, 900), "")), ("Alpha", alpha)],
+               [("Depth", (depth, "")), ("DrawDistance", (coll(m, mpc, "DrawDistance", -700, 900), "")),
+                ("Scale", (coll(m, rm, "DrawDistanceScale", -700, 960), "")), ("Alpha", alpha)],
                "DrawClip")
-    connect_prop(c, "", unreal.MaterialProperty.MP_OPACITY_MASK)
+    sw = expr(m, unreal.MaterialExpressionShadowReplace, -100, 850)
+    connect(c, "", sw, "Default")
+    connect(alpha[0], alpha[1], sw, "Shadow")
+    connect_prop(sw, "", unreal.MaterialProperty.MP_OPACITY_MASK)
 
 
 unreal.AssetRegistryHelpers.get_asset_registry().scan_paths_synchronous([PATH, WORLD], True)
@@ -312,7 +319,7 @@ old = {str(p.get_editor_property("parameter_name")): p for p in rm.get_editor_pr
 scalars = []
 for n, v in (("BakedWeight", 0.6), ("BakedAmbient", 0.55), ("AlbedoScale", 0.9), ("BaseRoughness", 0.8),
              ("Exposure", 1.0), ("Saturation", 1.15), ("Emissive", 3.0), ("RiderFill", 0.6), ("RiderRim", 0.35),
-             ("ParticleSoftness", 40.0)):
+             ("ParticleSoftness", 40.0), ("DrawDistanceScale", 3.0)):
     p = old.get(n) or unreal.CollectionScalarParameter()
     p.set_editor_property("parameter_name", n)
     p.set_editor_property("default_value", v)
@@ -547,7 +554,8 @@ vis = expr(m, unreal.MaterialExpressionMultiply, -550, 450)
 connect(alpha, "", vis, "A")
 connect(front, "", vis, "B")
 op = custom(m, -300, 550, DRAW_CLIP, F1,
-            [("Depth", (depth, "")), ("DrawDistance", (coll(m, mpc, "DrawDistance", -700, 600), "")), ("Alpha", (vis, ""))],
+            [("Depth", (depth, "")), ("DrawDistance", (coll(m, mpc, "DrawDistance", -700, 600), "")),
+             ("Scale", (coll(m, rm, "DrawDistanceScale", -700, 660), "")), ("Alpha", (vis, ""))],
             "DrawClip")
 connect_prop(op, "", unreal.MaterialProperty.MP_OPACITY)
 finish(m)

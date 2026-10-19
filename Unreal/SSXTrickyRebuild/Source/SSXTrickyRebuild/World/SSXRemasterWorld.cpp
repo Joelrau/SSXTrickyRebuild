@@ -28,7 +28,9 @@
 #include "ContentStreaming.h"
 #include "RenderingThread.h"
 #include "Sim/SimCoords.h"
+#include "UObject/UObjectIterator.h"
 #include "World/SSXRenderLook.h"
+#include "World/SSXTerrainLodComponent.h"
 #include "World/SSXWorldLighting.h"
 #include "World/SSXWorldPresentation.h"
 #include "SnowboarderPawn.h"
@@ -170,6 +172,12 @@ int32 SSXRemaster::ShadowedLights(int32 Quality, int32 NumLights)
 	return Quality >= 3 ? NumLights : Quality == 2 ? FMath::Min(NumLights, 16) : 0;
 }
 
+float SSXRemaster::DrawDistanceScale(int32 Quality)
+{
+	static const float Scale[] = { 1.5f, 2.f, 3.f, 4.f };
+	return Scale[FMath::Clamp(Quality, 0, 3)];
+}
+
 float SSXRemaster::LightRadius(int32 FalloffKind)
 {
 	switch (FalloffKind)
@@ -247,6 +255,17 @@ void USSXRemasterWorld::ApplyQuality()
 		const bool bLumen = SSXRenderLook::QualityUsesLumen(AppliedQuality);
 		V->Settings.DynamicGlobalIlluminationMethod = bLumen ? EDynamicGlobalIlluminationMethod::Lumen : EDynamicGlobalIlluminationMethod::None;
 		V->Settings.ReflectionMethod = bLumen ? EReflectionMethod::Lumen : EReflectionMethod::ScreenSpace;
+	}
+	if (UWorld* W = GetWorld())
+	{
+		if (UMaterialParameterCollection* Mpc = LoadObject<UMaterialParameterCollection>(nullptr, SSXRemaster::CollectionPath))
+		{
+			UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("DrawDistanceScale"), SSXRemaster::DrawDistanceScale(AppliedQuality));
+		}
+	}
+	if (UExponentialHeightFogComponent* F = Fog.Get())
+	{
+		F->SetStartDistance(float(FogStartBase * SSXRemaster::DrawDistanceScale(AppliedQuality)));
 	}
 	const int32 Shadowed = bAllLightShadows ? LocalLights.Num() : SSXRemaster::ShadowedLights(AppliedQuality, LocalLights.Num());
 	for (int32 I = 0; I < LocalLights.Num(); ++I)
@@ -501,6 +520,17 @@ void USSXRemasterWorld::Apply()
 	{
 		if (L) { SwapLevel(*L); }
 	}
+	// The terrain is drawn by USSXTerrainLodComponent (no shadow pass) with the full-detail mesh hidden: that mesh casts
+	// the sun's shadow (overhangs, tunnels and cliffs block it).
+	for (TObjectIterator<USSXTerrainLodComponent> It; It; ++It)
+	{
+		UStaticMeshComponent* M = It->GetWorld() == W ? It->Replaced.Get() : nullptr;
+		if (!M) { continue; }
+		TerrainShadows.Add({ M, M->CastShadow != 0, M->bCastHiddenShadow != 0 });
+		M->SetCastShadow(true);
+		M->bCastHiddenShadow = true;
+		M->MarkRenderStateDirty();
+	}
 
 	for (TActorIterator<APostProcessVolume> It(W); It; ++It)
 	{
@@ -656,7 +686,9 @@ void USSXRemasterWorld::Apply()
 			C->SetFogInscatteringColor(FLinearColor(Track->ClearColour()));
 			C->SetFogDensity(T.FogDensity);
 			C->SetFogHeightFalloff(0.0002f);
-			C->SetStartDistance(float(Track->DrawDist1P * 0.35));
+			FogStartBase = Track->DrawDist1P * 0.35;
+			C->SetStartDistance(float(FogStartBase * SSXRemaster::DrawDistanceScale(SSXRenderLook::GetQuality())));
+			Fog = C;
 			C->SetFogMaxOpacity(0.85f);
 			C->SetFogCutoffDistance(float(SSXRemaster::SkyDistance * 0.8));   // the sky dome keeps its own colours
 			C->SetVolumetricFog(true);
@@ -714,6 +746,16 @@ void USSXRemasterWorld::Revert()
 	}
 	Spawned.Reset();
 	LocalLights.Reset();
+	for (const FShadowFlags& F : TerrainShadows)
+	{
+		if (UPrimitiveComponent* C = F.Component.Get())
+		{
+			C->SetCastShadow(F.bCast);
+			C->bCastHiddenShadow = F.bHidden;
+			C->MarkRenderStateDirty();
+		}
+	}
+	TerrainShadows.Reset();
 }
 
 int32 USSXRemasterLibrary::SetRemasteredInWorld(UObject* WorldContext, bool bRemastered)

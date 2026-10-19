@@ -67,6 +67,8 @@ namespace SSXRemaster
 	SSXTRICKYREBUILD_API UMaterialInstanceDynamic* ClassicMid(UMeshComponent& C, int32 Slot);
 	/** How many of the strongest track lights cast shadows at a quality: Epic all, High 16, Medium / Low none. */
 	SSXTRICKYREBUILD_API int32 ShadowedLights(int32 Quality, int32 NumLights);
+	/** The Remastered draw distance as a multiple of the original's: Low 1.5, Medium 2, High 3, Epic 4. */
+	SSXTRICKYREBUILD_API float DrawDistanceScale(int32 Quality);
 	constexpr double SkyDistance = 60000.0;   // cm: the sky dome (<= 17.5 m x 50) and beyond become the sky light
 }
 
@@ -130,6 +132,10 @@ private:
 
 	TWeakObjectPtr<APostProcessVolume> Volume;
 	TArray<TWeakObjectPtr<class ULocalLightComponent>> LocalLights;   // strongest first
+	TWeakObjectPtr<class UExponentialHeightFogComponent> Fog;
+	double FogStartBase = 0.0;   // fog start at draw distance scale 1, cm
+	struct FShadowFlags { TWeakObjectPtr<UPrimitiveComponent> Component; bool bCast = false; bool bHidden = false; };
+	TArray<FShadowFlags> TerrainShadows;   // the hidden full-detail terrain meshes, made to cast the sun's shadow
 	bool bAllLightShadows = false;
 	int32 AppliedQuality = -1;
 	void ApplyQuality();
