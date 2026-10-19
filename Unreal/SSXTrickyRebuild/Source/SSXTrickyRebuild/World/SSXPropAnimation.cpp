@@ -11,6 +11,7 @@
 #include "EngineUtils.h"
 #include "GameFramework/Actor.h"
 #include "HAL/FileManager.h"
+#include "HAL/IConsoleManager.h"
 #include "ImageUtils.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Misc/Paths.h"
@@ -29,6 +30,13 @@ using namespace SSXPropNodes;
 
 namespace
 {
+	// PORT DEVIATION (user request): the multiplier crystals spin before their cell activates (render only).
+	TAutoConsoleVariable<int32> CVarGemSpinAlways(TEXT("ssx.World.GemSpinAlways"), 1,
+		TEXT("1: the Showoff multiplier crystals always spin (user-requested port difference, render only). 0: the original ")
+		TEXT("(they spin only while their 100 m cell is next to a rider's)."));
+	TAutoConsoleVariable<float> CVarGemGlow(TEXT("ssx.Render.GemGlow"), 2.0f,
+		TEXT("Remastered look: how strongly the Showoff multiplier crystals glow (x their colour, 0 = not at all)."));
+
 	bool IsAnimType(int32 T) { return T >= SSXEffects::TypeAnimObject && T <= SSXEffects::TypeAnimTexFlip; }
 
 	FMatrix GameToUnrealMatrix(const FMatrix& G)
@@ -1053,6 +1061,59 @@ int32 USSXPropAnimation::TumbleNeighbours(FRiderSim& Sim, const FRiderSphereSet&
 	return Count;
 }
 
+bool USSXPropAnimation::IsMultiplierGem(const SSXEffects::FEffectData& Data, int32 Inst)
+{
+	const int32 E = Data.EffectFor(Inst, 1);
+	if (!Data.Effects.IsValidIndex(E))
+	{
+		return false;
+	}
+	const FIntPoint Range = Data.Effects[E];
+	for (int32 K = Range.X; K < Range.X + Range.Y; ++K)
+	{
+		if (Data.Records.IsValidIndex(K) && Data.Records[K].Type == 14) { return true; }   // 0x11E660 multiplier
+	}
+	return false;
+}
+
+void USSXPropAnimation::ApplyGems()
+{
+	if (!bActorsBuilt || !FxData || !FxData->IsLoaded())
+	{
+		return;
+	}
+	if (!bGemsFound)
+	{
+		bGemsFound = true;
+		for (int32 Inst = 0; Inst < FxData->NumInstances(); ++Inst)
+		{
+			if (Actors.Contains(Inst) && IsMultiplierGem(*FxData, Inst)) { GemInsts.Add(Inst); }
+		}
+	}
+	// The original's crystal spin (AnimObject rz, 270 deg/s, notes showoff_crystals.md) runs only while the gem's .ltg
+	// cell is active (the 3 x 3 cells around a rider); without a controller the picture turns at the same rate.
+	const bool bSpin = CVarGemSpinAlways.GetValueOnGameThread() != 0;
+	const double Angle = -FMath::DegreesToRadians(270.0) * GetWorld()->GetTimeSeconds();
+	const float Glow = CVarGemGlow.GetValueOnGameThread();
+	for (const int32 Inst : GemInsts)
+	{
+		const TArray<FActorRef>* List = Actors.Find(Inst);
+		if (!List) { continue; }
+		const bool bIdle = bSpin && !Nodes.Contains(Inst);
+		for (const FActorRef& R : *List)
+		{
+			AActor* A = R.Actor.Get();
+			if (!A) { continue; }
+			if (bIdle && R.Obj > 0)
+			{
+				A->SetActorTransform(FTransform(FQuat(FVector::UpVector, Angle)) * R.Initial);
+			}
+			TInlineComponentArray<UMeshComponent*> Meshes(A);
+			for (UMeshComponent* M : Meshes) { SSXRemaster::SetGlow(*M, Glow); }
+		}
+	}
+}
+
 void USSXPropAnimation::BuildActors()
 {
 	bActorsBuilt = true;
@@ -1140,6 +1201,7 @@ void USSXPropAnimation::ApplyRender()
 	{
 		if (!Nodes.Contains(It.Key())) { It.RemoveCurrent(); }
 	}
+	ApplyGems();
 	for (const TPair<int32, FNode>& P : Nodes)
 	{
 		if (P.Value.Type != SSXEffects::TypeMeshAnim)

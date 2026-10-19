@@ -388,7 +388,15 @@ def surface(m, rm, base, baked, uv=None, trails=False):
         connect(glint, "", emis, "B")
         connect_prop(emis, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
     else:
-        connect_prop(amb, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+        # RmGlow: per-component glow with the surface's own colour (USSXRemasterWorld::SetGlow, the Showoff crystals).
+        glow = expr(m, unreal.MaterialExpressionScalarParameter, -700, 60, parameter_name="RmGlow", default_value=0.0)
+        lit = expr(m, unreal.MaterialExpressionMultiply, -300, 20)
+        connect(albedo, "", lit, "A")
+        connect(glow, "", lit, "B")
+        emis = expr(m, unreal.MaterialExpressionAdd, -200, -40)
+        connect(amb, "", emis, "A")
+        connect(lit, "", emis, "B")
+        connect_prop(emis, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
     rough = custom(m, -400, 100, ROUGH, F1,
                    [("M", (masks4, "")), ("BaseRough", (coll(m, rm, "BaseRoughness", -700, 100), "")), ("Surface", (surf, ""))],
                    "RmRoughness")

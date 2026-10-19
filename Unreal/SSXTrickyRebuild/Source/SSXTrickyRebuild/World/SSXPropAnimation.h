@@ -82,6 +82,8 @@ public:
 	int32 NumMovieSlots(int32 Inst) const { const TArray<FFlipSlot>* S = MovieSlots.Find(Inst); return S ? S->Num() : 0; }
 
 	// 0x7FFFFF
+	/** A Showoff snow-crystal multiplier: its slot-1 (contact) effect has op 14 (0x11E660). */
+	static bool IsMultiplierGem(const SSXEffects::FEffectData& Data, int32 Inst);
 	static double Rand01() { return double(FGameRng::StreamA().Uniform(0.f, 1.f)); }
 	static uint32 RandU32() { return FGameRng::StreamA().Next(); }
 private:
@@ -117,6 +119,9 @@ private:
 	};
 
 	void BuildActors();
+	/** The Showoff snow-crystal multipliers (slot-1 effect with op 14): spin while their cell is inactive, glow in the
+	 *  Remastered look (ssx.World.GemSpinAlways, ssx.Render.GemGlow). Render only. */
+	void ApplyGems();
 	void TickNode(FNode& N);
 	void MovingObjects(FRiderSim& Sim, const FRiderSphereSet& Shape, SSXAnim::FRiderAnimChannel* Anim);
 	// 0x10ED68
@@ -167,6 +172,8 @@ private:
 	TMap<int32, TArray<FActorRef>> Actors;
 	bool bActorsBuilt = false;
 	bool bCrowdBuilt = false;
+	bool bGemsFound = false;
+	TArray<int32> GemInsts;
 	FString TrackStem;
 	TMap<int32, int32> CrackFrames;
 	TMap<int32, int32> FlipShown;

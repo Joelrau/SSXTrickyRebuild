@@ -70,6 +70,8 @@ namespace SSXRemaster
 	/** SetMaterial on the Classic side (game code replacing a slot's material, e.g. the crowd): in the Remastered look
 	 *  the slot shows the lit twin of the new material. */
 	SSXTRICKYREBUILD_API void SetClassicMaterial(UMeshComponent& C, int32 Slot, UMaterialInterface* M);
+	/** Remastered look only: the lit prop materials of this component glow with their own colour x Glow (RmGlow). */
+	SSXTRICKYREBUILD_API void SetGlow(UMeshComponent& C, float Glow);
 	/** How many of the strongest track lights cast shadows at a quality: Epic all, High 16, Medium / Low none. */
 	SSXTRICKYREBUILD_API int32 ShadowedLights(int32 Quality, int32 NumLights);
 	/** Remastered surface class of a sim surface id (SimData/surfaces.bin physics): 0 snow, 1 ice (no grip, fast),
@@ -106,6 +108,7 @@ public:
 	UMaterialInterface* ClassicMaterial(UMeshComponent& C, int32 Slot);
 	UMaterialInstanceDynamic* ClassicMid(UMeshComponent& C, int32 Slot);
 	void SetClassicMaterial(UMeshComponent& C, int32 Slot, UMaterialInterface* M);
+	void SetGlow(UMeshComponent& C, float Glow);
 	bool IsApplied() const { return bApplied; }
 	int32 NumSwapped() const { return Swaps.Num(); }
 

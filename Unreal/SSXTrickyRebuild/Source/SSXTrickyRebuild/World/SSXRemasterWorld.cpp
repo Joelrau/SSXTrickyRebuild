@@ -185,6 +185,12 @@ void SSXRemaster::SetClassicMaterial(UMeshComponent& C, int32 Slot, UMaterialInt
 	else { C.SetMaterial(Slot, M); }
 }
 
+void SSXRemaster::SetGlow(UMeshComponent& C, float Glow)
+{
+	UWorld* W = C.GetWorld();
+	if (USSXRemasterWorld* R = W ? W->GetSubsystem<USSXRemasterWorld>() : nullptr) { R->SetGlow(C, Glow); }
+}
+
 bool SSXRemaster::RealRiderShadows(const UWorld& World)
 {
 	return SSXRenderLook::Get() == ESSXRenderLook::Remastered
@@ -664,6 +670,27 @@ void USSXRemasterWorld::SetClassicMaterial(UMeshComponent& C, int32 Slot, UMater
 		MakeFollower(*S, *Mid, C);
 	}
 	else { C.SetMaterial(Slot, R ? R : M); }
+}
+
+void USSXRemasterWorld::SetGlow(UMeshComponent& C, float Glow)
+{
+	if (!bApplied) { return; }
+	for (int32 S = 0; S < C.GetNumMaterials(); ++S)
+	{
+		UMaterialInstanceDynamic* Mid = Cast<UMaterialInstanceDynamic>(C.GetMaterial(S));
+		float Cur = 0.f;
+		if (!Mid || !Mid->GetScalarParameterValue(FHashedMaterialParameterInfo(TEXT("RmGlow")), Cur) || Cur == Glow) { continue; }
+		bool bShared = false;
+		for (const TPair<TObjectPtr<UMaterialInterface>, TObjectPtr<UMaterialInterface>>& P : Remastered) { bShared |= P.Value == Mid; }
+		if (bShared)
+		{
+			// A lit twin shared by every slot with this Classic material: this component gets its own.
+			UMaterialInstanceDynamic* Own = UMaterialInstanceDynamic::Create(Mid, &C);
+			C.SetMaterial(S, Own);
+			Mid = Own;
+		}
+		Mid->SetScalarParameterValue(TEXT("RmGlow"), Glow);
+	}
 }
 
 void USSXRemasterWorld::SyncFollowers()
