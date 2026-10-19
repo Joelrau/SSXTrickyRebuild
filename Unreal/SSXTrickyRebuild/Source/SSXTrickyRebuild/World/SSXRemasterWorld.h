@@ -19,7 +19,7 @@ struct FSSXLight;
 namespace SSXRemaster
 {
 	/** Remastered parent for a Classic world material (by the root material's name), or null when the material keeps
-	 *  its Classic look (riders, sky, particles, translucent props). */
+	 *  its Classic look (riders and particles have their own swaps; lines, crowd). */
 	SSXTRICKYREBUILD_API const TCHAR* RemasteredParentPath(const FString& ClassicRootName);
 	/** /Game/RemasterData object path of a derived map (Suffix "C", "N" or "M") for a texture imported from
 	 *  converted/<root>/<stem>/textures/<name>.png (/Game/Tracks/<Map>/<stem>/Textures/<name>,

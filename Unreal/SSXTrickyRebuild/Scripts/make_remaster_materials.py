@@ -10,6 +10,11 @@ looks exactly as in Classic; the sun, lamps and Lumen add to that.
 M_RmRider* are the lit riders: the original's per-vertex light rig (the same parameters the Classic rider materials get
 every frame) becomes a local fill and a rim light in the track's colours, on top of the sun, sky and Lumen; chrome
 outfits are metal, glossy parts smoother; the rider depth pull and guard band of the Classic riders stay.
+M_RmSky / M_RmClearColour: the sky dome and the clear-colour shell as black lit surfaces glowing with their Classic
+colour as linear light, so the post pass treats the whole background like the lit world and anything translucent in
+front of it (soft props, snowfall) blends in the same space.
+M_RmProp_Translucent: the soft edges of the soft props (the Classic M_SSXProp_Translucent pass: same alpha, soft-prop
+depth and draw distance), unlit like Classic but as linear light, so they match their lit core.
 M_RmParticleAdd / M_RmParticleAlpha: the Classic sprite colours (GsSprite) as linear light, faded softly where they
 meet geometry, with the Classic soft-prop depth test.
 PP_RmScene replaces the tonemapper in the Remastered look (it adds the engine's bloom itself): unlit pixels (riders, sky, particles: still the Classic
@@ -73,6 +78,11 @@ float av = floor(VA * 255.0 + 0.5);
 return min(floor(at * av / 128.0), 255.0);
 """
 PROP_ATEST = "return As > 1.0 ? 1.0 : 0.0;"
+PROP_BLEND = "return (As > 1.0 && As < 128.0) ? As / 128.0 : 0.0;"
+SOFT_DEPTH = "return (PD <= CD.r * 1.0005 + 0.5) ? 1.0 : 0.0;"
+SKY_SHADE = f"return {DEC.format(x='saturate(' + ENC.format(x='Tex') + ' * Factor)')};"
+CLEAR_SHADE = f"return {DEC.format(x='saturate(C.rgb)')};"
+PROP_SOFT_SHADE = f"return {DEC.format(x='saturate(' + ENC.format(x='Tex') + ' * VC.rgb * (255.0 / 128.0))')};"
 PROP_CORE = "return As >= 128.0 ? 1.0 : 0.0;"
 DRAW_CLIP = "return (Depth <= DrawDistance ? 1.0 : 0.0) * Alpha;"
 # 0x318080: the Classic rider light rig, ambient + sum max(0, N . D_i) C_i in PS2 units (1.0 = 0x80).
@@ -477,6 +487,68 @@ for name, additive in (("M_RmParticleAdd", True), ("M_RmParticleAlpha", False)):
         connect(fade, "", op, "B")
         connect_prop(op, "", unreal.MaterialProperty.MP_OPACITY)
     finish(m)
+
+def glow_material(name):
+    m = recreate(name, unreal.Material, unreal.MaterialFactoryNew())
+    m.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_DEFAULT_LIT)
+    m.set_editor_property("blend_mode", unreal.BlendMode.BLEND_OPAQUE)
+    m.set_editor_property("two_sided", True)
+    zero = expr(m, unreal.MaterialExpressionConstant, -400, 200, r=0.0)
+    connect_prop(zero, "", unreal.MaterialProperty.MP_BASE_COLOR)
+    connect_prop(zero, "", unreal.MaterialProperty.MP_SPECULAR)
+    connect_prop(expr(m, unreal.MaterialExpressionConstant, -400, 300, r=1.0), "", unreal.MaterialProperty.MP_ROUGHNESS)
+    return m
+
+
+# 0x1C79E8
+m = glow_material("M_RmSky")
+sky = tex_param(m, "BaseTex", -1000, -200)
+sky.set_editor_property("sampler_source", unreal.SamplerSourceMode.SSM_CLAMP_WORLD_GROUP_SETTINGS)
+sky.set_editor_property("mip_value_mode", unreal.TextureMipValueMode.TMVM_MIP_LEVEL)
+connect(expr(m, unreal.MaterialExpressionConstant, -1300, -300, r=0.0), "", sky, "Level")
+connect_prop(custom(m, -400, 0, SKY_SHADE, F3, [("Tex", (sky, "RGB")), ("Factor", (coll(m, mpc, "SkyAmbient", -750, 100), ""))],
+                    "RmSkyShade"), "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+finish(m)
+
+m = glow_material("M_RmClearColour")
+connect_prop(custom(m, -400, 0, CLEAR_SHADE, F3, [("C", (coll(m, mpc, "ClearColour", -750, 0), ""))], "RmClearColour"), "",
+             unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+finish(m)
+
+m = recreate("M_RmProp_Translucent", unreal.Material, unreal.MaterialFactoryNew())
+m.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_UNLIT)
+m.set_editor_property("blend_mode", unreal.BlendMode.BLEND_TRANSLUCENT)
+m.set_editor_property("two_sided", True)
+m.set_editor_property("use_translucency_vertex_fog", False)
+m.set_editor_property("allow_translucent_custom_depth_writes", True)
+m.set_editor_property("opacity_mask_clip_value", 1.0 / 256.0)
+base = tex_param(m, "BaseTex", -1100, -200)
+uv0 = expr(m, unreal.MaterialExpressionTextureCoordinate, -1700, -200, coordinate_index=0)
+su = expr(m, unreal.MaterialExpressionScalarParameter, -1700, -100, parameter_name="UVScrollU", default_value=0.0)
+sv = expr(m, unreal.MaterialExpressionScalarParameter, -1700, 0, parameter_name="UVScrollV", default_value=0.0)
+suv = expr(m, unreal.MaterialExpressionAppendVector, -1500, -50)
+connect(su, "", suv, "A")
+connect(sv, "", suv, "B")
+uvs = expr(m, unreal.MaterialExpressionAdd, -1300, -150)
+connect(uv0, "", uvs, "A")
+connect(suv, "", uvs, "B")
+connect(uvs, "", base, "UVs")
+vc = expr(m, unreal.MaterialExpressionVertexColor, -1000, 100)
+connect_prop(custom(m, -400, 0, PROP_SOFT_SHADE, F3, [("Tex", (base, "RGB")), ("VC", (vc, ""))], "RmPropSoftShade"), "",
+             unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+gs_a = custom(m, -1000, 400, PROP_GS_ALPHA, F1, [("A", (base, "A")), ("VA", (vc, "A"))], "PropGsAlpha")
+alpha = custom(m, -800, 400, PROP_BLEND, F1, [("As", (gs_a, ""))], "PropBlend")
+depth = expr(m, unreal.MaterialExpressionPixelDepth, -700, 500)
+cd = expr(m, unreal.MaterialExpressionSceneTexture, -1000, 650, scene_texture_id=unreal.SceneTextureId.PPI_CUSTOM_DEPTH)
+front = custom(m, -800, 650, SOFT_DEPTH, F1, [("PD", (depth, "")), ("CD", (cd, "Color"))], "SoftDepth")
+vis = expr(m, unreal.MaterialExpressionMultiply, -550, 450)
+connect(alpha, "", vis, "A")
+connect(front, "", vis, "B")
+op = custom(m, -300, 550, DRAW_CLIP, F1,
+            [("Depth", (depth, "")), ("DrawDistance", (coll(m, mpc, "DrawDistance", -700, 600), "")), ("Alpha", (vis, ""))],
+            "DrawClip")
+connect_prop(op, "", unreal.MaterialProperty.MP_OPACITY)
+finish(m)
 
 pp = recreate("PP_RmScene", unreal.Material, unreal.MaterialFactoryNew())
 pp.set_editor_property("material_domain", unreal.MaterialDomain.MD_POST_PROCESS)

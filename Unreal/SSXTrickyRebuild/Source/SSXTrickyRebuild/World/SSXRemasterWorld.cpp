@@ -72,6 +72,10 @@ const TCHAR* SSXRemaster::RemasteredParentPath(const FString& ClassicRootName)
 		{ TEXT("M_SSXPropOpaque_TwoSided"), TEXT("/Game/Remastered/M_RmPropOpaque.M_RmPropOpaque") },
 		{ TEXT("M_SSXProp_TranslucentCore"), TEXT("/Game/Remastered/M_RmProp_Core.M_RmProp_Core") },
 		{ TEXT("M_SSXProp_TranslucentCore_TwoSided"), TEXT("/Game/Remastered/M_RmProp_Core.M_RmProp_Core") },
+		{ TEXT("M_SSXProp_Translucent"), TEXT("/Game/Remastered/M_RmProp_Translucent.M_RmProp_Translucent") },
+		{ TEXT("M_SSXSky"), TEXT("/Game/Remastered/M_RmSky.M_RmSky") },
+		{ TEXT("M_SSXClearColour"), TEXT("/Game/Remastered/M_RmClearColour.M_RmClearColour") },
+		{ TEXT("M_SSXProp_Translucent_TwoSided"), TEXT("/Game/Remastered/M_RmProp_Translucent.M_RmProp_Translucent") },
 	};
 	const TCHAR* const* P = Map.Find(ClassicRootName);
 	return P ? *P : nullptr;
@@ -115,6 +119,8 @@ const SSXRemaster::FTrackTuning& SSXRemaster::TuningFor(const FString& Stem)
 		[&Make]() { FTrackTuning T = Make(TEXT("snow"), 0.25f, 0.9f, 0.2f, 1.0f, 5.f, 60.f); T.Bloom = 0.8f; return T; }(),
 		[&Make]() { FTrackTuning T = Make(TEXT("merquer"), 0.25f, 0.9f, 0.2f, 1.0f, 5.f, 60.f); T.Bloom = 0.8f; return T; }(),
 		Make(TEXT("megaple"), 0.2f, 0.6f, 0.3f, 0.95f, 4.f, 40.f),
+		// Elysium's orange sunset light would turn its pink-purple slopes peach: a paler sun, more of the baked light.
+		Make(TEXT("elysium"), 1.6f, 0.3f, 0.5f, 0.7f, 3.f, 15.f),
 		[&Make]() { FTrackTuning T = Make(TEXT("frontend"), 0.f, 0.6f, 0.05f, 1.0f, 3.f, 15.f); T.FogDensity = 0.f; T.Saturation = 1.f; T.Bloom = 0.3f; return T; }(),
 	};
 	static const FTrackTuning Default;
