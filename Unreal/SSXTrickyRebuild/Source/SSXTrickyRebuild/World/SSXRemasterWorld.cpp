@@ -115,7 +115,7 @@ const SSXRemaster::FTrackTuning& SSXRemaster::TuningFor(const FString& Stem)
 		Make(TEXT("snow"), 0.25f, 0.9f, 0.2f, 1.0f, 5.f, 60.f),
 		Make(TEXT("merquer"), 0.25f, 0.9f, 0.2f, 1.0f, 5.f, 60.f),
 		Make(TEXT("megaple"), 0.2f, 0.6f, 0.3f, 0.95f, 4.f, 40.f),
-		[&Make]() { FTrackTuning T = Make(TEXT("frontend"), 0.f, 0.6f, 0.05f, 1.0f, 3.f, 15.f); T.FogDensity = 0.f; return T; }(),
+		[&Make]() { FTrackTuning T = Make(TEXT("frontend"), 0.f, 0.6f, 0.05f, 1.0f, 3.f, 15.f); T.FogDensity = 0.f; T.Saturation = 1.f; return T; }(),
 	};
 	static const FTrackTuning Default;
 	for (const FTrackTuning& T : Table)

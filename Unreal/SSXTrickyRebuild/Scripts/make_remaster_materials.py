@@ -4,8 +4,9 @@ Lit counterparts of the Classic world materials (Scripts/make_world_materials.py
 same parameters (BaseTex, Lightmap, UVScrollU/V, MPC_SSXWorld) so the game copies a Classic instance's values onto a
 Remastered one (World/SSXRemasterWorld.cpp), plus RmNormal / RmMasks from tools/make_remaster_maps.py. The original
 baked light (terrain lightmap, prop vertex colours) stays in as a tint of the albedo and as ambient occlusion, weighted
-by MPC_SSXRemaster.BakedWeight, and as the ambient light (emissive albedo x baked x BakedAmbient, which Lumen also
-bounces), so each track keeps its painted mood and shadows never go black.
+by MPC_SSXRemaster.BakedWeight, and as the ambient light: the colour the Classic material shows (clamped like the
+PS2's), as linear light x BakedAmbient, which Lumen also bounces. With BakedAmbient 1 and no other light a surface
+looks exactly as in Classic; the sun, lamps and Lumen add to that.
 M_RmRider* are the lit riders: the original's per-vertex light rig (the same parameters the Classic rider materials get
 every frame) becomes a local fill and a rim light in the track's colours, on top of the sun, sky and Lumen; chrome
 outfits are metal, glossy parts smoother; the rider depth pull and guard band of the Classic riders stay.
@@ -30,32 +31,32 @@ tools = unreal.AssetToolsHelpers.get_asset_tools()
 ENC = "(lerp(1.055 * pow(max({x}, 0.0), 1.0 / 2.4) - 0.055, {x} * 12.92, step({x}, 0.0031308)))"
 DEC = "(lerp(pow((max({x}, 0.0) + 0.055) / 1.055, 2.4), {x} / 12.92, step({x}, 0.04045)))"
 
-# Classic terrain: c = (t - LM.rgb) * LM.a * 2 in display space (Mode 0). Baked = c / (2 t): the share of the full
-# texture brightness the original's lightmap lets through, as linear light.
+# "Baked" is the colour the Classic material shows, in display space: terrain (Mode 0) c = (t - LM.rgb) * LM.a * 2,
+# props c = t * VC * 2, both clamped at 1.
 TERRAIN_BAKED = f"""
 float3 t = {ENC.format(x='Tex')};
-float3 c = saturate((t - LM.rgb) * LM.a * (255.0 / 128.0));
-float3 r = min(c / max(t * (255.0 / 128.0), 1.0 / 255.0), 2.0);   // lightmap alpha > 0x80 brightens (lamp halos)
-return {DEC.format(x='r')};
+return saturate((t - LM.rgb) * LM.a * (255.0 / 128.0));
 """
-# Classic props: c = t * VC * 2 in display space.
 PROP_BAKED = f"""
-float3 r = VC.rgb * (255.0 / 128.0);   // up to 2: vertex light brighter than the texture
-return {DEC.format(x='r')};
+return saturate({ENC.format(x='Tex')} * VC.rgb * (255.0 / 128.0));
 """
-# PS2 textures: 0x80 is full brightness.
+# The albedo lit by the sun / lamps: the texture at full brightness (PS2 textures: 0x80 is full), tinted by the share
+# of it the original's baked light lets through.
 ALBEDO = f"""
-float3 t = saturate({ENC.format(x='Tex')} * (255.0 / 128.0));
-float3 a = {DEC.format(x='t')} * AlbedoScale;
-return a * lerp(float3(1.0, 1.0, 1.0), Baked, BakedWeight);
+float3 t2 = saturate({ENC.format(x='Tex')} * (255.0 / 128.0));
+float3 r = saturate(Baked / max(t2, 1.0 / 255.0));
+return {DEC.format(x='t2')} * AlbedoScale * lerp(float3(1.0, 1.0, 1.0), {DEC.format(x='r')}, BakedWeight);
 """
-# Ambient from the baked light, plus a glow for the texels the mask marks emissive (signs, neon).
+# Ambient: the Classic colour as linear light, plus a glow for the texels the mask marks emissive (signs, neon).
 AMBIENT = f"""
-float3 t = saturate({ENC.format(x='Tex')} * (255.0 / 128.0));
-float3 a = {DEC.format(x='t')};
-return a * AlbedoScale * Baked * BakedAmbient + a * M.b * Emissive;
+float3 t2 = saturate({ENC.format(x='Tex')} * (255.0 / 128.0));
+return {DEC.format(x='Baked')} * BakedAmbient + {DEC.format(x='t2')} * M.b * Emissive;
 """
-AO = "return lerp(1.0, dot(Baked, float3(0.299, 0.587, 0.114)), BakedWeight) * M.a;"
+AO = f"""
+float3 t2 = saturate({ENC.format(x='Tex')} * (255.0 / 128.0));
+float3 r = saturate(Baked / max(t2, 1.0 / 255.0));
+return lerp(1.0, dot({DEC.format(x='r')}, float3(0.2126, 0.7152, 0.0722)), BakedWeight) * M.a;
+"""
 ROUGH = "return clamp(BaseRough + (M.r - 0.5) - M.g * 0.25, 0.05, 1.0);"
 SPEC = "return 0.35 + M.g * 0.3;"
 LIGHTMAP_UV = """
@@ -262,7 +263,6 @@ def surface(m, rm, base, baked, uv=None):
     connect(masks, "A", masks4, "B")
     amb = custom(m, -400, -50, AMBIENT, F3,
                  [("Tex", (base, "RGB")), ("Baked", (baked, "")), ("M", (masks4, "")),
-                  ("AlbedoScale", (coll(m, rm, "AlbedoScale", -700, -120), "")),
                   ("BakedAmbient", (coll(m, rm, "BakedAmbient", -700, -50), "")),
                   ("Emissive", (coll(m, rm, "Emissive", -700, 20), ""))], "RmBakedAmbient")
     connect_prop(amb, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
@@ -271,7 +271,7 @@ def surface(m, rm, base, baked, uv=None):
     connect_prop(rough, "", unreal.MaterialProperty.MP_ROUGHNESS)
     connect_prop(custom(m, -400, 200, SPEC, F1, [("M", (masks4, ""))], "RmSpecular"), "", unreal.MaterialProperty.MP_SPECULAR)
     ao = custom(m, -400, 300, AO, F1,
-                [("Baked", (baked, "")), ("M", (masks4, "")),
+                [("Tex", (base, "RGB")), ("Baked", (baked, "")), ("M", (masks4, "")),
                  ("BakedWeight", (coll(m, rm, "BakedWeight", -700, 400), ""))], "RmAO")
     connect_prop(ao, "", unreal.MaterialProperty.MP_AMBIENT_OCCLUSION)
 
@@ -345,7 +345,7 @@ for name, mode in (("M_RmProp", "plain"), ("M_RmProp_Masked", "atest"), ("M_RmPr
     connect(suv, "", uvs, "B")
     connect(uvs, "", base, "UVs")
     vc = expr(m, unreal.MaterialExpressionVertexColor, -1000, 100)
-    baked = custom(m, -700, 0, PROP_BAKED, F3, [("VC", (vc, ""))], "RmPropBaked")
+    baked = custom(m, -700, 0, PROP_BAKED, F3, [("Tex", (base, "RGB")), ("VC", (vc, ""))], "RmPropBaked")
     surface(m, rm, base, baked, uvs)
     if mode in ("atest", "core"):
         gs_a = custom(m, -1000, 800, PROP_GS_ALPHA, F1, [("A", (base, "A")), ("VA", (vc, "A"))], "PropGsAlpha")
