@@ -349,7 +349,8 @@ def surface(m, rm, base, baked, uv=None, trails=False):
     amb = custom(m, -400, -50, AMBIENT, F3,
                  [("Tex", (base, "RGB")), ("Baked", (baked, "")), ("M", (masks4, "")),
                   ("BakedAmbient", (coll(m, rm, "BakedAmbient", -700, -50), "")),
-                  ("Emissive", (coll(m, rm, "Emissive", -700, 20), ""))], "RmBakedAmbient")
+                  ("Emissive", (coll(m, rm, "Emissive", -700, 20), "") if not trails
+                   else (expr(m, unreal.MaterialExpressionConstant, -700, 20, r=0.0), ""))], "RmBakedAmbient")   # terrain never glows (bright ice is not neon)
     glint = None if not trails else custom(m, -400, -120, GLINT, F3,
                    [("WP", (expr(m, unreal.MaterialExpressionWorldPosition, -700, -200), "")),
                     ("V", (expr(m, unreal.MaterialExpressionCameraVectorWS, -700, -160), "")),
