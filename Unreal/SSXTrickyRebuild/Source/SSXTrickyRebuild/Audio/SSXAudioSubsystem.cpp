@@ -1660,14 +1660,11 @@ FSSXTrickyPhraseContext USSXAudioSubsystem::TrickyPhraseContext(int32 Mode)
 	TrickyLoopStem = FPaths::GetBaseFilename(Sec->Get(TEXT("LOOPDATA"))).ToLower();
 	const FString Lvl = Sec->Get(TEXT("ASYNCLEVEL"));
 	TrickyLoopLevel = Lvl.IsEmpty() ? 1.f : FCString::Atof(*Lvl) / 100.f;
-	const FSSXAudioManifest& M = GetManifest();
-	for (int32 K = 15; K >= 0 && !TrickyLoopStem.IsEmpty(); --K)
+	// FUN_002246A8 with the Tricky flag: phrase PhrasesPerBank - 1 (song ctor 0x223D60: default 4, no song sets it).
+	const int32 Phrases = FCString::Atoi(*Sec->Get(TEXT("PHRASESPERBANK"), TEXT("4")));
+	if (!TrickyLoopStem.IsEmpty() && Phrases > 0)
 	{
-		if (M.Find(FString::Printf(TEXT("music/%s/%02d"), *TrickyLoopStem, K * SSXTrickyAudio::PhraseAlign)))
-		{
-			C.LastPhraseBase = K * SSXTrickyAudio::PhraseAlign;
-			break;
-		}
+		C.LastPhraseBase = (Phrases - 1) * SSXTrickyAudio::PhraseAlign;
 	}
 	return C;
 }
