@@ -95,10 +95,12 @@ RIDER_ALBEDO = f"""
 float3 t = saturate({ENC.format(x='Tex')} * (255.0 / 128.0));
 return {DEC.format(x='t')} * AlbedoScale;
 """
+# The Classic rider colour (texture x light rig, display space, clamped) as linear light x RiderFill: at 1 a rider with
+# no other light looks exactly as in Classic; sun, lamps and Lumen add to it. Plus a rim in the strongest rig light's colour.
 RIDER_FILL = f"""
-float3 v = saturate(V * 0.5);
+float3 c = saturate({ENC.format(x='Tex')} * V);
 float3 rim = {DEC.format(x='saturate(C2 * 0.5)')} * pow(1.0 - saturate(dot(N, normalize(Dir))), 3.0);   // Dir: pixel to camera
-return Albedo * {DEC.format(x='v')} * 2.0 * RiderFill + rim * RiderRim;
+return {DEC.format(x='c')} * RiderFill + rim * RiderRim;
 """
 RIDER_ROUGH = "return clamp(0.65 - Fix * 0.5, 0.2, 1.0);"
 # 0x1364D0 / 0x1DCC10
@@ -309,7 +311,7 @@ else:
 old = {str(p.get_editor_property("parameter_name")): p for p in rm.get_editor_property("scalar_parameters")}
 scalars = []
 for n, v in (("BakedWeight", 0.6), ("BakedAmbient", 0.55), ("AlbedoScale", 0.9), ("BaseRoughness", 0.8),
-             ("Exposure", 1.0), ("Saturation", 1.15), ("Emissive", 3.0), ("RiderFill", 0.45), ("RiderRim", 0.6),
+             ("Exposure", 1.0), ("Saturation", 1.15), ("Emissive", 3.0), ("RiderFill", 0.6), ("RiderRim", 0.35),
              ("ParticleSoftness", 40.0)):
     p = old.get(n) or unreal.CollectionScalarParameter()
     p.set_editor_property("parameter_name", n)
@@ -395,7 +397,7 @@ for name, masked, chrome in (("M_RmRider", False, False), ("M_RmRider_Masked", T
     connect_prop(albedo, "", unreal.MaterialProperty.MP_BASE_COLOR)
     view_dir = expr(m, unreal.MaterialExpressionCameraVectorWS, -800, 400)
     fill = custom(m, -400, 0, RIDER_FILL, F3,
-                  [("Albedo", (albedo, "")), ("V", (interp, "PS")), ("C2", (vec["Light2Colour"], "RGB")),
+                  [("Tex", (tex, "")), ("V", (interp, "PS")), ("C2", (vec["Light2Colour"], "RGB")),
                    ("N", (expr(m, unreal.MaterialExpressionPixelNormalWS, -800, 330), "")), ("Dir", (view_dir, "")),
                    ("RiderFill", (coll(m, rm, "RiderFill", -800, 480), "")),
                    ("RiderRim", (coll(m, rm, "RiderRim", -800, 550), ""))], "RmRiderFill")

@@ -60,24 +60,29 @@ namespace SSXRenderLook
 
 	TConstArrayView<FCvarValue> RemasteredCvars()
 	{
-		// GI 1 / reflections 1 = Lumen, reflections 2 = screen space.
-		static const FCvarValue Cvars[NumQualities][8] = {
+		// GI 1 / reflections 1 = Lumen, reflections 2 = screen space. Epic: Lumen on hardware ray tracing (needs
+		// r.RayTracing in DefaultEngine.ini and an RT GPU; Lumen falls back to software tracing otherwise).
+		static const FCvarValue Cvars[NumQualities][9] = {
 			{ { TEXT("r.DynamicGlobalIlluminationMethod"), TEXT("0") }, { TEXT("r.ReflectionMethod"), TEXT("2") },
 			  { TEXT("sg.GlobalIlluminationQuality"), TEXT("1") }, { TEXT("sg.ReflectionQuality"), TEXT("1") },
 			  { TEXT("sg.ShadowQuality"), TEXT("1") }, { TEXT("r.VolumetricFog"), TEXT("0") },
-			  { TEXT("r.ScreenPercentage"), TEXT("67") }, { TEXT("sg.EffectsQuality"), TEXT("1") } },
+			  { TEXT("r.ScreenPercentage"), TEXT("67") }, { TEXT("sg.EffectsQuality"), TEXT("1") },
+			  { TEXT("r.Lumen.HardwareRayTracing"), TEXT("0") } },
 			{ { TEXT("r.DynamicGlobalIlluminationMethod"), TEXT("1") }, { TEXT("r.ReflectionMethod"), TEXT("1") },
 			  { TEXT("sg.GlobalIlluminationQuality"), TEXT("1") }, { TEXT("sg.ReflectionQuality"), TEXT("1") },
 			  { TEXT("sg.ShadowQuality"), TEXT("2") }, { TEXT("r.VolumetricFog"), TEXT("0") },
-			  { TEXT("r.ScreenPercentage"), TEXT("75") }, { TEXT("sg.EffectsQuality"), TEXT("2") } },
+			  { TEXT("r.ScreenPercentage"), TEXT("75") }, { TEXT("sg.EffectsQuality"), TEXT("2") },
+			  { TEXT("r.Lumen.HardwareRayTracing"), TEXT("0") } },
 			{ { TEXT("r.DynamicGlobalIlluminationMethod"), TEXT("1") }, { TEXT("r.ReflectionMethod"), TEXT("1") },
 			  { TEXT("sg.GlobalIlluminationQuality"), TEXT("2") }, { TEXT("sg.ReflectionQuality"), TEXT("2") },
 			  { TEXT("sg.ShadowQuality"), TEXT("3") }, { TEXT("r.VolumetricFog"), TEXT("1") },
-			  { TEXT("r.ScreenPercentage"), TEXT("100") }, { TEXT("sg.EffectsQuality"), TEXT("3") } },
+			  { TEXT("r.ScreenPercentage"), TEXT("100") }, { TEXT("sg.EffectsQuality"), TEXT("3") },
+			  { TEXT("r.Lumen.HardwareRayTracing"), TEXT("0") } },
 			{ { TEXT("r.DynamicGlobalIlluminationMethod"), TEXT("1") }, { TEXT("r.ReflectionMethod"), TEXT("1") },
 			  { TEXT("sg.GlobalIlluminationQuality"), TEXT("3") }, { TEXT("sg.ReflectionQuality"), TEXT("3") },
 			  { TEXT("sg.ShadowQuality"), TEXT("4") }, { TEXT("r.VolumetricFog"), TEXT("1") },
-			  { TEXT("r.ScreenPercentage"), TEXT("100") }, { TEXT("sg.EffectsQuality"), TEXT("4") } },
+			  { TEXT("r.ScreenPercentage"), TEXT("100") }, { TEXT("sg.EffectsQuality"), TEXT("4") },
+			  { TEXT("r.Lumen.HardwareRayTracing"), TEXT("1") } },
 		};
 		return Cvars[GetQuality()];
 	}

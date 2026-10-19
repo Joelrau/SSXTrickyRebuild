@@ -71,6 +71,8 @@ namespace
 		{ TEXT("r.DefaultFeature.LensFlare"), TEXT("False"), 0 },
 		{ TEXT("r.TranslucentSortPolicy"), TEXT("1"), 1 },
 		{ TEXT("r.GenerateMeshDistanceFields"), TEXT("True"), 1 },
+		{ TEXT("r.SkinCache.CompileShaders"), TEXT("1"), 1 },
+		{ TEXT("r.RayTracing"), TEXT("True"), 1 },
 	};
 
 	TArray<FString> IniSection(const FString& File, const FString& Section)

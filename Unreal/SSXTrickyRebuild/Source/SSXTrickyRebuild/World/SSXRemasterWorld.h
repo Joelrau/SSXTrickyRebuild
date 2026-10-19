@@ -47,13 +47,20 @@ namespace SSXRemaster
 		float FogDensity = 0.02f;
 		float Bloom = 0.5f;             // bloom intensity, threshold 1 (highlights only)
 		float LightCandela = 15.f;      // track point / spot lights: candela per unit of the original colour
+		float RiderFill = 0.6f;         // share of the Classic rider shading kept under the new light (1 = all of it)
 		int32 MaxLights = 48;
+		bool bLightShadows = false;     // every point / spot light casts shadows at every quality (the front end: few lights)
 	};
 	SSXTRICKYREBUILD_API const FTrackTuning& TuningFor(const FString& Stem);
 	/** Attenuation radius (cm) of a track light: where the original falloff (FSSXLightWorld::FalloffFactor) is 5 %. */
 	SSXTRICKYREBUILD_API float LightRadius(int32 FalloffKind);
 	/** Indices of the track's point and spot lights (not modulators) by falling strength, at most Max. */
 	SSXTRICKYREBUILD_API TArray<int32> StrongestLocalLights(TConstArrayView<FSSXLight> Lights, int32 Max);
+	/** The Remastered look draws real rider shadows in this world (a sun of at least 1 lux); elsewhere the original
+	 *  projected shadow stays (Particles/SSXParticleWorld.cpp). */
+	SSXTRICKYREBUILD_API bool RealRiderShadows(const UWorld& World);
+	/** How many of the strongest track lights cast shadows at a quality: Epic all, High 16, Medium / Low none. */
+	SSXTRICKYREBUILD_API int32 ShadowedLights(int32 Quality, int32 NumLights);
 	constexpr double SkyDistance = 60000.0;   // cm: the sky dome (<= 17.5 m x 50) and beyond become the sky light
 }
 
@@ -93,6 +100,7 @@ private:
 	TArray<FSwap> Swaps;
 	TArray<TWeakObjectPtr<APostProcessVolume>> DisabledVolumes;
 	TArray<FSwap> RiderSwaps;
+	TArray<TWeakObjectPtr<UMeshComponent>> ShadowCasters;   // rider parts made to cast shadows (Classic: none do)
 	TMap<TWeakObjectPtr<UMaterialInstanceDynamic>, TWeakObjectPtr<UMaterialInstanceDynamic>> RiderTwins;
 
 	UPROPERTY(Transient)
@@ -101,6 +109,8 @@ private:
 	TArray<TObjectPtr<AActor>> Spawned;
 
 	TWeakObjectPtr<APostProcessVolume> Volume;
+	TArray<TWeakObjectPtr<class ULocalLightComponent>> LocalLights;   // strongest first
+	bool bAllLightShadows = false;
 	int32 AppliedQuality = -1;
 	void ApplyQuality();
 	bool bApplied = false;

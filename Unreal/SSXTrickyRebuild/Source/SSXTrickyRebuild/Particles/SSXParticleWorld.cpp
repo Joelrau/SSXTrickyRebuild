@@ -1,6 +1,7 @@
 #include "Particles/SSXParticleWorld.h"
 
 #include "Race/GameRng.h"
+#include "World/SSXRemasterWorld.h"
 #include "World/SSXRenderLook.h"
 
 #include "Camera/PlayerCameraManager.h"
@@ -1147,9 +1148,9 @@ void USSXParticleWorld::UpdateShadow(FRiderFx& R, int32 Racers)
 #else
 	constexpr int32 Mode = 0;   // subtractive (the original's)
 #endif
-	// The Remastered look draws real rider shadows instead (lit riders, World/SSXRemasterWorld.h).
+	// Where the Remastered look has a real sun the riders cast real shadows instead (World/SSXRemasterWorld.h).
 	const bool bOn = Pawn && ShadowMaterial && Mode >= 0 && CVarParticles.GetValueOnGameThread() != 0 && R.bHaveInput && R.RenderAlpha > 0.0
-		&& SSXRenderLook::Get() == ESSXRenderLook::Classic;
+		&& !SSXRemaster::RealRiderShadows(*GetWorld());
 	USSXCharacterAppearance* App = Pawn ? Pawn->GetAppearance() : nullptr;
 	UPoseableMeshComponent* Mesh = App ? App->GetRiderMesh() : nullptr;
 	if (!bOn || !Mesh || !Mesh->IsVisible())

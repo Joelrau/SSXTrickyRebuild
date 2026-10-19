@@ -111,6 +111,7 @@ const SSXRemaster::FTrackTuning& SSXRemaster::TuningFor(const FString& Stem)
 	{
 		FTrackTuning T;
 		T.Stem = S; T.SunLux = Sun; T.SunSaturation = SunSat; T.SkyLight = Sky; T.BakedAmbient = Amb; T.Emissive = Emis; T.LightCandela = Cd;
+		T.RiderFill = Sun < 1.f ? 1.f : 0.6f;
 		return T;
 	};
 	// Night (Snowdream, Merqury City, the trick tutorial): a faint coloured moon, the baked light and the lamps carry the
@@ -123,7 +124,7 @@ const SSXRemaster::FTrackTuning& SSXRemaster::TuningFor(const FString& Stem)
 		[&Make]() { FTrackTuning T = Make(TEXT("trick"), 0.25f, 0.9f, 0.2f, 1.0f, 5.f, 60.f); T.Bloom = 0.8f; return T; }(),
 		// Elysium's orange sunset light would turn its pink-purple slopes peach: a paler sun, more of the baked light.
 		Make(TEXT("elysium"), 1.6f, 0.3f, 0.5f, 0.7f, 3.f, 15.f),
-		[&Make]() { FTrackTuning T = Make(TEXT("frontend"), 0.f, 0.6f, 0.05f, 1.0f, 3.f, 15.f); T.FogDensity = 0.f; T.Saturation = 1.f; T.Bloom = 0.3f; return T; }(),
+		[&Make]() { FTrackTuning T = Make(TEXT("frontend"), 0.f, 0.6f, 0.05f, 1.0f, 3.f, 15.f); T.FogDensity = 0.f; T.Saturation = 1.f; T.Bloom = 0.3f; T.bLightShadows = true; return T; }(),
 	};
 	static const FTrackTuning Default;
 	for (const FTrackTuning& T : Table)
@@ -140,6 +141,17 @@ const TCHAR* SSXRemaster::RemasteredRiderPath(const FString& ClassicParentName)
 	if (ClassicParentName == TEXT("M_SSXRiderLitChrome")) { return TEXT("/Game/Remastered/M_RmRiderChrome.M_RmRiderChrome"); }
 	if (ClassicParentName == TEXT("M_SSXRiderLitChrome_Masked")) { return TEXT("/Game/Remastered/M_RmRiderChrome_Masked.M_RmRiderChrome_Masked"); }
 	return nullptr;
+}
+
+bool SSXRemaster::RealRiderShadows(const UWorld& World)
+{
+	return SSXRenderLook::Get() == ESSXRenderLook::Remastered
+		&& TuningFor(UWorld::RemovePIEPrefix(World.GetMapName()).ToLower()).SunLux >= 1.f;
+}
+
+int32 SSXRemaster::ShadowedLights(int32 Quality, int32 NumLights)
+{
+	return Quality >= 3 ? NumLights : Quality == 2 ? FMath::Min(NumLights, 16) : 0;
 }
 
 float SSXRemaster::LightRadius(int32 FalloffKind)
@@ -218,6 +230,11 @@ void USSXRemasterWorld::ApplyQuality()
 		V->Settings.DynamicGlobalIlluminationMethod = bLumen ? EDynamicGlobalIlluminationMethod::Lumen : EDynamicGlobalIlluminationMethod::None;
 		V->Settings.ReflectionMethod = bLumen ? EReflectionMethod::Lumen : EReflectionMethod::ScreenSpace;
 	}
+	const int32 Shadowed = bAllLightShadows ? LocalLights.Num() : SSXRemaster::ShadowedLights(AppliedQuality, LocalLights.Num());
+	for (int32 I = 0; I < LocalLights.Num(); ++I)
+	{
+		if (ULocalLightComponent* C = LocalLights[I].Get()) { C->SetCastShadows(I < Shadowed); }
+	}
 }
 
 void USSXRemasterWorld::SwapRiders()
@@ -248,6 +265,13 @@ void USSXRemasterWorld::SwapRiders()
 				Mesh->SetMaterial(S, Twin);
 				Pres->SetDisplayedRiderMaterial(Classic, Twin);
 				RiderSwaps.Add({ Mesh, S, Classic });
+				if (!Mesh->CastShadow)
+				{
+					Mesh->SetCastShadow(true);
+					Mesh->bCastDynamicShadow = true;
+					Mesh->MarkRenderStateDirty();
+					ShadowCasters.Add(Mesh);
+				}
 			}
 		}
 	};
@@ -384,6 +408,7 @@ void USSXRemasterWorld::Apply()
 		UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("Exposure"), T.Exposure);
 		UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("Saturation"), T.Saturation);
 		UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("Emissive"), T.Emissive);
+		UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("RiderFill"), T.RiderFill);
 	}
 
 	const USSXWorldPresentation* Pres = W->GetSubsystem<USSXWorldPresentation>();
@@ -465,8 +490,10 @@ void USSXRemasterWorld::Apply()
 		C->SetIntensity(T.LightCandela * float(FMath::Min(Max, 2.0)));
 		C->SetLightColor(Colour);
 		C->SetAttenuationRadius(SSXRemaster::LightRadius(L.Falloff));
-		C->SetCastShadows(false);
+		LocalLights.Add(C);
 	}
+	bAllLightShadows = T.bLightShadows;
+	ApplyQuality();
 
 	if (Track && T.FogDensity > 0.f)
 	{
@@ -506,6 +533,16 @@ void USSXRemasterWorld::Revert()
 	}
 	RiderSwaps.Reset();
 	RiderTwins.Reset();
+	for (const TWeakObjectPtr<UMeshComponent>& M : ShadowCasters)
+	{
+		if (UMeshComponent* C = M.Get())
+		{
+			C->SetCastShadow(false);
+			C->bCastDynamicShadow = false;
+			C->MarkRenderStateDirty();
+		}
+	}
+	ShadowCasters.Reset();
 	for (const TWeakObjectPtr<APostProcessVolume>& V : DisabledVolumes)
 	{
 		if (V.IsValid()) { V->bEnabled = true; }
@@ -516,6 +553,7 @@ void USSXRemasterWorld::Revert()
 		if (IsValid(A)) { A->Destroy(); }
 	}
 	Spawned.Reset();
+	LocalLights.Reset();
 }
 
 int32 USSXRemasterLibrary::SetRemasteredInWorld(UObject* WorldContext, bool bRemastered)
