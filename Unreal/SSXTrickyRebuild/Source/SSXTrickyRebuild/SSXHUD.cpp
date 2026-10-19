@@ -98,7 +98,7 @@ void ASSXHUD::ActivateIfNeeded()
 		{
 			return;
 		}
-		Overlay.Activate(int32(S->GetMode()), Race->GetTrackData().TrackId, S->NumRacers(), 0, &S->Paths(), S->GetLapLength());
+		Overlay.Activate(int32(S->GetMode()), Race->GetTrackData().GameTrack, S->NumRacers(), 0, &S->Paths(), S->GetLapLength());
 		ActiveSession = S;
 		ActivePlacements = S->GetPlacements();
 		bActivated = true;
