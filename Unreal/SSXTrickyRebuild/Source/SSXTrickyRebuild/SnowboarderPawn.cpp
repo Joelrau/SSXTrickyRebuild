@@ -40,6 +40,7 @@
 #include "Effects/SSXTrackEffects.h"
 #include "UObject/ConstructorHelpers.h"
 #include "UI/SSXFrontEndSubsystem.h"
+#include "UI/SSXFeDraw.h"
 #include "UI/SSXLoadingScreen.h"
 #include "UnrealClient.h"
 
@@ -933,6 +934,7 @@ void ASnowboarderPawn::UpdateCamera(double Alpha)
 	const int32 Ws = FrontEndSub ? FrontEndSub->Profile.Settings.Widescreen : 0;
 	Camera->SetConstraintAspectRatio(true);
 	Camera->SetAspectRatio(SSXSettings::ImageAspect(Ws));
+	SSXFeWide::SetImageAspect(SSXSettings::ImageAspect(Ws));
 	Camera->SetFieldOfView(float(FMath::RadiansToDegrees(SSXSettings::HorizontalFov(Half, Ws))));
 	// 0x1E0FB8
 	const double Flash = A < 0.5 ? CamPrev.Flash : CamCur.Flash;

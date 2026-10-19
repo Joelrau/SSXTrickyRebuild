@@ -5,6 +5,8 @@
 #include "Dom/JsonObject.h"
 #include "Engine/Texture.h"
 #include "Engine/Texture2D.h"
+#include "Engine/Engine.h"
+#include "Engine/GameViewportClient.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Misc/FileHelper.h"
 #include "Rendering/DrawElements.h"
@@ -280,6 +282,36 @@ namespace
 	const TMap<FName, UTexture*>* GHudPages = nullptr;
 }
 
+namespace
+{
+	float GImageAspect = 4.f / 3.f;
+}
+
+void SSXFeWide::SetImageAspect(float Aspect)
+{
+	GImageAspect = Aspect;
+}
+
+float SSXFeWide::ExtraX()
+{
+	if (GImageAspect <= SSXFe::ScreenW / SSXFe::ScreenH + 1e-3f || !GEngine || !GEngine->GameViewport || !GEngine->GameViewport->Viewport)
+	{
+		return 0.f;
+	}
+	const FIntPoint Size = GEngine->GameViewport->Viewport->GetSizeXY();
+	if (Size.X <= 0 || Size.Y <= 0)
+	{
+		return 0.f;
+	}
+	const float Visible = FMath::Min(GImageAspect, float(Size.X) / float(Size.Y));
+	return FMath::Max(0.f, Visible * SSXFe::ScreenH * 0.5f - SSXFe::ScreenW * 0.5f);
+}
+
+float SSXFeWide::AnchorX(float X, float Extra)
+{
+	return X < SSXFe::ScreenW / 3.f ? X - Extra : (X > SSXFe::ScreenW * 2.f / 3.f ? X + Extra : X);
+}
+
 void SSXFeDrawHud::SetSheet(const FSSXSpriteTable* Sprites, const TMap<FName, UTexture*>* Pages)
 {
 	GHudSheet = Sprites;
@@ -375,10 +407,11 @@ void FSSXFeDrawList::CornerUVs(const FVector2f& U0, const FVector2f& U1, bool bR
 
 bool FSSXFeDrawList::ClipToScreen(FVector2f& P0, FVector2f& P1, FVector2f Uv[4])
 {
-	// 0x1A9BB8
+	// 0x1A9BB8 (widescreen: the visible width past the frame too)
+	const float E = SSXFeWide::ExtraX();
 	const FVector2f A = P0, B = P1;
-	const FVector2f N0(FMath::Clamp(A.X, 0.f, SSXFe::ScreenW), FMath::Clamp(A.Y, 0.f, SSXFe::ScreenH));
-	const FVector2f N1(FMath::Clamp(B.X, 0.f, SSXFe::ScreenW), FMath::Clamp(B.Y, 0.f, SSXFe::ScreenH));
+	const FVector2f N0(FMath::Clamp(A.X, -E, SSXFe::ScreenW + E), FMath::Clamp(A.Y, 0.f, SSXFe::ScreenH));
+	const FVector2f N1(FMath::Clamp(B.X, -E, SSXFe::ScreenW + E), FMath::Clamp(B.Y, 0.f, SSXFe::ScreenH));
 	if (N0.X == N1.X || N0.Y == N1.Y)
 	{
 		return false;
@@ -726,6 +759,7 @@ int32 SSSXFeCanvas::OnPaint(const FPaintArgs& Args, const FGeometry& Geo, const 
 	int32 BatchLayer = 0;
 	int32 MaxLayerId = LayerId + 1;
 	const float Opacity = InWidgetStyle.GetColorAndOpacityTint().A;
+	const float Extra = SSXFeWide::ExtraX();
 
 	auto Flush = [&]()
 	{
@@ -752,6 +786,11 @@ int32 SSSXFeCanvas::OnPaint(const FPaintArgs& Args, const FGeometry& Geo, const 
 		FVector2f Uv[4];
 		FSSXFeDrawList::CornerUVs(U0, U1, C.bRot90, Uv);
 		FVector2f Q0 = C.Pos, Q1 = C.Pos + C.Size;
+		if (Extra > 0.f && !C.Texture && C.Kind == FSSXFeDrawCmd::EKind::Quad && Q0.X <= 0.f && Q1.X >= SSXFe::ScreenW)
+		{
+			Q0.X = -Extra;   // full-width fades, dims and bars cover the widescreen sides too
+			Q1.X = SSXFe::ScreenW + Extra;
+		}
 		if (!FSSXFeDrawList::ClipToScreen(Q0, Q1, Uv))
 		{
 			continue;

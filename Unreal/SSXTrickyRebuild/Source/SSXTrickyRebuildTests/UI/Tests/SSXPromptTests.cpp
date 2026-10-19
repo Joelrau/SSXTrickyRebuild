@@ -88,4 +88,18 @@ bool FSSXUIPromptsTest::RunTest(const FString&)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSSXUIWidescreenTest, "SSX.UI.Widescreen", PromptFlags)
+bool FSSXUIWidescreenTest::RunTest(const FString&)
+{
+	TestEqual(TEXT("left third moves out"), SSXFeWide::AnchorX(20.f, 106.f), -86.f);
+	TestEqual(TEXT("right third moves out"), SSXFeWide::AnchorX(600.f, 106.f), 706.f);
+	TestEqual(TEXT("centre stays"), SSXFeWide::AnchorX(320.f, 106.f), 320.f);
+	SSXFeWide::SetImageAspect(4.f / 3.f);
+	TestEqual(TEXT("4:3 image: no extra width"), SSXFeWide::ExtraX(), 0.f);
+	FVector2f P0(-50.f, 10.f), P1(30.f, 20.f);
+	FVector2f Uv[4] = { FVector2f(0, 0), FVector2f(1, 0), FVector2f(1, 1), FVector2f(0, 1) };
+	TestTrue(TEXT("4:3: clipped at the frame edge"), FSSXFeDrawList::ClipToScreen(P0, P1, Uv) && P0.X == 0.f);
+	return true;
+}
+
 #endif

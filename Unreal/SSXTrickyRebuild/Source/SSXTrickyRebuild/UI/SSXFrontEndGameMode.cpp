@@ -1,4 +1,5 @@
 #include "UI/SSXFrontEndGameMode.h"
+#include "UI/SSXFeDraw.h"
 
 #include "Camera/CameraActor.h"
 #include "Camera/CameraComponent.h"
@@ -432,6 +433,7 @@ void ASSXFrontEndPlayerController::TickCamera()
 		const int32 Ws = Sub->Profile.Settings.Widescreen;
 		UCameraComponent* Cam = SceneCamera->GetCameraComponent();
 		Cam->SetAspectRatio(SSXSettings::ImageAspect(Ws));
+		SSXFeWide::SetImageAspect(SSXSettings::ImageAspect(Ws));
 		Cam->SetFieldOfView(float(FMath::RadiansToDegrees(SSXSettings::HorizontalFov(FMath::DegreesToRadians(double(Pose.HorizontalFovDeg())) * 0.5, Ws))));
 	}
 }

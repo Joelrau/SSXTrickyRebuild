@@ -80,6 +80,18 @@ namespace SSXFeDrawHud
 	SSXTRICKYREBUILD_API const FSSXSpriteTable* GetSheet();
 }
 
+/** Widescreen (deliberate difference from the original, whose UI is a 640 x 480 frame): with a 16:9 image (Options >
+ *  Widescreen) the 640-wide UI stays centred and unstretched, and the screen extends ExtraX() units past each side. */
+namespace SSXFeWide
+{
+	/** The 3D image's aspect this frame (SSXSettings::ImageAspect, set where the camera takes it). */
+	SSXTRICKYREBUILD_API void SetImageAspect(float Aspect);
+	/** The visible width past each side of the 640 frame: min(image, window aspect) x 240 - 320, never negative. */
+	SSXTRICKYREBUILD_API float ExtraX();
+	/** A HUD anchor point moved with its screen edge: the left third of the frame by -ExtraX(), the right third by +. */
+	SSXTRICKYREBUILD_API float AnchorX(float X, float Extra);
+}
+
 enum class ESSXAlign : uint8 { Left, Center, Right };
 
 struct SSXTRICKYREBUILD_API FSSXFeDrawCmd
