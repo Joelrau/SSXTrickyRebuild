@@ -1087,7 +1087,12 @@ void USSXPropAnimation::ApplyGems()
 		bGemsFound = true;
 		for (int32 Inst = 0; Inst < FxData->NumInstances(); ++Inst)
 		{
-			if (Actors.Contains(Inst) && IsMultiplierGem(*FxData, Inst)) { GemInsts.Add(Inst); }
+			if (!Actors.Contains(Inst) || !IsMultiplierGem(*FxData, Inst)) { continue; }
+			GemInsts.Add(Inst);
+			for (const FActorRef& R : Actors[Inst])
+			{
+				if (USceneComponent* Root = R.Actor.IsValid() ? R.Actor->GetRootComponent() : nullptr) { Root->SetMobility(EComponentMobility::Movable); }
+			}
 		}
 	}
 	// The original's crystal spin (AnimObject rz, 270 deg/s, notes showoff_crystals.md) runs only while the gem's .ltg

@@ -684,8 +684,10 @@ void USSXRemasterWorld::SetGlow(UMeshComponent& C, float Glow)
 		for (const TPair<TObjectPtr<UMaterialInterface>, TObjectPtr<UMaterialInterface>>& P : Remastered) { bShared |= P.Value == Mid; }
 		if (bShared)
 		{
-			// A lit twin shared by every slot with this Classic material: this component gets its own.
-			UMaterialInstanceDynamic* Own = UMaterialInstanceDynamic::Create(Mid, &C);
+			// A lit twin shared by every slot with this Classic material: this component gets its own (an instance's parent
+			// must be a material or constant instance, so it copies the twin's values onto the twin's parent).
+			UMaterialInstanceDynamic* Own = UMaterialInstanceDynamic::Create(Mid->Parent, &C);
+			Own->CopyParameterOverrides(Mid);
 			C.SetMaterial(S, Own);
 			Mid = Own;
 		}

@@ -217,6 +217,44 @@ bool FSSXRenderFollowerAliveTest::RunTest(const FString&)
 	return true;
 }
 
+// USSXRemasterWorld::SetGlow (the Showoff crystals): a component of its own, on the lit material, glowing.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSSXRenderGlowTest, "SSX.Render.Glow", RenderLookFlags)
+bool FSSXRenderGlowTest::RunTest(const FString&)
+{
+	UMaterialInterface* Prop = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/World/M_SSXProp.M_SSXProp"));
+	UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
+	if (!Prop || !Cube)
+	{
+		AddError(TEXT("M_SSXProp or the engine cube missing"));
+		return false;
+	}
+	UWorld* W = UWorld::CreateWorld(EWorldType::Game, false, TEXT("SSXGlow"));
+	FWorldContext& Ctx = GEngine->CreateNewWorldContext(EWorldType::Game);
+	Ctx.SetCurrentWorld(W);
+	UStaticMeshComponent* C[2] = {};
+	for (UStaticMeshComponent*& M : C)
+	{
+		M = W->SpawnActor<AStaticMeshActor>()->GetStaticMeshComponent();
+		M->SetStaticMesh(Cube);
+		M->SetMaterial(0, Prop);
+	}
+	USSXRemasterLibrary::SetRemasteredInWorld(W, true);
+	TestTrue(TEXT("both share the lit twin"), C[0]->GetMaterial(0) == C[1]->GetMaterial(0) && C[0]->GetMaterial(0) != Prop);
+	SSXRemaster::SetGlow(*C[0], 2.f);
+	const UMaterialInstanceDynamic* Own = Cast<UMaterialInstanceDynamic>(C[0]->GetMaterial(0));
+	float Glow = 0.f, Other = -1.f;
+	TestTrue(TEXT("glowing component has its own instance"), Own && Own != C[1]->GetMaterial(0));
+	TestTrue(TEXT("its parent is a material, not an instance"), Own && Own->Parent && !Own->Parent->IsA<UMaterialInstanceDynamic>());
+	TestTrue(TEXT("RmGlow set"), Own && Own->GetScalarParameterValue(FHashedMaterialParameterInfo(TEXT("RmGlow")), Glow) && Glow == 2.f);
+	Cast<UMaterialInstanceDynamic>(C[1]->GetMaterial(0))->GetScalarParameterValue(FHashedMaterialParameterInfo(TEXT("RmGlow")), Other);
+	TestEqual(TEXT("the other component does not glow"), Other, 0.f);
+	USSXRemasterLibrary::SetRemasteredInWorld(W, false);
+	TestTrue(TEXT("Classic restores the material"), C[0]->GetMaterial(0) == Prop);
+	GEngine->DestroyWorldContext(W);
+	W->DestroyWorld(false);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSSXRenderLookSwitchTest, "SSX.Render.LookSwitch", RenderLookFlags)
 bool FSSXRenderLookSwitchTest::RunTest(const FString&)
 {
