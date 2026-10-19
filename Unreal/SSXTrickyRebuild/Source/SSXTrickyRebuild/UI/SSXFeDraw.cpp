@@ -786,9 +786,10 @@ int32 SSSXFeCanvas::OnPaint(const FPaintArgs& Args, const FGeometry& Geo, const 
 		FVector2f Uv[4];
 		FSSXFeDrawList::CornerUVs(U0, U1, C.bRot90, Uv);
 		FVector2f Q0 = C.Pos, Q1 = C.Pos + C.Size;
-		if (Extra > 0.f && !C.Texture && C.Kind == FSSXFeDrawCmd::EKind::Quad && Q0.X <= 0.f && Q1.X >= SSXFe::ScreenW)
+		if (Extra > 0.f && !C.Texture && C.Kind == FSSXFeDrawCmd::EKind::Quad && Q0.X <= 0.f && Q1.X >= SSXFe::ScreenW
+			&& Q0.Y <= 0.f && Q1.Y >= SSXFe::ScreenH)
 		{
-			Q0.X = -Extra;   // full-width fades, dims and bars cover the widescreen sides too
+			Q0.X = -Extra;   // full-screen fades and dims cover the widescreen sides too
 			Q1.X = SSXFe::ScreenW + Extra;
 		}
 		if (!FSSXFeDrawList::ClipToScreen(Q0, Q1, Uv))
