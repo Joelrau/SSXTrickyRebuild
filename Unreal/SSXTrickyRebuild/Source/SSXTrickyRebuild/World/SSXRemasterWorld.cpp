@@ -658,7 +658,11 @@ void USSXRemasterWorld::SetClassicMaterial(UMeshComponent& C, int32 Slot, UMater
 	S->FollowedBase = nullptr;
 	UMaterialInstanceDynamic* Mid = Cast<UMaterialInstanceDynamic>(M);
 	UMaterialInterface* R = Mid ? nullptr : (M ? RemasteredFor(M) : nullptr);
-	if (Mid && RemasteredParentOf(Mid)) { MakeFollower(*S, *Mid, C); }
+	if (Mid && RemasteredParentOf(Mid))
+	{
+		ClassicMids.AddUnique(Mid);
+		MakeFollower(*S, *Mid, C);
+	}
 	else { C.SetMaterial(Slot, R ? R : M); }
 }
 
@@ -727,8 +731,10 @@ void USSXRemasterWorld::SwapSlot(UMeshComponent& C, int32 S)
 	UMaterialInterface* M = C.GetMaterial(S);
 	if (UMaterialInstanceDynamic* Classic = Cast<UMaterialInstanceDynamic>(M))
 	{
-		// A Classic instance game code already animates: a per-slot twin that follows it.
+		// A Classic instance game code already animates: a per-slot twin that follows it. The slot shows the twin, so the
+		// Classic instance is kept alive here (game code holds it weakly).
 		if (!RemasteredParentOf(Classic)) { return; }
+		ClassicMids.AddUnique(Classic);
 		FSwap& Sw = Swaps.AddDefaulted_GetRef();
 		Sw.Component = &C;
 		Sw.Slot = S;

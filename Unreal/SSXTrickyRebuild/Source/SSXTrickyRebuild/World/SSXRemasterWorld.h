@@ -156,7 +156,7 @@ private:
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<AActor>> Spawned;
 	UPROPERTY(Transient)
-	TArray<TObjectPtr<UMaterialInstanceDynamic>> ClassicMids;   // Classic instances made while a twin is shown
+	TArray<TObjectPtr<UMaterialInstanceDynamic>> ClassicMids;   // Classic instances whose slot shows a twin
 
 	TWeakObjectPtr<APostProcessVolume> Volume;
 	TArray<TWeakObjectPtr<class ULocalLightComponent>> LocalLights;   // strongest first

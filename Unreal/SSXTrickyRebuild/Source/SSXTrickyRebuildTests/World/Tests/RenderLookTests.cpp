@@ -1,4 +1,10 @@
+#include "Components/StaticMeshComponent.h"
 #include "Engine/PostProcessVolume.h"
+#include "Engine/StaticMesh.h"
+#include "Engine/StaticMeshActor.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "UObject/UObjectGlobals.h"
+#include "World/SSXRemasterWorld.h"
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
 #include "Materials/MaterialInterface.h"
@@ -164,6 +170,50 @@ bool FSSXRenderClassicPinnedTest::RunTest(const FString&)
 		TestEqual(FString::Printf(TEXT("%s: one presentation volume"), Map), Volumes, 1);
 	}
 	if (Maps == 0) { SSXTest::Skip(*this, TEXT("SKIPPED map volumes: Maps/FrontEnd and Maps/Snow missing")); }
+	return true;
+}
+
+// The crowd (USSXPropAnimation::ApplyCrowd) holds its Classic instances weakly and animates them every frame; while the slot
+// shows the lit twin the Classic instance must survive garbage collection, whichever of look switch and crowd setup came first.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSSXRenderFollowerAliveTest, "SSX.Render.FollowerAlive", RenderLookFlags)
+bool FSSXRenderFollowerAliveTest::RunTest(const FString&)
+{
+	UMaterialInterface* Crowd = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/World/M_SSXPropCrowd.M_SSXPropCrowd"));
+	UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
+	if (!Crowd || !Cube)
+	{
+		AddError(TEXT("M_SSXPropCrowd or the engine cube missing"));
+		return false;
+	}
+	UWorld* W = UWorld::CreateWorld(EWorldType::Game, false, TEXT("SSXFollowerAlive"));
+	FWorldContext& Ctx = GEngine->CreateNewWorldContext(EWorldType::Game);
+	Ctx.SetCurrentWorld(W);
+	for (const bool bLookFirst : { true, false })
+	{
+		AStaticMeshActor* A = W->SpawnActor<AStaticMeshActor>();
+		UStaticMeshComponent* C = A->GetStaticMeshComponent();
+		C->SetStaticMesh(Cube);
+		TWeakObjectPtr<UMaterialInstanceDynamic> Classic;
+		auto SetCrowd = [&]()
+		{
+			UMaterialInstanceDynamic* Mid = UMaterialInstanceDynamic::Create(Crowd, A);
+			SSXRemaster::SetClassicMaterial(*C, 0, Mid);
+			Classic = Mid;
+		};
+		if (!bLookFirst) { SetCrowd(); }
+		USSXRemasterLibrary::SetRemasteredInWorld(W, true);
+		if (bLookFirst) { SetCrowd(); }
+		CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS, true);
+		const FString Case = bLookFirst ? TEXT("look first") : TEXT("crowd first");
+		TestTrue(Case + TEXT(": Classic crowd instance survives GC"), Classic.IsValid());
+		TestTrue(Case + TEXT(": slot shows the lit twin"), C->GetMaterial(0) != Classic.Get() && C->GetMaterial(0) != nullptr);
+		TestTrue(Case + TEXT(": ClassicMaterial is the animated instance"), SSXRemaster::ClassicMaterial(*C, 0) == Classic.Get());
+		USSXRemasterLibrary::SetRemasteredInWorld(W, false);
+		TestTrue(Case + TEXT(": Classic restores the instance"), C->GetMaterial(0) == Classic.Get());
+		A->Destroy();
+	}
+	GEngine->DestroyWorldContext(W);
+	W->DestroyWorld(false);
 	return true;
 }
 
