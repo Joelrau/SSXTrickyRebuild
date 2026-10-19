@@ -18,7 +18,7 @@ import exe_tables  # noqa: E402
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "Unreal" / "SSXTrickyRebuild" / "SimData"
 TRACKS = ["Garibaldi", "Snowdream", "Elysium", "Mesablanca", "Merqury", "Aloha", "Pipedream",
-          "Untracked", "Tokyo Megaplex", "Trick (tutorial)", "Alaska", "Front end", "(12)"]
+          "Untracked", "Tokyo Megaplex", "Big Air Dome", "Trick (tutorial)", "Alaska", "(12)"]   # game track index
 # (offset, name, kind)  kind: i = int, f = float, n... = n values
 TRACK_FIELDS = [
     (0x00, "flare_on", "i"), (0x04, "flare_rgb1", "3i"), (0x10, "flare_k_a", "f"),

@@ -3,6 +3,7 @@
 #include "Effects/TrackEffects.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
+#include "Race/RaceTrackData.h"
 #include "UI/SSXFrontEndData.h"
 
 namespace SSXPropMovie
@@ -31,7 +32,8 @@ namespace SSXPropMovie
 		{
 			return FString();
 		}
-		return FPaths::Combine(SSXFrontEnd::RepoRoot(), TEXT("extracted"), TEXT("DATA"), TEXT("VIDEO"), FileForTrackId(Id).ToUpper() + TEXT(".SSS"));
+		return FPaths::Combine(SSXFrontEnd::RepoRoot(), TEXT("extracted"), TEXT("DATA"), TEXT("VIDEO"),
+			FileForTrackId(FRaceTrackData::GameTrackOf(Id)).ToUpper() + TEXT(".SSS"));
 	}
 
 	namespace

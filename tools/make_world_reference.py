@@ -17,7 +17,7 @@ import pbd  # noqa: E402
 import pbdmodels  # noqa: E402
 
 STEM_ID = {"gari": 0, "snow": 1, "elysium": 2, "mesa": 3, "merquer": 4, "aloha": 5, "pipe": 6,
-           "untrack": 7, "megaple": 8, "trick": 9, "alaska": 10, "ssxfe": 11}
+           "untrack": 7, "megaple": 8, "trick": 10, "alaska": 11, "ssxfe": 11}   # world_track_table record (game track index)
 PER_TRACK = 24
 PROP_TRACKS = (("snow", "Snow"), ("gari", "Gari"), ("alaska", "Alaska"))
 PROP_INSTANCES = 10

@@ -78,9 +78,10 @@ void USSXWorldPresentation::OnWorldBeginPlay(UWorld& InWorld)
 
 	TArray<FSSXTrackPresentation> Table;
 	FString Err;
-	if (FSSXTrackPresentation::LoadTable(FSSXTrackPresentation::DefaultTablePath(), Table, &Err) && Table.IsValidIndex(Id) && Table[Id].Id == Id)
+	const int32 Row = FSSXTrackPresentation::RowForStem(Stem);
+	if (FSSXTrackPresentation::LoadTable(FSSXTrackPresentation::DefaultTablePath(), Table, &Err) && Table.IsValidIndex(Row) && Table[Row].Id == Row)
 	{
-		Track = Table[Id];
+		Track = Table[Row];
 		bHaveTrack = true;
 		Adjust = FSSXRiderLightAdjust::From(Track);
 	}

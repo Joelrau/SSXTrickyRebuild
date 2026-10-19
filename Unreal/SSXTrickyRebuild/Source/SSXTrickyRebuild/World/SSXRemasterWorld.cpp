@@ -849,10 +849,10 @@ void USSXRemasterWorld::Apply()
 	{
 		EditorLights.Load(FSSXLightWorld::DefaultPath(Stem == TEXT("frontend") ? FString(TEXT("ssxfe")) : Stem));
 		TArray<FSSXTrackPresentation> Table;
-		const int32 Id = FSSXTrackPresentation::IdForStem(Stem);
-		if (Id >= 0 && FSSXTrackPresentation::LoadTable(FSSXTrackPresentation::DefaultTablePath(), Table) && Table.IsValidIndex(Id))
+		const int32 Row = FSSXTrackPresentation::RowForStem(Stem);
+		if (Row >= 0 && FSSXTrackPresentation::LoadTable(FSSXTrackPresentation::DefaultTablePath(), Table) && Table.IsValidIndex(Row))
 		{
-			EditorTrack = Table[Id];
+			EditorTrack = Table[Row];
 			Track = &EditorTrack;
 		}
 	}

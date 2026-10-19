@@ -51,6 +51,18 @@ def main():
             loc = unreal.Vector(hi.x, hi.y, hi.z + 3000.0)
         rot = unreal.MathLibrary.find_look_at_rotation(loc, centre)
     unreal.log(f"[ssx] capture camera {loc} {rot}")
+    # The sky dome follows the camera in the game (USSXWorldPresentation): put it at the capture camera.
+    for a in unreal.get_editor_subsystem(unreal.EditorActorSubsystem).get_all_level_actors():
+        if unreal.Name("SSXSky") in a.tags:
+            a.set_actor_location(loc, False, False)
+    # ... and the clear-colour shell behind it (USSXWorldPresentation::SpawnClearShell), here in a test colour.
+    shell = unreal.get_editor_subsystem(unreal.EditorActorSubsystem).spawn_actor_from_class(unreal.StaticMeshActor, loc)
+    sc = shell.static_mesh_component
+    sc.set_editor_property("static_mesh", unreal.load_asset("/Engine/BasicShapes/Sphere"))
+    sc.set_material(0, unreal.load_asset("/Game/World/M_SSXClearColour"))
+    shell.set_actor_scale3d(unreal.Vector(4000.0, 4000.0, 4000.0))
+    unreal.MaterialLibrary.set_vector_parameter_value(world, unreal.load_asset("/Game/World/MPC_SSXWorld"), "ClearColour",
+                                                      unreal.LinearColor(0.55, 0.7, 0.9, 0.5))
 
     rt = unreal.RenderingLibrary.create_render_target2d(world, W, H, unreal.TextureRenderTargetFormat.RTF_RGBA8)
     cap = unreal.get_editor_subsystem(unreal.EditorActorSubsystem).spawn_actor_from_class(unreal.SceneCapture2D, loc, rot)
