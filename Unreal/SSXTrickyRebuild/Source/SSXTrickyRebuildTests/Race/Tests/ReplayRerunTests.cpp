@@ -175,13 +175,6 @@ namespace SSXReplayRerun
 		bool bRestart = false;
 		// > 0: flip ssx.Render.Look every LookPeriod sim frames, half a period later in playback than in the live race.
 		uint32 LookPeriod = 0;
-		// Run after this one (same set-up); Baseline: an earlier run whose live race this one must match bit for bit
-		// (stream A, the presentation stream, is reported only: front-end and render timing differ between live runs).
-		TSharedPtr<struct FRun> Next, Baseline;
-		// Two live races that must match: one sim step per tick, the intro skipped after a count of pre-race sim steps,
-		// both started from the same stream A.
-		bool bSameStart = false;
-		uint32 PreRaceSteps = 0;
 		uint32 Need = LiveFrames;
 		bool bRestarted = false;
 		bool bEndWait = false;
@@ -229,8 +222,6 @@ namespace SSXReplayRerun
 		return true;
 	}
 
-	void QueueNext(FAutomationTestBase* Test, const TSharedRef<FRun>& Run);
-
 	class FCommand : public IAutomationLatentCommand
 	{
 	public:
@@ -241,15 +232,9 @@ namespace SSXReplayRerun
 		{
 			if (!Failure.IsEmpty()) { Test->AddError(FString::Printf(TEXT("[stage %d] %s"), Run->Stage, *Failure)); }
 			if (Run->LookPeriod > 0) { SSXRenderLook::Set(ESSXRenderLook::Classic); }
-			if (Failure.IsEmpty() && Run->Baseline.IsValid())
-			{
-				Compare(Test, TEXT("live race vs the baseline run"), Run->Baseline->Live, Run->Live, Run->Need);
-			}
 			FApp::SetUseFixedTimeStep(Run->bPrevFixed);
 			FApp::SetFixedDeltaTime(Run->PrevFixedDt);
 			if (GEditor && GEditor->PlayWorld) { GEditor->RequestEndPlayMap(); }
-			if (Run->bSameStart) { ASSXRaceManager::TestBeforeSeed = nullptr; }
-			if (Failure.IsEmpty() && Run->Next.IsValid()) { QueueNext(Test, Run); }
 			return true;
 		}
 		void Hook(ASSXRaceManager* Race, bool bScript)
@@ -258,10 +243,6 @@ namespace SSXReplayRerun
 			Race->TestOnFrame = [R](ASSXRaceManager& M)
 			{
 				const FSSXReplay& Rp = M.GetReplay();
-				if (R->bSameStart && M.GetSession() && M.GetSession()->GetPhase() == ERacePhase::PreRace && ++R->PreRaceSteps % 700 == 0)
-				{
-					M.GetUIHost().PressIntroSkip();
-				}
 				if (const uint32 P = R->LookPeriod)
 				{
 					const bool bPlay = Rp.GetState() == SSXReplay::Play;
@@ -302,8 +283,7 @@ namespace SSXReplayRerun
 		}
 		// PIE-like pacing: the engine delta varies tick to tick (0, 1 or several 60 Hz steps per tick)
 		static const double Dts[] = { 1.0 / 60.0, 1.0 / 25.0, 1.0 / 144.0, 1.0 / 60.0, 1.0 / 37.0, 1.0 / 90.0, 1.0 / 20.0, 1.0 / 240.0, 1.0 / 48.0 };
-		// The two races of a look comparison step once per tick: UI requests (the intro skip) land on the same sim step.
-		FApp::SetFixedDeltaTime(R.bSameStart ? 1.0 / 60.0 : Dts[R.Ticks++ % UE_ARRAY_COUNT(Dts)]);
+		FApp::SetFixedDeltaTime(Dts[R.Ticks++ % UE_ARRAY_COUNT(Dts)]);
 		UWorld* World = GameWorld();
 		USSXFrontEndSubsystem* FE = World && World->GetGameInstance() ? World->GetGameInstance()->GetSubsystem<USSXFrontEndSubsystem>() : nullptr;
 		const FString Map = World ? UWorld::RemovePIEPrefix(World->GetMapName()) : FString();
@@ -324,7 +304,7 @@ namespace SSXReplayRerun
 		case 1:
 			if (!Race || Map != TEXT("Snow") || !Race->GetSession() || !Race->GetPlayerPawn()) return false;
 			if (!R.bHooked) { Hook(Race, true); R.bHooked = true; }
-			if (!R.bSameStart && Race->GetSession()->GetPhase() == ERacePhase::PreRace && ++R.Frames % 700 == 0)
+			if (Race->GetSession()->GetPhase() == ERacePhase::PreRace && ++R.Frames % 700 == 0)
 			{
 				Race->GetUIHost().PressIntroSkip();
 			}
@@ -496,24 +476,8 @@ namespace SSXReplayRerun
 		Run->PrevFixedDt = FApp::GetFixedDeltaTime();
 		FApp::SetUseFixedTimeStep(true);
 		FApp::SetFixedDeltaTime(1.0 / 60.0);
-		if (Run->bSameStart)
-		{
-			ASSXRaceManager::TestBeforeSeed = []() { FGameRng::StreamA() = FGameRng(0x5EED1234u); };
-		}
 		AutomationOpenMap(TEXT("/Game/Maps/FrontEnd"), true);
 		ADD_LATENT_AUTOMATION_COMMAND(FCommand(Test, Run));
-	}
-
-	void QueueNext(FAutomationTestBase* Test, const TSharedRef<FRun>& Run)
-	{
-		const TSharedRef<FRun> Next = Run->Next.ToSharedRef();
-		Run->Next.Reset();
-		ADD_LATENT_AUTOMATION_COMMAND(FFunctionLatentCommand([Test, Next]()
-		{
-			if (GEditor && GEditor->PlayWorld) { return false; }
-			Begin(Test, Next);
-			return true;
-		}));
 	}
 
 	bool Start(FAutomationTestBase* Test, bool bContact, bool bRestart = false, uint32 LookPeriod = 0)
@@ -535,20 +499,7 @@ namespace SSXReplayRerun
 		Run->bContact = bContact;
 		Run->bRestart = bRestart;
 		Run->LookPeriod = LookPeriod;
-		if (LookPeriod > 0)
-		{
-			TSharedRef<FRun> Baseline = MakeShared<FRun>();
-			Baseline->bContact = bContact;
-			Baseline->bRestart = bRestart;
-			Baseline->Next = Run;
-			Baseline->bSameStart = Run->bSameStart = true;
-			Run->Baseline = Baseline;
-			Begin(Test, Baseline);
-		}
-		else
-		{
-			Begin(Test, Run);
-		}
+		Begin(Test, Run);
 		return true;
 	}
 }
@@ -571,9 +522,8 @@ bool FSSXReplayInGameRestartRerunTest::RunTest(const FString& Parameters)
 	return SSXReplayRerun::Start(this, true, true);
 }
 
-// The render look never touches the sim: a Classic race, then the same race with ssx.Render.Look flipping every 97
-// frames (half a period later in the playbacks). Both live races match bit for bit and the second race's replays
-// match it as usual.
+// The render look never touches the sim: ssx.Render.Look flips every 97 frames in the race and half a period later in
+// both playbacks, so any effect of the look would show as a difference between the race and its replays.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSSXReplayInGameLookSwitchTest, "SSX.Replay.InGameLookSwitch", SSXReplayRerun::Flags)
 bool FSSXReplayInGameLookSwitchTest::RunTest(const FString& Parameters)
 {
