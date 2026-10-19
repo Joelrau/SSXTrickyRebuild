@@ -363,7 +363,7 @@ void FRaceSession::EnterPhase(ERacePhase P)
 		break;
 	}
 	case ERacePhase::Race:
-		Clock = IsScoreMode(Config.Mode) ? ShowoffTimeLimit(TrackData->TrackId) : 0.0;
+		Clock = IsScoreMode(Config.Mode) ? ShowoffTimeLimit(TrackData->GameTrack) : 0.0;
 		for (FRacerRecord& R : Racers)
 		{
 			if (R.Sim->State.Control == ERiderControl::GateAnticipate)
@@ -1225,7 +1225,7 @@ void FRaceSession::AssignCatchup(const TArray<int32>& Order)
 	CatchupDifficulty(bCircuit, Config.Difficulty, Keep, OffsetScale);
 	double Late = 0.0, Offset = 0.0;
 	// 0x115100
-	CatchupTrack(TrackData->TrackId, Late, Offset);
+	CatchupTrack(TrackData->GameTrack, Late, Offset);
 	const double* NearTab = bCircuit ? CatchupNearCircuit : CatchupNearRace;
 	const double* FarTab = bCircuit ? CatchupFarCircuit : CatchupFarRace;
 	const int32 PerHuman = FMath::Max(1, Racers.Num() / Humans.Num());

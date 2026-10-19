@@ -338,6 +338,7 @@ bool FRaceTrackData::Load(const FString& File, FString* OutError)
 	{
 		TrackId = SSXEffects::TrackIdForStem(FPaths::GetBaseFilename(FPaths::GetBaseFilename(File)));
 	}
+	GameTrack = GameTrackOf(TrackId);
 	const uint32 Flags = R.U32();
 	WorldFloorZ = R.F32();
 	LtgBoundsMin = R.Vec();
@@ -377,4 +378,16 @@ bool FRaceTrackData::Load(const FString& File, FString* OutError)
 		return false;
 	}
 	return true;
+}
+
+int32 FRaceTrackData::GameTrackOf(int32 DataTrackId)
+{
+	// tools/export_race_data.py numbers the tracks by stem order (trick 9, alaska 10); the game has 9 = Big Air Dome
+	// (no track data), 10 = trick tutorial, 11 = Alaska (fe_tables track_names, showoff thresholds 0x16BB58).
+	switch (DataTrackId)
+	{
+	case 9: return 10;
+	case 10: return 11;
+	default: return DataTrackId;
+	}
 }

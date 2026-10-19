@@ -50,7 +50,7 @@ int32 FSSXRaceUIBridge::GetEventMode() const
 
 int32 FSSXRaceUIBridge::GetTrackId() const
 {
-	return Owner ? Owner->GetTrackData().TrackId : 0;
+	return Owner ? Owner->GetTrackData().GameTrack : 0;
 }
 
 double FSSXRaceUIBridge::GetCountdownTimer() const

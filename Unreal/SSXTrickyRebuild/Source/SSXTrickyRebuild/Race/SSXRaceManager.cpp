@@ -295,7 +295,7 @@ bool ASSXRaceManager::Setup()
 		FSSXProgressSession& Sess = FESub->Profile.Session;
 		auto RandA = []() { return FGameRng::StreamA().Next(); };
 		const int32 PlayerChar = FESub->Character;
-		const int32 Venue = TrackData.TrackId;
+		const int32 Venue = TrackData.GameTrack;
 		if (Sess.Heat == 0)
 		{
 			Sess.Elim.InitHeat0(Heats, PlayerChar, Venue, int32(Cfg.Mode), RandA);
@@ -330,7 +330,7 @@ bool ASSXRaceManager::Setup()
 		// 0x1664B0
 		int32 Grid[SSXHeats::GridSize], Human[SSXHeats::GridSize];
 		N = FMath::Min(N, int32(SSXHeats::GridSize));
-		IntroStory = SSXHeats::SingleEventGrid(Heats, { IntroPlayerChar }, N, TrackData.TrackId, int32(Cfg.Mode),
+		IntroStory = SSXHeats::SingleEventGrid(Heats, { IntroPlayerChar }, N, TrackData.GameTrack, int32(Cfg.Mode),
 			[]() { return FGameRng::StreamA().Next(); }, Grid, Human);
 		bIntroStory = true;
 		Characters.Reset();
@@ -346,7 +346,7 @@ bool ASSXRaceManager::Setup()
 	else if (Heats.bLoaded && Cfg.Mode != ERaceEventMode::Lesson)
 	{
 		// 0x165778, 0x165A40, 0x165B98, 0x165688
-		IntroStory = SSXHeats::StoryLookup(Heats, IntroPlayerChar, TrackData.TrackId, int32(Cfg.Mode), SSXIntroDialogue::SingleRaceHeatWord,
+		IntroStory = SSXHeats::StoryLookup(Heats, IntroPlayerChar, TrackData.GameTrack, int32(Cfg.Mode), SSXIntroDialogue::SingleRaceHeatWord,
 			[]() { return FGameRng::StreamA().Next(); });
 		bIntroStory = true;
 	}
@@ -441,7 +441,7 @@ bool ASSXRaceManager::Setup()
 		{
 			IntroRacers.Add({ P ? P->Character : 0, SSXIntroDialogue::NormalType80, P == Player });
 		}
-		IntroFocus = SSXIntroDialogue::BuildSlots(Ctx, IntroRacers, TrackData.TrackId, int32(Cfg.Mode), IntroHeatWord, Heats, Dialogue,
+		IntroFocus = SSXIntroDialogue::BuildSlots(Ctx, IntroRacers, TrackData.GameTrack, int32(Cfg.Mode), IntroHeatWord, Heats, Dialogue,
 			[]() { return FGameRng::StreamA().Next(); }, RaceStateSlots);
 		for (int32 K = 0; K < 3; ++K) { Slots[K].Type = RaceStateSlots[K].Type; }
 		UE_LOG(LogSSX, Display, TEXT("[race] intro slots %s / %s / %s (ids %d %d %d, variants %d %d %d)"), *SSXIntro::ScriptName(Slots[0].Type),
@@ -557,7 +557,7 @@ bool ASSXRaceManager::Setup()
 	}
 	Session.EndFocus = IntroFocus;
 	{
-		const int32 Track = TrackData.TrackId;
+		const int32 Track = TrackData.GameTrack;
 		Session.ShowoffMedalOf = [Track](int32 Score) { return SSXProg::ShowoffMedal(Score, Track); };
 		const USSXFrontEndSubsystem* FE = USSXFrontEndSubsystem::Get(this);
 		Session.TimeToBeatCs = FE && Track >= 0 && Track < SSXProg::NumTracks ? FE->Profile.Records[Track].Tables[2].Rows[0].Value : MAX_int32;
@@ -598,7 +598,7 @@ bool ASSXRaceManager::Setup()
 				B[0] = uint8(R.Level); B[1] = uint8(R.LevelMax); B[2] = uint8(R.AngerLimit); B[3] = uint8(R.Kind);
 			}
 		}
-		ReplaySetup.Venue = TrackData.TrackId;
+		ReplaySetup.Venue = TrackData.GameTrack;
 		ReplaySetup.GameMode = int32(Cfg.Mode);
 		ReplaySetup.Seed2B00 = Seed2B00;
 		ReplaySetup.Seed2B04 = Seed2B04;
@@ -889,7 +889,7 @@ bool ASSXRaceManager::Setup()
 	// 0x112B88, 0x167010
 	if (Entry == SSXIntro::EEntry::Normal && FESub && FESub->bHasSelection && Player->Character >= 0 && Player->Character < SSXProg::NumRiders)
 	{
-		SSXProg::CountEvent(FESub->Profile.Career[Player->Character], TrackData.TrackId);
+		SSXProg::CountEvent(FESub->Profile.Career[Player->Character], TrackData.GameTrack);
 	}
 	Clock.Reset();
 	LastPlacements = Session.GetPlacements();
