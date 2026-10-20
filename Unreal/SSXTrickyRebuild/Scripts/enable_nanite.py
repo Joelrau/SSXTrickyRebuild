@@ -30,6 +30,28 @@ def flag_classic_materials():
             unreal.log(f"[ssx] nanite usage flag on {name}")
 
 
+NANITE_MAX_SECTIONS = 64
+
+
+def build_terrain_shadow(path, mesh):
+    """A terrain past Nanite's section limit builds no Nanite data; its shadow-only copy (<mesh>_Shadow, opaque sections
+    merged) casts the Remastered sun shadow instead (USSXRemasterWorld::MakeTerrainShadowTwin)."""
+    pkg = path.split(".")[0]
+    shadow_pkg = pkg + "_Shadow"
+    if mesh.get_num_sections(0) <= NANITE_MAX_SECTIONS:
+        if assets.does_asset_exist(shadow_pkg):
+            assets.delete_asset(shadow_pkg)
+        return
+    if assets.does_asset_exist(shadow_pkg):
+        assets.delete_asset(shadow_pkg)
+    out = unreal.SSXRemasterLibrary.build_terrain_shadow_mesh(mesh, shadow_pkg)
+    if out:
+        assets.save_asset(shadow_pkg, only_if_is_dirty=False)
+        unreal.log(f"[ssx] terrain shadow {shadow_pkg}: {mesh.get_num_sections(0)} sections -> {out.get_num_sections(0)}")
+    else:
+        unreal.log_warning(f"[ssx] terrain shadow {shadow_pkg}: still past {NANITE_MAX_SECTIONS} sections")
+
+
 def main():
     flag_classic_materials()
     maps = sys.argv[1:] or ["Alaska", "Aloha", "Elysium", "Gari", "Megaple", "Merquer", "Mesa", "Pipe", "Snow", "Trick", "Untrack"]
@@ -41,7 +63,11 @@ def main():
             data = unreal.EditorAssetLibrary.find_asset_data(path)
             if str(data.asset_class_path.asset_name) != "StaticMesh":
                 continue
+            if path.split(".")[0].endswith("_Shadow"):
+                continue
             mesh = assets.load_asset(path)
+            if path.split(".")[0].endswith("_terrain"):
+                build_terrain_shadow(path, mesh)
             s = mesh.get_editor_property("nanite_settings")
             if (s.get_editor_property("enabled") and s.get_editor_property("fallback_percent_triangles") >= 1.0
                     and s.get_editor_property("fallback_target") == unreal.NaniteFallbackTarget.PERCENT_TRIANGLES):

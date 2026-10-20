@@ -23,6 +23,8 @@
 #include "SSXShowOffDraw.h"
 #include "SSXTrickyRebuild.h"
 #include "Materials/Material.h"
+#include "Engine/StaticMesh.h"
+#include "Components/StaticMeshComponent.h"
 #include "Materials/MaterialInstance.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Misc/PackageName.h"
@@ -48,6 +50,11 @@
 #include "Kismet/KismetRenderingLibrary.h"
 #include "Sim/RiderSim.h"
 #include "Race/SSXReplay.h"
+#if WITH_EDITOR
+#include "MeshDescription.h"
+#include "StaticMeshAttributes.h"
+#include "UObject/Package.h"
+#endif
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SSXRemasterWorld)
 
@@ -336,6 +343,7 @@ void USSXRemasterWorld::Tick(float DeltaTime)
 			}
 		}
 		SyncFollowers();
+		SyncShadowTwins();
 		UpdateFrontEndSpots();
 		UpdateDepthOfField();
 		UpdateTrails();
@@ -716,6 +724,106 @@ void USSXRemasterWorld::LookFinish(const UMeshComponent& C, UMaterialInstanceDyn
 	}
 }
 
+UStaticMeshComponent* USSXRemasterWorld::MakeTerrainShadowTwin(UStaticMeshComponent& M)
+{
+	const UStaticMesh* Mesh = M.GetStaticMesh();
+	AActor* Owner = M.GetOwner();
+	if (!Mesh || !Owner) { return nullptr; }
+	const FString Pkg = Mesh->GetPackage()->GetName() + TEXT("_Shadow");
+	UStaticMesh* Shadow = LoadObject<UStaticMesh>(nullptr, *(Pkg + TEXT(".") + FPackageName::GetShortName(Pkg)), nullptr, LOAD_NoWarn | LOAD_Quiet);
+	UMaterialInterface* Opaque = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Remastered/M_RmTerrainOpaque.M_RmTerrainOpaque"));
+	if (!Shadow || !Opaque) { return nullptr; }
+	UStaticMeshComponent* T = NewObject<UStaticMeshComponent>(Owner, NAME_None, RF_Transient);
+	T->SetMobility(M.Mobility);
+	T->SetStaticMesh(Shadow);
+	T->SetupAttachment(&M);
+	T->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	T->SetCanEverAffectNavigation(false);
+	T->SetVisibility(false);
+	T->SetCastShadow(true);
+	T->bCastHiddenShadow = true;
+	T->bAffectDistanceFieldLighting = false;
+	T->LightingChannels = M.LightingChannels;
+	const TArray<FStaticMaterial>& Slots = Shadow->GetStaticMaterials();
+	for (int32 S = 0; S < Slots.Num(); ++S)
+	{
+		// "Merged": the opaque sections (their shadow needs no texture); an alpha-tested section keeps the full mesh's slot.
+		const int32 From = Slots[S].MaterialSlotName == TEXT("Merged") ? INDEX_NONE : M.GetMaterialIndex(Slots[S].MaterialSlotName);
+		T->SetMaterial(S, From == INDEX_NONE ? Opaque : M.GetMaterial(From));
+	}
+	T->RegisterComponent();
+	return T;
+}
+
+void USSXRemasterWorld::ApplyTranslucentProps()
+{
+	TranslucentProps.Reset();
+	UMaterialInterface* Hole = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Remastered/M_RmShadowHole.M_RmShadowHole"));
+	TArray<UStaticMeshComponent*> Found;
+	for (TObjectIterator<UStaticMeshComponent> It; It; ++It)
+	{
+		UStaticMeshComponent* C = *It;
+		const UStaticMesh* Mesh = C->GetWorld() == GetWorld() && C->IsRegistered() ? C->GetStaticMesh() : nullptr;
+		if (Mesh && Mesh->IsNaniteEnabled() && !C->bDisallowNanite) { Found.Add(C); }
+	}
+	int32 Twins = 0;
+	for (UStaticMeshComponent* C : Found)
+	{
+		int32 Translucent = 0;
+		for (int32 S = 0; S < C->GetNumMaterials(); ++S)
+		{
+			const UMaterialInterface* M = C->GetMaterial(S);
+			Translucent += M && IsTranslucentBlendMode(M->GetBlendMode()) ? 1 : 0;
+		}
+		if (Translucent == 0) { continue; }
+		FTranslucentProp& P = TranslucentProps.Add_GetRef({ C, nullptr, C->bDisallowNanite != 0, C->CastShadow != 0 });
+		C->bDisallowNanite = true;
+		if (C->CastShadow)
+		{
+			C->SetCastShadow(false);
+			AActor* Owner = C->GetOwner();
+			if (Hole && Owner && Translucent < C->GetNumMaterials())
+			{
+				UStaticMeshComponent* T = NewObject<UStaticMeshComponent>(Owner, NAME_None, RF_Transient);
+				T->SetMobility(C->Mobility);
+				T->SetStaticMesh(C->GetStaticMesh());
+				T->SetupAttachment(C);
+				T->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+				T->SetCanEverAffectNavigation(false);
+				T->SetVisibility(false);
+				T->SetCastShadow(true);
+				T->bCastHiddenShadow = true;
+				T->bAffectDistanceFieldLighting = false;
+				T->LDMaxDrawDistance = C->LDMaxDrawDistance;
+				T->CachedMaxDrawDistance = C->CachedMaxDrawDistance;
+				T->LightingChannels = C->LightingChannels;
+				for (int32 S = 0; S < C->GetNumMaterials(); ++S)
+				{
+					UMaterialInterface* M = C->GetMaterial(S);
+					T->SetMaterial(S, M && IsTranslucentBlendMode(M->GetBlendMode()) ? Hole : M);
+				}
+				T->RegisterComponent();
+				P.Twin = T;
+				++Twins;
+			}
+		}
+		C->MarkRenderStateDirty();
+	}
+	UE_LOG(LogSSX, Display, TEXT("[remaster] %d props with a translucent layer drawn non-Nanite, %d Nanite shadow twins"), TranslucentProps.Num(), Twins);
+}
+
+void USSXRemasterWorld::SyncShadowTwins()
+{
+	for (const FTranslucentProp& P : TranslucentProps)
+	{
+		const UStaticMeshComponent* C = P.Component.Get();
+		UStaticMeshComponent* T = P.Twin.Get();
+		if (!C || !T) { continue; }
+		const bool bCast = C->IsVisible() && C->GetOwner() && !C->GetOwner()->IsHidden();
+		if (T->CastShadow != bCast) { T->SetCastShadow(bCast); }
+	}
+}
+
 void USSXRemasterWorld::ApplySurfaceLook()
 {
 	UWorld* W = GetWorld();
@@ -933,6 +1041,7 @@ void USSXRemasterWorld::Apply()
 		if (L) { SwapLevel(*L); }
 	}
 	ApplySurfaceLook();
+	ApplyTranslucentProps();
 	// The terrain is drawn by USSXTerrainLodComponent (no shadow pass) with the full-detail mesh hidden: that mesh casts
 	// the sun's shadow (overhangs, tunnels and cliffs block it).
 	for (TObjectIterator<USSXTerrainLodComponent> It; It; ++It)
@@ -940,8 +1049,17 @@ void USSXRemasterWorld::Apply()
 		UStaticMeshComponent* M = It->GetWorld() == W ? It->Replaced.Get() : nullptr;
 		if (!M) { continue; }
 		TerrainShadows.Add({ M, M->CastShadow != 0, M->bCastHiddenShadow != 0 });
-		M->SetCastShadow(true);
-		M->bCastHiddenShadow = true;
+		if (UStaticMeshComponent* T = !M->HasValidNaniteData() ? MakeTerrainShadowTwin(*M) : nullptr)
+		{
+			// Past Nanite's section limit the full mesh would cast through the slow non-Nanite VSM path; its shadow copy casts.
+			TerrainShadowTwins.Add(T);
+			M->SetCastShadow(false);
+		}
+		else
+		{
+			M->SetCastShadow(true);
+			M->bCastHiddenShadow = true;
+		}
 		M->MarkRenderStateDirty();
 	}
 
@@ -1186,6 +1304,22 @@ void USSXRemasterWorld::Revert()
 		}
 	}
 	TerrainShadows.Reset();
+	for (const TWeakObjectPtr<UStaticMeshComponent>& T : TerrainShadowTwins)
+	{
+		if (T.IsValid()) { T->DestroyComponent(); }
+	}
+	TerrainShadowTwins.Reset();
+	for (const FTranslucentProp& P : TranslucentProps)
+	{
+		if (UStaticMeshComponent* T = P.Twin.Get()) { T->DestroyComponent(); }
+		if (UStaticMeshComponent* C = P.Component.Get())
+		{
+			C->bDisallowNanite = P.bDisallow;
+			C->SetCastShadow(P.bCast);
+			C->MarkRenderStateDirty();
+		}
+	}
+	TranslucentProps.Reset();
 	TrailMap = nullptr;
 	TrailScratch = nullptr;
 	TrailLast.Reset();
@@ -1200,6 +1334,73 @@ int32 USSXRemasterLibrary::SetRemasteredInWorld(UObject* WorldContext, bool bRem
 	if (!R) { return 0; }
 	bRemastered ? R->Apply() : R->Revert();
 	return R->NumSwapped();
+}
+
+UStaticMesh* USSXRemasterLibrary::BuildTerrainShadowMesh(UStaticMesh* Source, const FString& AssetPath)
+{
+#if WITH_EDITOR
+	const FMeshDescription* Src = Source ? Source->GetMeshDescription(0) : nullptr;
+	if (!Src) { return nullptr; }
+	FMeshDescription MD = *Src;
+	FStaticMeshAttributes Attr(MD);
+	TPolygonGroupAttributesRef<FName> Names = Attr.GetPolygonGroupMaterialSlotNames();
+	const TArray<FStaticMaterial>& Mats = Source->GetStaticMaterials();
+	const auto AlphaTested = [&Mats](FName Slot)
+	{
+		for (const FStaticMaterial& M : Mats)
+		{
+			if (M.MaterialSlotName == Slot)
+			{
+				const UMaterial* Root = M.MaterialInterface ? M.MaterialInterface->GetMaterial() : nullptr;
+				return Root && Root->GetName() == TEXT("M_SSXTerrain_Masked");
+			}
+		}
+		return false;
+	};
+	TArray<FPolygonGroupID> Groups;
+	for (const FPolygonGroupID G : MD.PolygonGroups().GetElementIDs()) { Groups.Add(G); }
+	FPolygonGroupID Merged = INDEX_NONE;
+	for (const FPolygonGroupID G : Groups)
+	{
+		if (AlphaTested(Names[G])) { continue; }
+		if (Merged == INDEX_NONE)
+		{
+			Merged = G;
+			Names[G] = TEXT("Merged");
+			continue;
+		}
+		const TArray<FPolygonID> Polys(MD.GetPolygonGroupPolygonIDs(G));
+		for (const FPolygonID P : Polys) { MD.SetPolygonPolygonGroup(P, Merged); }
+		MD.DeletePolygonGroup(G);
+	}
+	FElementIDRemappings Remap;
+	MD.Compact(Remap);
+	if (MD.PolygonGroups().Num() > 64) { return nullptr; }
+
+	UPackage* Pkg = CreatePackage(*AssetPath);
+	UStaticMesh* Out = NewObject<UStaticMesh>(Pkg, FName(FPackageName::GetShortName(AssetPath)), RF_Public | RF_Standalone);
+	Out->AddSourceModel().BuildSettings = Source->GetSourceModel(0).BuildSettings;
+	for (const FPolygonGroupID G : MD.PolygonGroups().GetElementIDs())
+	{
+		const FName Slot = Names[G];
+		UMaterialInterface* Mat = nullptr;
+		for (const FStaticMaterial& M : Mats) { if (M.MaterialSlotName == Slot) { Mat = M.MaterialInterface; } }
+		Out->GetStaticMaterials().Add(FStaticMaterial(Mat, Slot, Slot));
+	}
+	Out->CreateMeshDescription(0, MoveTemp(MD));
+	Out->CommitMeshDescription(0);
+	FMeshNaniteSettings Nanite = Out->GetNaniteSettings();
+	Nanite.bEnabled = true;
+	Nanite.FallbackTarget = ENaniteFallbackTarget::PercentTriangles;
+	Nanite.FallbackPercentTriangles = 1.f;
+	Out->SetNaniteSettings(Nanite);
+	Out->Build(false);
+	Out->PostEditChange();
+	Out->MarkPackageDirty();
+	return Out;
+#else
+	return nullptr;
+#endif
 }
 
 void USSXRemasterLibrary::FinishLoadingForCapture()

@@ -179,6 +179,21 @@ private:
 	double FogStartBase = 0.0;   // fog start at draw distance scale 1, cm
 	struct FShadowFlags { TWeakObjectPtr<UPrimitiveComponent> Component; bool bCast = false; bool bHidden = false; };
 	TArray<FShadowFlags> TerrainShadows;
+	TArray<TWeakObjectPtr<UStaticMeshComponent>> TerrainShadowTwins;   // terrains past Nanite's section limit: <mesh>_Shadow
+	/** Nanite props with a translucent slot (Nanite draws opaque / masked only) draw non-Nanite without a shadow; a hidden
+	 *  Nanite twin (translucent slots clipped: M_RmShadowHole) casts it, which keeps large props out of the non-Nanite VSM
+	 *  marking queue. Translucent slots cast no shadow, so the shadow is unchanged. */
+	struct FTranslucentProp
+	{
+		TWeakObjectPtr<UStaticMeshComponent> Component;
+		TWeakObjectPtr<UStaticMeshComponent> Twin;
+		bool bDisallow = false;
+		bool bCast = false;
+	};
+	TArray<FTranslucentProp> TranslucentProps;
+	void ApplyTranslucentProps();
+	UStaticMeshComponent* MakeTerrainShadowTwin(UStaticMeshComponent& M);
+	void SyncShadowTwins();
 	TMap<int32, int32> SurfaceClasses;   // terrain texture index -> SSXRemaster::SurfaceClass   // the hidden full-detail terrain meshes, made to cast the sun's shadow
 	bool bAllLightShadows = false;
 	int32 AppliedQuality = -1;
@@ -202,4 +217,8 @@ public:
 	/** Editor only: finish shader, distance-field and texture compilation and stream every texture in. */
 	UFUNCTION(BlueprintCallable, Category = "SSX")
 	static void FinishLoadingForCapture();
+	/** Editor only (Scripts/enable_nanite.py): a terrain mesh past Nanite's 64 sections gets a shadow-only Nanite copy at
+	 *  AssetPath with every non-alpha-tested section merged into one ("Merged"); null when it would still be past 64. */
+	UFUNCTION(BlueprintCallable, Category = "SSX")
+	static UStaticMesh* BuildTerrainShadowMesh(UStaticMesh* Source, const FString& AssetPath);
 };

@@ -829,5 +829,11 @@ enc = custom(pp, -350, 0, PP_SCENE, F3,
 connect_prop(enc, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
 finish(pp)
 
+# The shadow twins of props with a soft (translucent) layer: that slot clipped, so the twin stays Nanite
+# (USSXRemasterWorld::ApplyTranslucentProps).
+m = lit_material("M_RmShadowHole", unreal.BlendMode.BLEND_MASKED)
+connect_prop(expr(m, unreal.MaterialExpressionConstant, -400, 300, r=0.0), "", unreal.MaterialProperty.MP_OPACITY_MASK)
+finish(m)
+
 # With a real RHI (-AllowCommandletRendering) this compiles the shaders now, so HLSL errors show in the log.
 unreal.SSXRemasterLibrary.finish_loading_for_capture()

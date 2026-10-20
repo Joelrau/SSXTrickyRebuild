@@ -11,7 +11,8 @@ public class SSXTrickyRebuild : ModuleRules
 		PrivateDependencyModuleNames.AddRange(new string[] { "UMG", "Slate", "SlateCore", "MediaAssets", "Json", "ApplicationCore" });
 		PrivateDependencyModuleNames.AddRange(new string[] { "AudioExtensions" });
 		PrivateDependencyModuleNames.AddRange(new string[] { "RenderCore", "RHI" });   // Particles/SSXSpriteRenderer scene proxy
-		PrivateDependencyModuleNames.Add("ImageCore");   // World/SSXPropAnimation crowd atlas (FImage)
+		PrivateDependencyModuleNames.Add("ImageCore");
+		PrivateDependencyModuleNames.AddRange(new string[] { "MeshDescription", "StaticMeshDescription" });   // World/SSXRemasterWorld terrain shadow meshes (editor)   // World/SSXPropAnimation crowd atlas (FImage)
 		// Packaged game: stage the data read from disk at run time as loose files. SimData/ stays at <Package>/SSXTrickyRebuild/SimData; the repo-root folders (converted/, extracted/, unpacked/) go under <Package>/SSXTrickyRebuild/GameData/, which SSXFrontEnd::RepoRoot() returns in cooked builds. The data comes from the user's own disc and is never committed.
 		if (Target.Type == TargetType.Game)
 		{
