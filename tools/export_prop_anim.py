@@ -163,7 +163,8 @@ def export(path: Path, out_dir: Path) -> bool:
     return True
 
 
-GLASS = re.compile(r"glass|window|dome", re.I)
+# Glass, and the clear ice / tube props (Aloha's shortcut tubes and ice walls, icicles) that read as glass.
+GLASS = re.compile(r"glass|window|dome|shortcuttube|icewall|icefacade|iceflow|icechunk|icicle|iceshard", re.I)
 WATER = re.compile(r"water|river|wave|ripple", re.I)
 NOT_SURFACE = re.compile(r"litwindow|riverbed|bed|frame", re.I)
 
