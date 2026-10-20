@@ -128,7 +128,32 @@ float3 d = saturate({ENC.format(x='Tex')} * VC.rgb * (255.0 / 128.0));
 return pow(As / 128.0, lerp(0.7, 1.6, dot(d, float3(0.2126, 0.7152, 0.0722))));
 """
 SOFT_DEPTH = "return (PD <= CD.r * 1.0005 + 0.5) ? 1.0 : 0.0;"
-SKY_SHADE = f"return {DEC.format(x='saturate(' + ENC.format(x='Tex') + ' * Factor)')};"
+# The Classic sky, plus slow cloud wisps (value-noise fbm on the view ray projected to a cloud plane) only where the dome
+# shows open blue sky above the horizon, so painted mountains and sunsets stay as drawn. Clouds = MPC amount per track.
+SKY_SHADE = f"""
+float3 c = {DEC.format(x='saturate(' + ENC.format(x='Tex') + ' * Factor)')};
+if (Clouds <= 0.0) return c;
+float3 d = normalize(WP - Cam);
+float up = saturate((d.z - 0.04) * 4.0);
+float2 q = d.xy / max(d.z + 0.12, 0.12) * 0.9 + T * float2(0.006, 0.0025);
+float n = 0.0, a = 0.5;
+for (int i = 0; i < 5; ++i)
+{{
+    float2 f = frac(q), k = floor(q);
+    f = f * f * (3.0 - 2.0 * f);
+    float h00 = frac(sin(dot(k, float2(127.1, 311.7))) * 43758.5453);
+    float h10 = frac(sin(dot(k + float2(1, 0), float2(127.1, 311.7))) * 43758.5453);
+    float h01 = frac(sin(dot(k + float2(0, 1), float2(127.1, 311.7))) * 43758.5453);
+    float h11 = frac(sin(dot(k + float2(1, 1), float2(127.1, 311.7))) * 43758.5453);
+    n += a * lerp(lerp(h00, h10, f.x), lerp(h01, h11, f.x), f.y);
+    q = q * 2.03 + 17.0;
+    a *= 0.5;
+}}
+float blue = saturate((c.b - max(c.r, c.g)) * 6.0);
+float cl = smoothstep(0.5, 0.82, n) * up * blue * Clouds;
+float l = dot(c, float3(0.2126, 0.7152, 0.0722));
+return lerp(c, float3(1.0, 1.0, 1.0) * max(l * 2.2, 0.45), cl);
+"""
 CLEAR_SHADE = f"return {DEC.format(x='saturate(C.rgb)')};"
 PROP_SOFT_SHADE = f"return {DEC.format(x='saturate(' + ENC.format(x='Tex') + ' * VC.rgb * (255.0 / 128.0))')};"
 PROP_CORE = "return As >= 128.0 ? 1.0 : 0.0;"
@@ -443,7 +468,7 @@ else:
                             unreal.MaterialParameterCollectionFactoryNew())
 old = {str(p.get_editor_property("parameter_name")): p for p in rm.get_editor_property("scalar_parameters")}
 scalars = []
-for n, v in (("BakedWeight", 0.6), ("BakedAmbient", 0.55), ("AlbedoScale", 0.9), ("BaseRoughness", 0.8),
+for n, v in (("BakedWeight", 0.6), ("BakedAmbient", 0.55), ("AlbedoScale", 0.9), ("BaseRoughness", 0.62), ("Clouds", 0.0),
              ("Exposure", 1.0), ("Saturation", 1.15), ("Emissive", 3.0), ("RiderFill", 0.6), ("RiderRim", 0.35),
              ("ParticleSoftness", 40.0), ("SpriteGlow", 0.35), ("DrawDistanceScale", 3.0), ("Sparkle", 3.0),
              ("TrailX", 0.0), ("TrailY", 0.0), ("TrailSize", 1.0e9)):
@@ -619,7 +644,7 @@ for name, additive in (("M_RmParticleAdd", True), ("M_RmParticleAlpha", False)):
     m.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_UNLIT if additive
                           else unreal.MaterialShadingModel.MSM_DEFAULT_LIT)
     if not additive:
-        m.set_editor_property("translucency_lighting_mode", unreal.TranslucencyLightingMode.TLM_VOLUMETRIC_NON_DIRECTIONAL)
+        m.set_editor_property("translucency_lighting_mode", unreal.TranslucencyLightingMode.TLM_VOLUMETRIC_DIRECTIONAL)
     m.set_editor_property("blend_mode", unreal.BlendMode.BLEND_ADDITIVE if additive else unreal.BlendMode.BLEND_TRANSLUCENT)
     m.set_editor_property("two_sided", True)
     tex = tex_param(m, "Tex", -1100, -100, "lightmap")   # PARTICLE.SSH textures load linear (stored bytes)
@@ -675,7 +700,11 @@ sky = tex_param(m, "BaseTex", -1000, -200)
 sky.set_editor_property("sampler_source", unreal.SamplerSourceMode.SSM_CLAMP_WORLD_GROUP_SETTINGS)
 sky.set_editor_property("mip_value_mode", unreal.TextureMipValueMode.TMVM_MIP_LEVEL)
 connect(expr(m, unreal.MaterialExpressionConstant, -1300, -300, r=0.0), "", sky, "Level")
-connect_prop(custom(m, -400, 0, SKY_SHADE, F3, [("Tex", (sky, "RGB")), ("Factor", (coll(m, mpc, "SkyAmbient", -750, 100), ""))],
+connect_prop(custom(m, -400, 0, SKY_SHADE, F3, [("Tex", (sky, "RGB")), ("Factor", (coll(m, mpc, "SkyAmbient", -750, 100), "")),
+                                                 ("WP", (expr(m, unreal.MaterialExpressionWorldPosition, -750, 200), "")),
+                                                 ("Cam", (expr(m, unreal.MaterialExpressionCameraPositionWS, -750, 280), "")),
+                                                 ("T", (expr(m, unreal.MaterialExpressionTime, -750, 360), "")),
+                                                 ("Clouds", (coll(m, rm, "Clouds", -750, 440), ""))],
                     "RmSkyShade"), "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
 finish(m)
 

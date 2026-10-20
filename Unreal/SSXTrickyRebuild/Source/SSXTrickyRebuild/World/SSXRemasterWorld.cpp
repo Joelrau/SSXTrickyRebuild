@@ -131,6 +131,7 @@ const SSXRemaster::FTrackTuning& SSXRemaster::TuningFor(const FString& Stem)
 		T.Stem = S; T.SunLux = Sun; T.SunSaturation = SunSat; T.SkyLight = Sky; T.BakedAmbient = Amb; T.Emissive = Emis; T.LightCandela = Cd;
 		T.RiderFill = Sun < 1.f ? 1.f : 0.6f;
 		T.SpriteGlow = Sun > 0.f && Sun < 1.f ? 0.5f : 0.35f;
+		T.Clouds = Sun >= 1.f ? 0.6f : 0.f;   // day tracks; none at night, indoors or in the front end
 		return T;
 	};
 	// Night (Snowdream, Merqury City, the trick tutorial): a faint coloured moon, the baked light and the lamps carry the
@@ -905,6 +906,7 @@ void USSXRemasterWorld::Apply()
 		UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("Emissive"), T.Emissive);
 		UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("RiderFill"), T.RiderFill);
 		UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("SpriteGlow"), T.SpriteGlow);
+		UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("Clouds"), T.Clouds);
 		UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("Sparkle"), T.Sparkle);
 	}
 
