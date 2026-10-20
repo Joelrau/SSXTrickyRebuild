@@ -17,6 +17,20 @@ W, H = 1600, 900
 FRAMES = 40   # Lumen gathers over frames
 
 
+STEMS = ("gari", "snow", "elysium", "mesa", "merquer", "aloha", "pipe", "untrack", "megaple", None, "trick", "alaska")
+
+
+def clear_colour(name):
+    import json
+    stem = name.lower()
+    path = os.path.join(unreal.Paths.project_dir(), "SimData", "world_track_table.json")
+    if stem not in STEMS or not os.path.exists(path):
+        return unreal.LinearColor(0.0, 0.0, 0.0, 0.5)
+    rec = json.load(open(path))[STEMS.index(stem)]
+    r, g, b = rec["colour_rgb"]
+    return unreal.LinearColor(r / 255.0, g / 255.0, b / 255.0, 128.0 / 255.0)
+
+
 def main():
     args = sys.argv[1:]
     if len(args) < 2:
@@ -55,14 +69,15 @@ def main():
     for a in unreal.get_editor_subsystem(unreal.EditorActorSubsystem).get_all_level_actors():
         if unreal.Name("SSXSky") in a.tags:
             a.set_actor_location(loc, False, False)
-    # ... and the clear-colour shell behind it (USSXWorldPresentation::SpawnClearShell), here in a test colour.
+    # ... and the clear-colour shell behind it (USSXWorldPresentation::SpawnClearShell) in the track's clear colour
+    # (SimData/world_track_table.json, record = the game's track index).
     shell = unreal.get_editor_subsystem(unreal.EditorActorSubsystem).spawn_actor_from_class(unreal.StaticMeshActor, loc)
     sc = shell.static_mesh_component
     sc.set_editor_property("static_mesh", unreal.load_asset("/Engine/BasicShapes/Sphere"))
     sc.set_material(0, unreal.load_asset("/Game/World/M_SSXClearColour"))
     shell.set_actor_scale3d(unreal.Vector(4000.0, 4000.0, 4000.0))
     unreal.MaterialLibrary.set_vector_parameter_value(world, unreal.load_asset("/Game/World/MPC_SSXWorld"), "ClearColour",
-                                                      unreal.LinearColor(0.55, 0.7, 0.9, 0.5))
+                                                      clear_colour(name))
 
     rt = unreal.RenderingLibrary.create_render_target2d(world, W, H, unreal.TextureRenderTargetFormat.RTF_RGBA8)
     cap = unreal.get_editor_subsystem(unreal.EditorActorSubsystem).spawn_actor_from_class(unreal.SceneCapture2D, loc, rot)

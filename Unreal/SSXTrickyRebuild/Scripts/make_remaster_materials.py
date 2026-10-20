@@ -119,9 +119,14 @@ float av = floor(VA * 255.0 + 0.5);
 return min(floor(at * av / 128.0), 255.0);
 """
 PROP_ATEST = "return As > 1.0 ? 1.0 : 0.0;"
-# The Classic blend factor As / 128, made thinner: blending in linear light shows a semi-transparent layer much
-# stronger than the PS2's display-space blend (Alaska's light curtains turned into white sheets).
-PROP_BLEND = "return (As > 1.0 && As < 128.0) ? pow(As / 128.0, 1.6) : 0.0;"
+# The Classic blend factor As / 128, reshaped by the layer's display brightness: blending in linear light shows a bright
+# layer over a dark scene much stronger than the PS2's display-space blend (Alaska's light curtains turned into white
+# sheets) and a dark layer over a bright sky much weaker (Mesablanca's tree foliage turned pale and see-through).
+PROP_BLEND = f"""
+if (As <= 1.0 || As >= 128.0) return 0.0;
+float3 d = saturate({ENC.format(x='Tex')} * VC.rgb * (255.0 / 128.0));
+return pow(As / 128.0, lerp(0.7, 1.6, dot(d, float3(0.2126, 0.7152, 0.0722))));
+"""
 SOFT_DEPTH = "return (PD <= CD.r * 1.0005 + 0.5) ? 1.0 : 0.0;"
 SKY_SHADE = f"return {DEC.format(x='saturate(' + ENC.format(x='Tex') + ' * Factor)')};"
 CLEAR_SHADE = f"return {DEC.format(x='saturate(C.rgb)')};"
@@ -701,7 +706,7 @@ vc = expr(m, unreal.MaterialExpressionVertexColor, -1000, 100)
 connect_prop(custom(m, -400, 0, PROP_SOFT_SHADE, F3, [("Tex", (base, "RGB")), ("VC", (vc, ""))], "RmPropSoftShade"), "",
              unreal.MaterialProperty.MP_EMISSIVE_COLOR)
 gs_a = custom(m, -1000, 400, PROP_GS_ALPHA, F1, [("A", (base, "A")), ("VA", (vc, "A"))], "PropGsAlpha")
-alpha = custom(m, -800, 400, PROP_BLEND, F1, [("As", (gs_a, ""))], "PropBlend")
+alpha = custom(m, -800, 400, PROP_BLEND, F1, [("As", (gs_a, "")), ("Tex", (base, "RGB")), ("VC", (vc, ""))], "PropBlend")
 depth = expr(m, unreal.MaterialExpressionPixelDepth, -700, 500)
 cd = expr(m, unreal.MaterialExpressionSceneTexture, -1000, 650, scene_texture_id=unreal.SceneTextureId.PPI_CUSTOM_DEPTH)
 front = custom(m, -800, 650, SOFT_DEPTH, F1, [("PD", (depth, "")), ("CD", (cd, "Color"))], "SoftDepth")
