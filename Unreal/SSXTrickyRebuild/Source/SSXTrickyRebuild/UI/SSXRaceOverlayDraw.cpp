@@ -3,6 +3,7 @@
 
 #include "SSXTrickyRebuild.h"
 #include "Race/SSXReplay.h"
+#include "UI/SSXPrompts.h"
 #include "UI/SSXFeDraw.h"
 #include "UI/SSXFeProfile.h"
 #include "UI/SSXFrontEnd.h"
@@ -76,6 +77,19 @@ namespace
 		if (Flags & 0x20) X -= W * 0.5f; else if (Flags & 8) X -= W;
 		if (Flags & 0x40) Y -= H * 0.5f; else if (Flags & 4) Y -= H;
 		D.SpriteEx(Id, X, Y, W, H, C, Layer, true, (Flags & 1) != 0, (Flags & 2) != 0);
+	}
+
+	/** A device prompt replaces the HUD button sprite Id here (SSXPrompts). */
+	bool HasPrompt(const FSSXFeDrawList& D, int32 Id)
+	{
+		return !SSXPrompts::ImageFor(Id, true, D.PromptContext, SSXPrompts::Device()).IsEmpty();
+	}
+
+	/** A device prompt centred at (Cx, Cy) in a Size x Size box: where the original lights one direction of the whole
+	 *  d-pad (0x61 + a 12 px direction piece), the prompt takes the whole d-pad's place. */
+	void PromptIcon(FSSXFeDrawList& D, int32 Id, float Cx, float Cy, float Size, const FLinearColor& C, int32 Layer)
+	{
+		D.SpriteEx(Id, Cx - Size * 0.5f, Cy - Size * 0.5f, Size, Size, C, Layer, true, false, false);
 	}
 
 	/** FUN_001C0068 with all its flags, including 0x10 (FUN_001FC178 -> FUN_0019BDF8: the quad is h wide and w high,
@@ -1497,9 +1511,17 @@ void FSSXOverlayManager::DrawReplayControl(FSSXFeDrawList& D) const
 	{
 		const FString Hint = L(C.HelpLevel == C.HelpMax ? 0x16A : 0x16B);
 		const float Tw = Ink(D, EFont::Menu, Hint, 1.f);
-		Icon(D, 0x61, (Right - Tw) - 42.f, Y - 43.f, 1.f, 1.f, 0x60, Arrow, 14);
-		if (C.HelpLevel == C.HelpMax) { Icon(D, 0x65, (Right - Tw) - 42.f, Y - 33.f, 1.f, 1.f, 0x60, Wht, 15); }
-		else { Icon(D, 0x64, (Right - Tw) - 41.f, Y - 52.f, 1.f, 1.f, 0x60, Wht, 15); }
+		const int32 Dir = C.HelpLevel == C.HelpMax ? 0x65 : 0x64;
+		if (HasPrompt(D, Dir))
+		{
+			PromptIcon(D, Dir, (Right - Tw) - 42.f, Y - 43.f, 30.f, Wht, 15);
+		}
+		else
+		{
+			Icon(D, 0x61, (Right - Tw) - 42.f, Y - 43.f, 1.f, 1.f, 0x60, Arrow, 14);
+			if (Dir == 0x65) { Icon(D, 0x65, (Right - Tw) - 42.f, Y - 33.f, 1.f, 1.f, 0x60, Wht, 15); }
+			else { Icon(D, 0x64, (Right - Tw) - 41.f, Y - 52.f, 1.f, 1.f, 0x60, Wht, 15); }
+		}
 	}
 
 	// 0x1EDEF0 / 0x1ED490 / FUN_001EE660 / FUN_001EE6E8
@@ -1776,11 +1798,20 @@ void FSSXOverlayManager::DrawReplayControl(FSSXFeDrawList& D) const
 		Icon(D, 0x74, Xa, Y5, 1.f, 1.f, 0x60, W, 14);
 		Icon(D, 0x6B, Xa, Y4, 1.f, 1.f, 0x60, W, 14);
 		Icon(D, 0x6A, Xb, Y5 - 1.f, 1.f, 1.f, 0x60, W, 14);
-		Icon(D, 0x62, Xb - 10.f, Y4, 1.f, 1.f, 0x60, W, 14);
-		Icon(D, 0x63, Xb + 10.f, Y4, 1.f, 1.f, 0x60, W, 14);
+		const bool bPadPrompts = HasPrompt(D, 0x62);
+		if (bPadPrompts)
+		{
+			PromptIcon(D, 0x62, Xb - 12.f, Y4, 22.f, W, 14);
+			PromptIcon(D, 0x63, Xb + 12.f, Y4, 22.f, W, 14);
+		}
+		else
+		{
+			Icon(D, 0x62, Xb - 10.f, Y4, 1.f, 1.f, 0x60, W, 14);
+			Icon(D, 0x63, Xb + 10.f, Y4, 1.f, 1.f, 0x60, W, 14);
+		}
 		Icon(D, 0x71, Xc, Y5 + 1.f, 1.f, 1.f, 0x60, W, 14);
 		Icon(D, 0x6F, Xc, Y4 + 1.f, 1.f, 1.f, 0x60, W, 14);
-		Icon(D, 0x61, Xb, Y4, 1.f, 1.f, 0x60, Dim, 14);
+		if (!bPadPrompts) { Icon(D, 0x61, Xb, Y4, 1.f, 1.f, 0x60, Dim, 14); }
 		const float Ta = Y5 - Fh, Tb = Y4 - Fh;
 		TxtR(D, EFont::Menu, 125.f, Ta, 0.85f, W, L(0x1A9), 13);
 		TxtR(D, EFont::Menu, 125.f, Tb, 0.85f, W, L(0x1B4), 13);
