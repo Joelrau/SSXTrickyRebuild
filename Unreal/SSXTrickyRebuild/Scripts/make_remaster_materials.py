@@ -353,6 +353,7 @@ def rgba_param(mat, name, x, y):
 
 
 def finish(m):
+    m.set_editor_property("used_with_nanite", True)   # the Nanite track meshes (Scripts/enable_nanite.py), cooked builds
     mel.recompile_material(m)
     assets.save_asset(m.get_path_name().split(".")[0], only_if_is_dirty=False)
     unreal.log(f"[ssx] created {m.get_path_name()}")

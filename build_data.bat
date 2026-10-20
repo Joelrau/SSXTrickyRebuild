@@ -98,6 +98,7 @@ for %%T in (Alaska:alaska Aloha:aloha Elysium:elysium Gari:gari Megaple:megaple 
 call :ue build_frontend_map.py || goto :fail
 if defined DOREMASTER (
     call :ue import_remaster.py || goto :fail
+    call :ue enable_nanite.py || goto :fail
 )
 
 :done
