@@ -111,6 +111,8 @@ public:
 	void SetClassicMaterial(UMeshComponent& C, int32 Slot, UMaterialInterface* M);
 	void SetGlow(UMeshComponent& C, float Glow);
 	bool IsApplied() const { return bApplied; }
+	/** A glass / water component (ApplySurfaceLook reads them from SimData; tests add them directly). */
+	void AddLookComponent(const UMeshComponent& C) { LookComponents.Add(&C); }
 	int32 NumSwapped() const { return Swaps.Num(); }
 
 private:
@@ -121,6 +123,11 @@ private:
 	 *  layers M_RmPropGlass. */
 	void ApplySurfaceLook();
 	UMaterialInstanceDynamic* OwnInstance(UMeshComponent& C, int32 Slot, UMaterialInstanceDynamic& Shared, UMaterialInterface* Parent);
+	/** Glass / water components: their soft layers' parent becomes M_RmPropGlass. */
+	UMaterialInterface* LookParent(const UMeshComponent& C, UMaterialInterface* Parent) const;
+	/** Glass / water components: a lit instance gets the mirror class (RmSurface 4). */
+	void LookFinish(const UMeshComponent& C, UMaterialInstanceDynamic& M) const;
+	TSet<TWeakObjectPtr<const UMeshComponent>> LookComponents;   // glass / water props (ApplySurfaceLook)
 	UMaterialInterface* RemasteredFor(UMaterialInterface* Classic);
 	void OnLevelAdded(ULevel* Level, UWorld* World);
 	/** Lit display twins for the riders' Classic instances (new ones appear with outfit changes: every tick). */

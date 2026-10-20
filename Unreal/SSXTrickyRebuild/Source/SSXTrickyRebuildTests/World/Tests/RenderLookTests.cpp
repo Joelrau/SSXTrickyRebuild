@@ -255,6 +255,48 @@ bool FSSXRenderGlowTest::RunTest(const FString&)
 	return true;
 }
 
+// Glass / water props: an animated soft layer (its twin made when game code first animates it, after the look switch)
+// takes the glass material; a lit one the mirror class.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSSXRenderSurfaceLookTest, "SSX.Render.SurfaceLook", RenderLookFlags)
+bool FSSXRenderSurfaceLookTest::RunTest(const FString&)
+{
+	UMaterialInterface* Soft = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/World/M_SSXProp_Translucent.M_SSXProp_Translucent"));
+	UMaterialInterface* Lit = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/World/M_SSXProp.M_SSXProp"));
+	UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
+	if (!Soft || !Lit || !Cube)
+	{
+		AddError(TEXT("M_SSXProp(_Translucent) or the engine cube missing"));
+		return false;
+	}
+	UWorld* W = UWorld::CreateWorld(EWorldType::Game, false, TEXT("SSXSurfaceLook"));
+	FWorldContext& Ctx = GEngine->CreateNewWorldContext(EWorldType::Game);
+	Ctx.SetCurrentWorld(W);
+	UStaticMeshComponent* C = W->SpawnActor<AStaticMeshActor>()->GetStaticMeshComponent();
+	C->SetStaticMesh(Cube);
+	C->SetMaterial(0, Soft);
+	USSXRemasterWorld* R = W->GetSubsystem<USSXRemasterWorld>();
+	USSXRemasterLibrary::SetRemasteredInWorld(W, true);
+	if (!TestNotNull(TEXT("remaster subsystem"), R)) { return false; }
+	R->AddLookComponent(*C);
+	UMaterialInstanceDynamic* Classic = SSXRemaster::ClassicMid(*C, 0);   // game code animating the slot (UV scroll)
+	const UMaterialInstanceDynamic* Shown = Cast<UMaterialInstanceDynamic>(C->GetMaterial(0));
+	TestTrue(TEXT("game code gets the Classic instance"), Classic && Classic != Shown);
+	TestTrue(TEXT("the shown twin is the glass material"), Shown && Shown->Parent && Shown->Parent->GetName() == TEXT("M_RmPropGlass"));
+	USSXRemasterLibrary::SetRemasteredInWorld(W, false);
+	C->SetMaterial(0, Lit);
+	USSXRemasterLibrary::SetRemasteredInWorld(W, true);
+	R->AddLookComponent(*C);
+	SSXRemaster::ClassicMid(*C, 0);
+	float Surface = 0.f;
+	const UMaterialInstanceDynamic* LitShown = Cast<UMaterialInstanceDynamic>(C->GetMaterial(0));
+	TestTrue(TEXT("a lit layer gets the mirror class"),
+		LitShown && LitShown->GetScalarParameterValue(FHashedMaterialParameterInfo(TEXT("RmSurface")), Surface) && Surface == 4.f);
+	USSXRemasterLibrary::SetRemasteredInWorld(W, false);
+	GEngine->DestroyWorldContext(W);
+	W->DestroyWorld(false);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSSXRenderLookSwitchTest, "SSX.Render.LookSwitch", RenderLookFlags)
 bool FSSXRenderLookSwitchTest::RunTest(const FString&)
 {

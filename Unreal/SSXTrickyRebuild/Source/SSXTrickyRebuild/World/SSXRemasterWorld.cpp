@@ -619,8 +619,9 @@ UMaterialInstanceDynamic* USSXRemasterWorld::MakeFollower(FSwap& S, UMaterialIns
 {
 	UMaterialInterface* Parent = RemasteredParentOf(&Classic);
 	if (!Parent) { return nullptr; }
-	UMaterialInstanceDynamic* F = UMaterialInstanceDynamic::Create(Parent, &C);
+	UMaterialInstanceDynamic* F = UMaterialInstanceDynamic::Create(LookParent(C, Parent), &C);
 	F->CopyInterpParameters(&Classic);
+	LookFinish(C, *F);
 	S.Follower = F;
 	S.FollowedBase = nullptr;
 	C.SetMaterial(S.Slot, F);
@@ -687,6 +688,24 @@ UMaterialInstanceDynamic* USSXRemasterWorld::OwnInstance(UMeshComponent& C, int3
 	return Own;
 }
 
+UMaterialInterface* USSXRemasterWorld::LookParent(const UMeshComponent& C, UMaterialInterface* Parent) const
+{
+	if (!Parent || !LookComponents.Contains(&C)) { return Parent; }
+	const UMaterial* Root = RootOf(Parent);
+	if (!Root || Root->GetName() != TEXT("M_RmProp_Translucent")) { return Parent; }
+	UMaterialInterface* Glass = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Remastered/M_RmPropGlass.M_RmPropGlass"));
+	return Glass ? Glass : Parent;
+}
+
+void USSXRemasterWorld::LookFinish(const UMeshComponent& C, UMaterialInstanceDynamic& M) const
+{
+	float Cur = 0.f;
+	if (LookComponents.Contains(&C) && M.GetScalarParameterValue(FHashedMaterialParameterInfo(TEXT("RmSurface")), Cur))
+	{
+		M.SetScalarParameterValue(TEXT("RmSurface"), 4.f);
+	}
+}
+
 void USSXRemasterWorld::ApplySurfaceLook()
 {
 	UWorld* W = GetWorld();
@@ -704,6 +723,7 @@ void USSXRemasterWorld::ApplySurfaceLook()
 	}
 	UMaterialInterface* Glass = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Remastered/M_RmPropGlass.M_RmPropGlass"));
 	int32 Slots = 0;
+	LookComponents.Reset();
 	for (TActorIterator<AActor> It(W); It; ++It)
 	{
 		const int32 Inst = SSXShowOff::InstanceOfActor(*It);
@@ -711,8 +731,17 @@ void USSXRemasterWorld::ApplySurfaceLook()
 		TInlineComponentArray<UMeshComponent*> Meshes(*It);
 		for (UMeshComponent* C : Meshes)
 		{
+			LookComponents.Add(C);
 			for (int32 S = 0; S < C->GetNumMaterials(); ++S)
 			{
+				// An animated slot (UV scroll, flipbook): its twin follows the Classic instance, so it is remade with the look.
+				FSwap* Sw = FindSwap(*C, S);
+				if (UMaterialInstanceDynamic* Classic = Sw && Sw->Follower.IsValid() ? Cast<UMaterialInstanceDynamic>(Sw->Original.Get()) : nullptr)
+				{
+					MakeFollower(*Sw, *Classic, *C);
+					++Slots;
+					continue;
+				}
 				UMaterialInstanceDynamic* Mid = Cast<UMaterialInstanceDynamic>(C->GetMaterial(S));
 				const UMaterial* Root = Mid ? RootOf(Mid) : nullptr;
 				if (!Root) { continue; }
@@ -1091,6 +1120,7 @@ void USSXRemasterWorld::Revert()
 {
 	if (!bApplied) { return; }
 	bApplied = false;
+	LookComponents.Reset();
 	for (int32 I = Swaps.Num() - 1; I >= 0; --I)
 	{
 		const FSwap& S = Swaps[I];
