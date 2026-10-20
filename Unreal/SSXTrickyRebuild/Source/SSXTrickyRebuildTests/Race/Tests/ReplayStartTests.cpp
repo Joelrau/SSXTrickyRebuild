@@ -1,3 +1,5 @@
+#include "UObject/UObjectIterator.h"
+#include "Components/AudioComponent.h"
 #include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
@@ -196,7 +198,20 @@ namespace SSXReplayStart
 			if (R.Play.Num() < Samples) return false;
 			Compare();
 			// 0x1EFDB0 / 0x1EF990(2): the replay menu is modal, and a modal overlay pauses the game (0x17F078 / 0x1A77F8)
+			auto Playing = [World](bool bUnpausedOnly)
+			{
+				int32 N = 0;
+				for (TObjectIterator<UAudioComponent> It; It; ++It)
+				{
+					if (It->GetWorld() == World && !It->bIsUISound && It->IsPlaying() && (!bUnpausedOnly || !It->bIsPaused)) { ++N; }
+				}
+				return N;
+			};
+			const int32 Before = Playing(false);
 			Race->GetUIHost().SetReplayMenu(true);
+			// 0x2153F8 / 0x20BFE8: every playing game voice paused (board, crowd, ambience), not only the music
+			Test->AddInfo(FString::Printf(TEXT("replay menu: %d game voices playing before, %d unpaused after"), Before, Playing(true)));
+			Test->TestEqual(TEXT("the replay menu pauses every game voice"), Playing(true), 0);
 			R.MenuFrame = Rp.GetPlayFrame();
 			R.Frames = 0;
 			R.Stage = 5;
