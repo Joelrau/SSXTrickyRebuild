@@ -1287,9 +1287,11 @@ bool ASSXRaceManager::ReplayFrame()
 	{
 		return true;
 	}
-	Replay.Update();   // 0x191298
+	if (!Replay.IsPlaying()) { bReplayMenuOpen = false; }
+	// 0x17F0F8 / 0x17F078: a modal overlay (0x1A77F8: the replay menu, its save screen and exit box) pauses the game
+	Replay.Update(bReplayMenuOpen);   // 0x191298
 	// 0x18F020, 0x17F078
-	return !(Replay.IsPlaying() && Replay.IsWorldFrozen());
+	return !bReplayMenuOpen && !(Replay.IsPlaying() && Replay.IsWorldFrozen());
 }
 
 void ASSXRaceManager::BindReplayInput()

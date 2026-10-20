@@ -258,6 +258,7 @@ bool FSSXRaceUIBridge::BuildReplayFile(TArray<uint8>& Out)
 void FSSXRaceUIBridge::SetReplayMenu(bool bOpen)
 {
 	// 0x1EF990, 0x2153F8, 0x215488
+	if (Owner) { Owner->SetReplayMenuOpen(bOpen); }
 	ReplayAudio(bOpen);
 	FSSXRaceCamera::StartFlash();   // FUN_00174C30
 }

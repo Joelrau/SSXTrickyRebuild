@@ -73,6 +73,7 @@ namespace SSXReplayStart
 		int32 Frames = 0;
 		int32 LastFrame = -1;
 		uint32 LastPlay = MAX_uint32;
+		uint32 MenuFrame = 0;
 		bool bPrevFixed = false;
 		double PrevFixedDt = 0.0;
 		TArray<FSample> Live;
@@ -194,8 +195,25 @@ namespace SSXReplayStart
 			R.Play.Add(Take(*Race, *O));
 			if (R.Play.Num() < Samples) return false;
 			Compare();
-			return Finish();
+			// 0x1EFDB0 / 0x1EF990(2): the replay menu is modal, and a modal overlay pauses the game (0x17F078 / 0x1A77F8)
+			Race->GetUIHost().SetReplayMenu(true);
+			R.MenuFrame = Rp.GetPlayFrame();
+			R.Frames = 0;
+			R.Stage = 5;
+			return false;
 		}
+		case 5:
+			if (!Race) return Finish(TEXT("race gone"));
+			if (++R.Frames < 30) return false;
+			Test->TestEqual(TEXT("the replay holds its frame while the replay menu is open"), Race->GetReplay().GetPlayFrame(), R.MenuFrame);
+			Race->GetUIHost().SetReplayMenu(false);   // 0x1EF990(3): continue
+			R.Frames = 0;
+			R.Stage = 6;
+			return false;
+		case 6:
+			if (!Race) return Finish(TEXT("race gone"));
+			if (Race->GetReplay().GetPlayFrame() > R.MenuFrame) return Finish();
+			return ++R.Frames > 120 ? Finish(TEXT("the replay did not continue after the menu closed")) : false;
 		default:
 			return Finish(TEXT("bad stage"));
 		}
