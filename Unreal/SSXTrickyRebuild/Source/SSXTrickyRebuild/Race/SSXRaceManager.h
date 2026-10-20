@@ -162,6 +162,7 @@ private:
 	// 0x191298, 0x18F020
 	bool ReplayFrame();
 	bool bReplayMenuOpen = false;   // the replay menu (overlay slot 9 states 0 / 2 / 4): modal
+	bool bWorldHeld = false;        // the last world frame was held (ReplayFrame false)
 	void BindReplayInput();
 	FFixedStepClock Clock;
 	UPROPERTY(Transient) TArray<TObjectPtr<ASnowboarderPawn>> Pawns;
