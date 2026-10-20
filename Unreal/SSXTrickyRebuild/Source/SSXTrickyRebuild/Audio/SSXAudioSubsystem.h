@@ -445,6 +445,8 @@ private:
 	TSharedPtr<FSSXSegmentQueuePlayer> SpeechPlayers[2];
 	UPROPERTY(Transient) TObjectPtr<USSXSegmentQueueWave> SpeechWaves[2];
 	UPROPERTY(Transient) TObjectPtr<UAudioComponent> SpeechComps[2];
+	/** The game voices PauseGameAudio paused (0x20BFE8: every playing non-UI voice), resumed by ResumeAfterMovie. */
+	TArray<TWeakObjectPtr<UAudioComponent>> PausedVoices;
 	TWeakObjectPtr<UWorld> SpeechWorld;
 	SSXAudioDuck::FFade DuckFade;
 	float LoggedDuckTarget = 1.f;

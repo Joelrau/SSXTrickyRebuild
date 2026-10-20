@@ -14,6 +14,7 @@
 #include "Sound/SoundAttenuation.h"
 #include "Sound/SoundWave.h"
 #include "UObject/Package.h"
+#include "UObject/UObjectIterator.h"
 
 namespace
 {
@@ -1245,6 +1246,19 @@ void USSXAudioSubsystem::PauseGameAudio()
 	{
 		if (C) { C->SetPaused(true); }
 	}
+	// 0x20BFE8: every playing voice too (board, crowd, ambience, props); the race-UI sounds keep playing. The pause menu
+	// also pauses the world, which these would follow anyway; a paused replay and the replay menu do not.
+	PausedVoices.Reset();
+	if (const UWorld* W = GetWorld())
+	{
+		for (TObjectIterator<UAudioComponent> It; It; ++It)
+		{
+			UAudioComponent* C = *It;
+			if (C->GetWorld() != W || C->bIsUISound || C->bIsPaused || !C->IsPlaying() || C == SpeechComps[0] || C == SpeechComps[1]) { continue; }
+			C->SetPaused(true);
+			PausedVoices.Add(C);
+		}
+	}
 }
 
 void USSXAudioSubsystem::ResumeAfterMovie()
@@ -1261,6 +1275,11 @@ void USSXAudioSubsystem::ResumeAfterMovie()
 		if (C) { C->SetPaused(false); }
 	}
 	if (Player.IsValid()) { Player->SetPaused(false); }
+	for (const TWeakObjectPtr<UAudioComponent>& C : PausedVoices)   // 0x20C040
+	{
+		if (C.IsValid()) { C->SetPaused(false); }
+	}
+	PausedVoices.Reset();
 }
 
 void USSXAudioSubsystem::StopSpeech(int32 Channel)
