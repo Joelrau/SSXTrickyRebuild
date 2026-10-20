@@ -1286,6 +1286,29 @@ bool FSSXUILockedGearPreviewTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+// FSSXFrontEnd::RefreshRiderGear: a save loaded on the memory card screen after the boot shows on the FE models.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSSXUIGearAfterCardLoadTest, "SSX.UI.GearAfterCardLoad", UITestFlags)
+bool FSSXUIGearAfterCardLoadTest::RunTest(const FString& Parameters)
+{
+	FFe F;
+	F.Cheats.bUnlockAll = true;
+	F.FE.Init(&F.Profile, &F.Cheats, &TestLoc(), false);
+	const int32 Slot = FSSXFrontEnd::DefaultCarouselSlot;
+	const int32 Char = SSXFeTables::CarouselRider(Slot);
+	// What a card load leaves in the profile: pad 0 rides Char in outfit 3 / board 2.
+	F.Profile.Slot[0].Char = Char;
+	F.Profile.Slot[0].Board = 2;
+	F.Profile.Slot[0].Outfit = 3;
+	int32 B = -1, O = -1;
+	F.FE.ModelGear(Slot, B, O);
+	TestEqual(TEXT("before: the boot's gear"), O, 0);
+	F.FE.RefreshRiderGear();
+	F.FE.ModelGear(Slot, B, O);
+	TestEqual(TEXT("after the load: the loaded outfit"), O, 3);
+	TestEqual(TEXT("after the load: the loaded board"), B, 2);
+	return true;
+}
+
 // 0x28DDF8 (+ ssx.FE.SaveGearOnAccept)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSSXUISaveGearOnAcceptTest, "SSX.UI.SaveGearOnAccept", UITestFlags)
 bool FSSXUISaveGearOnAcceptTest::RunTest(const FString& Parameters)
