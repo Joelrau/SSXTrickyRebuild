@@ -888,6 +888,20 @@ bool FSSXOverlayReplayControlTest::RunTest(const FString& Parameters)
 	F.O.SetPadHeld(0, 0);
 	F.Ticks(1);
 	TestEqual(TEXT("Right: target audio once"), F.H.ReplayTargetAudios, 1);
+	// 0x1EF990(2) / (3): Continue with X while the replay plays: the control (slot 5, updated before slot 9) still sees
+	// the menu busy that frame, so the X does not pause the replay (command 7).
+	R.Update();
+	TestEqual(TEXT("playing before the menu"), R.GetState(), int32(SSXReplay::Play));
+	F.O.Pad(0, PadStart);
+	F.Ticks(1);
+	F.O.ReplaySel = 2;
+	F.O.SetPadHeld(0, PadCross);
+	F.O.Pad(0, PadCross);
+	F.Ticks(1);
+	TestTrue(TEXT("Continue closes the menu"), !F.O.IsReplayMenuOpen() && F.H.ReplayMenuCloses == 1);
+	TestTrue(TEXT("the Continue press does not reach the replay control"), R.GetCommand() != int32(SSXReplay::CmdPause));
+	F.O.SetPadHeld(0, 0);
+	F.Ticks(1);
 	// 0x191BE0
 	F.O.Pad(0, PadStart);
 	F.Ticks(1);

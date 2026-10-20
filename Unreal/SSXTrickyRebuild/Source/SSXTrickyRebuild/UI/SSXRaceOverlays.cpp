@@ -1313,6 +1313,7 @@ void FSSXOverlayManager::ReplayPad(uint32 Bits)
 	{
 		ReplayState = 1;
 		ReplayCtl.bHidden = false;   // 0x1EF990
+		bReplayMenuClosedThisFrame = true;
 		if (Host) Host->SetReplayMenu(false);
 	};
 	if (Bits & (PadStart | PadTriangle))
@@ -1392,7 +1393,8 @@ void FSSXOverlayManager::TickReplayControl()
 	{
 		return;
 	}
-	ReplayCtl.bBusy = Active[OvReplay] && ReplayState != 1;
+	ReplayCtl.bBusy = (Active[OvReplay] && ReplayState != 1) || bReplayMenuClosedThisFrame;
+	bReplayMenuClosedThisFrame = false;
 	SSXReplayCtl::FEnv Env;
 	ISSXRaceUIHost* H = Host;
 	Env.CameraMode = [H]() { return H->GetReplayCameraMode(); };

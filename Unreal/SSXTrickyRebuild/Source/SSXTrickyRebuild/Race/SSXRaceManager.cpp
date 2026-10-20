@@ -986,6 +986,7 @@ void ASSXRaceManager::Tick(float DeltaSeconds)
 	{
 		// 0x181638, 0x1814C0
 		const bool bWorldRuns = ReplayFrame();
+		bWorldHeld = !bWorldRuns;
 		if (Audio)
 		{
 			// 0x21BFD0, 0x20ED20, 0x193CE0
@@ -1160,7 +1161,8 @@ void ASSXRaceManager::Tick(float DeltaSeconds)
 	{
 		if (P)
 		{
-			P->RaceRender(Clock.Alpha(), DeltaSeconds);
+			// A held world frame (0x18F020: paused replay, modal overlay) shows its last step, not a blend into it.
+			P->RaceRender(bWorldHeld ? 1.0 : Clock.Alpha(), DeltaSeconds);
 		}
 	}
 	if (PropAnim)

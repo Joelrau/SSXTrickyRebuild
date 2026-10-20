@@ -228,6 +228,9 @@ private:
 	// 0x1ADD28
 	void TickPauseRepeat();
 	uint32 ReplayPrevHeld = 0;
+	/** The replay menu closed during this frame's input: the replay control (slot 5) updates before the replay overlay
+	 *  (slot 9) in the original, so it still sees the menu busy and the closing press (X / Start) does not reach it. */
+	bool bReplayMenuClosedThisFrame = false;
 	/** Trick Tutorial (UI/SSXLessonDraw.cpp): the lesson object's render cLessonMan::vfunc_03 0x14BBE8 (the pad diagram
 	 *  in Preview / Perform) and cLessonOverlay::vfunc_13 0x1B8548 (slot 10: the lesson menu and the result pages). */
 	void DrawLesson(FSSXFeDrawList& D) const;
