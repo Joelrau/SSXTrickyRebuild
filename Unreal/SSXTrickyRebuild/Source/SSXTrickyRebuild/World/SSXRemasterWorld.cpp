@@ -20,6 +20,8 @@
 #include "Engine/Texture.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
+#include "SSXShowOffDraw.h"
+#include "SSXTrickyRebuild.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstance.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -676,6 +678,64 @@ void USSXRemasterWorld::SetClassicMaterial(UMeshComponent& C, int32 Slot, UMater
 	else { C.SetMaterial(Slot, R ? R : M); }
 }
 
+UMaterialInstanceDynamic* USSXRemasterWorld::OwnInstance(UMeshComponent& C, int32 Slot, UMaterialInstanceDynamic& Shared, UMaterialInterface* Parent)
+{
+	// A component's own copy of a shared lit twin (an instance's parent must be a material or constant instance).
+	UMaterialInstanceDynamic* Own = UMaterialInstanceDynamic::Create(Parent ? Parent : Shared.Parent.Get(), &C);
+	Own->CopyParameterOverrides(&Shared);
+	C.SetMaterial(Slot, Own);
+	return Own;
+}
+
+void USSXRemasterWorld::ApplySurfaceLook()
+{
+	UWorld* W = GetWorld();
+	const FString Stem = W ? UWorld::RemovePIEPrefix(W->GetMapName()).ToLower() : FString();
+	TArray<FString> Lines;
+	if (Stem.IsEmpty() || !FFileHelper::LoadFileToStringArray(Lines, *FPaths::Combine(FPaths::ProjectDir(), TEXT("SimData"), Stem + TEXT(".surfacelook.txt"))))
+	{
+		return;
+	}
+	TMap<int32, int32> Look;
+	for (const FString& L : Lines)
+	{
+		FString A, B;
+		if (!L.StartsWith(TEXT("#")) && L.Split(TEXT(" "), &A, &B)) { Look.Add(FCString::Atoi(*A), FCString::Atoi(*B)); }
+	}
+	UMaterialInterface* Glass = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Remastered/M_RmPropGlass.M_RmPropGlass"));
+	int32 Slots = 0;
+	for (TActorIterator<AActor> It(W); It; ++It)
+	{
+		const int32 Inst = SSXShowOff::InstanceOfActor(*It);
+		if (Inst == INDEX_NONE || !Look.Contains(Inst)) { continue; }
+		TInlineComponentArray<UMeshComponent*> Meshes(*It);
+		for (UMeshComponent* C : Meshes)
+		{
+			for (int32 S = 0; S < C->GetNumMaterials(); ++S)
+			{
+				UMaterialInstanceDynamic* Mid = Cast<UMaterialInstanceDynamic>(C->GetMaterial(S));
+				const UMaterial* Root = Mid ? RootOf(Mid) : nullptr;
+				if (!Root) { continue; }
+				if (Root->GetName() == TEXT("M_RmProp_Translucent") && Glass)
+				{
+					OwnInstance(*C, S, *Mid, Glass);
+					++Slots;
+				}
+				else if (Root->GetName().StartsWith(TEXT("M_RmProp")))
+				{
+					float Cur = 0.f;
+					if (Mid->GetScalarParameterValue(FHashedMaterialParameterInfo(TEXT("RmSurface")), Cur))
+					{
+						OwnInstance(*C, S, *Mid, nullptr)->SetScalarParameterValue(TEXT("RmSurface"), 4.f);
+						++Slots;
+					}
+				}
+			}
+		}
+	}
+	UE_LOG(LogSSX, Display, TEXT("[remaster] %s: %d glass / water props, %d material slots reflective"), *Stem, Look.Num(), Slots);
+}
+
 void USSXRemasterWorld::SetGlow(UMeshComponent& C, float Glow)
 {
 	if (!bApplied) { return; }
@@ -833,6 +893,7 @@ void USSXRemasterWorld::Apply()
 	{
 		if (L) { SwapLevel(*L); }
 	}
+	ApplySurfaceLook();
 	// The terrain is drawn by USSXTerrainLodComponent (no shadow pass) with the full-detail mesh hidden: that mesh casts
 	// the sun's shadow (overhangs, tunnels and cliffs block it).
 	for (TObjectIterator<USSXTerrainLodComponent> It; It; ++It)
@@ -887,6 +948,8 @@ void USSXRemasterWorld::Apply()
 		S.DynamicGlobalIlluminationMethod = EDynamicGlobalIlluminationMethod::Lumen;
 		S.bOverride_ReflectionMethod = true;
 		S.ReflectionMethod = EReflectionMethod::Lumen;
+		S.bOverride_LumenFrontLayerTranslucencyReflections = true;   // the glass / water layers (M_RmPropGlass)
+		S.LumenFrontLayerTranslucencyReflections = true;
 		if (UObject* PP = LoadObject<UObject>(nullptr, SSXRemaster::ScenePostPath))
 		{
 			S.WeightedBlendables.Array.Add(FWeightedBlendable(1.f, PP));

@@ -20,7 +20,7 @@ public class SSXTrickyRebuild : ModuleRules
 			// editor-import input).
 			string[] SimData = {
 				"*.patches.bin", "*.rails.bin", "*.instcol.bin", "*.race.bin", "*.effects.bin", "*.fog.bin", "*.lights.bin",
-				"*.propanim.bin", "*.propsnd.bin", "*.terrainlod.bin",
+				"*.propanim.bin", "*.surfacelook.txt", "*.propsnd.bin", "*.terrainlod.bin",
 				"anim_clips.bin", "anim_table.bin", "riders.bin", "surfaces.bin",
 				"fe_riders.json", "heats_data.json", "intro_dialogue.json", "world_track_table.json",
 				"cameras/*.json",

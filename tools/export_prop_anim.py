@@ -6,6 +6,7 @@ Usage:
 # 0x1E2948 / 0x1E6E28
 import libpath  # noqa: F401,E402  (tools/lib on sys.path)
 import argparse
+import re
 import struct
 import sys
 from pathlib import Path
@@ -150,6 +151,7 @@ def export(path: Path, out_dir: Path) -> bool:
     out_dir.mkdir(parents=True, exist_ok=True)
     stem = path.stem.lower()
     (out_dir / f"{stem}.propanim.bin").write_bytes(out)
+    write_surface_look(path, L, out_dir / f"{stem}.surfacelook.txt")
     crowd = sum(1 for m in models if m[1] & 1)
     flip_models = {mi for mi, mm in enumerate(model_mats) if any(f >= 0 for _t, f in mm)}
     flip_inst = sum(1 for inst in L.instances if inst.model_id in flip_models)
@@ -159,6 +161,43 @@ def export(path: Path, out_dir: Path) -> bool:
           f"{len(segs)} segments, {len(L.instances)} instances; {len(flipbooks)} flipbooks, {len(flip_models)} flipbook "
           f"models, {flip_inst} flipbook instances; {len(strips)} flag / fence strips" + (f", AMBIGUOUS slot match models {ambiguous}" if ambiguous else ""))
     return True
+
+
+GLASS = re.compile(r"glass|window|dome", re.I)
+WATER = re.compile(r"water|river|wave|ripple", re.I)
+NOT_SURFACE = re.compile(r"litwindow|riverbed|bed|frame", re.I)
+
+
+def map_model_names(path: Path) -> dict:
+    """Model index -> name from the MODELS section of the track .map (UID = .pbd model index)."""
+    out, sec = {}, None
+    m = path.with_suffix(".map")
+    if not m.exists():
+        return out
+    for line in m.read_text(errors="replace").splitlines():
+        if line.startswith("###"):
+            if "BEGIN" in line or "END" in line:
+                sec = line.strip("# ").strip()
+            continue
+        parts = line.split()
+        if sec == "MODELS BEGIN" and len(parts) >= 2 and parts[1].isdigit():
+            out[int(parts[1])] = parts[0]
+    return out
+
+
+def write_surface_look(path: Path, L, out_path: Path):
+    """Remastered look: the instances whose model is glass (1) or water (2), by model name (World/SSXRemasterWorld.cpp)."""
+    names = map_model_names(path)
+    rows = []
+    for i, inst in enumerate(L.instances):
+        n = names.get(inst.model_id, "")
+        if not n or NOT_SURFACE.search(n):
+            continue
+        k = 2 if WATER.search(n) else (1 if GLASS.search(n) else 0)
+        if k:
+            rows.append(f"{i} {k}")
+    out_path.write_text("\n".join(["# instance class (1 glass, 2 water), from the .map model names"] + rows) + "\n")
+    return len(rows)
 
 
 def main():

@@ -117,6 +117,10 @@ private:
 	void SwapLevel(ULevel& Level);
 	void SwapComponent(UMeshComponent& C);
 	void SwapSlot(UMeshComponent& C, int32 Slot);
+	/** Glass and water props (SimData/<track>.surfacelook.txt): their lit materials a mirror (RmSurface 4), their soft
+	 *  layers M_RmPropGlass. */
+	void ApplySurfaceLook();
+	UMaterialInstanceDynamic* OwnInstance(UMeshComponent& C, int32 Slot, UMaterialInstanceDynamic& Shared, UMaterialInterface* Parent);
 	UMaterialInterface* RemasteredFor(UMaterialInterface* Classic);
 	void OnLevelAdded(ULevel* Level, UWorld* World);
 	/** Lit display twins for the riders' Classic instances (new ones appear with outfit changes: every tick). */

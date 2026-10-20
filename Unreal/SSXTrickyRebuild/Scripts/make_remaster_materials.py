@@ -68,6 +68,7 @@ return lerp(1.0, dot({DEC.format(x='r')}, float3(0.2126, 0.7152, 0.0722)), Baked
 # RmSurface (per terrain texture, from the sim's surface types; World/SSXRemasterWorld.cpp): 0 snow, 1 ice, 2 powder,
 # 3 wet / slush. Props keep 0.
 ROUGH = """
+if (Surface > 3.5) return 0.03;   // glass / water: a mirror
 float snow = clamp(BaseRough + (M.r - 0.5) - M.g * 0.25, 0.05, 1.0);
 if (Surface > 2.5) return 0.2;
 if (Surface > 1.5) return saturate(snow + 0.1);
@@ -75,12 +76,16 @@ if (Surface > 0.5) return clamp(0.08 + (M.r - 0.5) * 0.2, 0.03, 0.3);
 return snow;
 """
 SPEC = """
+if (Surface > 3.5) return 1.0;
 if (Surface > 2.5) return 0.6;
 if (Surface > 0.5 && Surface < 1.5) return 0.7;
 return 0.35 + M.g * 0.3;
 """
 # Ice and slush: smoother normals (the derived bumps are for snow).
-SURF_NORMAL = "return (Surface > 0.5 && Surface < 1.5) || Surface > 2.5 ? normalize(lerp(N, float3(0.0, 0.0, 1.0), 0.7)) : N;"
+SURF_NORMAL = ("return Surface > 3.5 ? float3(0.0, 0.0, 1.0) : ((Surface > 0.5 && Surface < 1.5) || Surface > 2.5 "
+               "? normalize(lerp(N, float3(0.0, 0.0, 1.0), 0.7)) : N);")
+# Glass / water layers: the Classic blend alpha, more opaque at grazing angles where the reflection takes over.
+GLASS_OPACITY = "return A > 0.0 ? lerp(A, 1.0, F * 0.75) : 0.0;"
 # Snow trails: groove depth h from the trail map around (TX, TY), TS wide; world-space normal tilted by its gradient
 # (the surface sinks where h is high); .a = h for the shade. Not on ice or slush.
 TRAIL = """
@@ -713,41 +718,63 @@ connect_prop(custom(m, -400, 0, CLEAR_SHADE, F3, [("C", (coll(m, mpc, "ClearColo
              unreal.MaterialProperty.MP_EMISSIVE_COLOR)
 finish(m)
 
-m = recreate("M_RmProp_Translucent", unreal.Material, unreal.MaterialFactoryNew())
-m.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_UNLIT)
-m.set_editor_property("blend_mode", unreal.BlendMode.BLEND_TRANSLUCENT)
-m.set_editor_property("two_sided", True)
-m.set_editor_property("use_translucency_vertex_fog", False)
-m.set_editor_property("allow_translucent_custom_depth_writes", True)
-m.set_editor_property("opacity_mask_clip_value", 1.0 / 256.0)
-base = tex_param(m, "BaseTex", -1100, -200)
-uv0 = expr(m, unreal.MaterialExpressionTextureCoordinate, -1700, -200, coordinate_index=0)
-su = expr(m, unreal.MaterialExpressionScalarParameter, -1700, -100, parameter_name="UVScrollU", default_value=0.0)
-sv = expr(m, unreal.MaterialExpressionScalarParameter, -1700, 0, parameter_name="UVScrollV", default_value=0.0)
-suv = expr(m, unreal.MaterialExpressionAppendVector, -1500, -50)
-connect(su, "", suv, "A")
-connect(sv, "", suv, "B")
-uvs = expr(m, unreal.MaterialExpressionAdd, -1300, -150)
-connect(uv0, "", uvs, "A")
-connect(suv, "", uvs, "B")
-connect(uvs, "", base, "UVs")
-vc = expr(m, unreal.MaterialExpressionVertexColor, -1000, 100)
-connect_prop(custom(m, -400, 0, PROP_SOFT_SHADE, F3, [("Tex", (base, "RGB")), ("VC", (vc, ""))], "RmPropSoftShade"), "",
-             unreal.MaterialProperty.MP_EMISSIVE_COLOR)
-gs_a = custom(m, -1000, 400, PROP_GS_ALPHA, F1, [("A", (base, "A")), ("VA", (vc, "A"))], "PropGsAlpha")
-alpha = custom(m, -800, 400, PROP_BLEND, F1, [("As", (gs_a, "")), ("Tex", (base, "RGB")), ("VC", (vc, ""))], "PropBlend")
-depth = expr(m, unreal.MaterialExpressionPixelDepth, -700, 500)
-cd = expr(m, unreal.MaterialExpressionSceneTexture, -1000, 650, scene_texture_id=unreal.SceneTextureId.PPI_CUSTOM_DEPTH)
-front = custom(m, -800, 650, SOFT_DEPTH, F1, [("PD", (depth, "")), ("CD", (cd, "Color"))], "SoftDepth")
-vis = expr(m, unreal.MaterialExpressionMultiply, -550, 450)
-connect(alpha, "", vis, "A")
-connect(front, "", vis, "B")
-op = custom(m, -300, 550, DRAW_CLIP, F1,
-            [("Depth", (depth, "")), ("DrawDistance", (coll(m, mpc, "DrawDistance", -700, 600), "")),
-             ("Scale", (coll(m, rm, "DrawDistanceScale", -700, 660), "")), ("Alpha", (vis, ""))],
-            "DrawClip")
-connect_prop(op, "", unreal.MaterialProperty.MP_OPACITY)
-finish(m)
+for name, glass in (("M_RmProp_Translucent", False), ("M_RmPropGlass", True)):
+  m = recreate(name, unreal.Material, unreal.MaterialFactoryNew())
+  if glass:
+    # The soft layers of glass and water props (SimData/<track>.surfacelook.txt): lit, a mirror finish, Lumen's
+    # front-layer reflections (Remastered post-process volume).
+    m.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_DEFAULT_LIT)
+    m.set_editor_property("translucency_lighting_mode", unreal.TranslucencyLightingMode.TLM_SURFACE_PER_PIXEL_LIGHTING)
+  else:
+    m.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_UNLIT)
+  m.set_editor_property("blend_mode", unreal.BlendMode.BLEND_TRANSLUCENT)
+  m.set_editor_property("two_sided", True)
+  m.set_editor_property("use_translucency_vertex_fog", False)
+  m.set_editor_property("allow_translucent_custom_depth_writes", True)
+  m.set_editor_property("opacity_mask_clip_value", 1.0 / 256.0)
+  base = tex_param(m, "BaseTex", -1100, -200)
+  uv0 = expr(m, unreal.MaterialExpressionTextureCoordinate, -1700, -200, coordinate_index=0)
+  su = expr(m, unreal.MaterialExpressionScalarParameter, -1700, -100, parameter_name="UVScrollU", default_value=0.0)
+  sv = expr(m, unreal.MaterialExpressionScalarParameter, -1700, 0, parameter_name="UVScrollV", default_value=0.0)
+  suv = expr(m, unreal.MaterialExpressionAppendVector, -1500, -50)
+  connect(su, "", suv, "A")
+  connect(sv, "", suv, "B")
+  uvs = expr(m, unreal.MaterialExpressionAdd, -1300, -150)
+  connect(uv0, "", uvs, "A")
+  connect(suv, "", uvs, "B")
+  connect(uvs, "", base, "UVs")
+  vc = expr(m, unreal.MaterialExpressionVertexColor, -1000, 100)
+  shade = custom(m, -400, 0, PROP_SOFT_SHADE, F3, [("Tex", (base, "RGB")), ("VC", (vc, ""))], "RmPropSoftShade")
+  if glass:
+    tint = expr(m, unreal.MaterialExpressionMultiply, -200, -60)
+    connect(shade, "", tint, "A")
+    connect(expr(m, unreal.MaterialExpressionConstant, -400, -100, r=0.6), "", tint, "B")
+    connect_prop(tint, "", unreal.MaterialProperty.MP_BASE_COLOR)
+    glow = expr(m, unreal.MaterialExpressionMultiply, -200, 40)
+    connect(shade, "", glow, "A")
+    connect(expr(m, unreal.MaterialExpressionConstant, -400, 60, r=0.25), "", glow, "B")
+    connect_prop(glow, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    connect_prop(expr(m, unreal.MaterialExpressionConstant, -400, 140, r=0.03), "", unreal.MaterialProperty.MP_ROUGHNESS)
+    connect_prop(expr(m, unreal.MaterialExpressionConstant, -400, 200, r=1.0), "", unreal.MaterialProperty.MP_SPECULAR)
+  else:
+    connect_prop(shade, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+  gs_a = custom(m, -1000, 400, PROP_GS_ALPHA, F1, [("A", (base, "A")), ("VA", (vc, "A"))], "PropGsAlpha")
+  alpha = custom(m, -800, 400, PROP_BLEND, F1, [("As", (gs_a, "")), ("Tex", (base, "RGB")), ("VC", (vc, ""))], "PropBlend")
+  depth = expr(m, unreal.MaterialExpressionPixelDepth, -700, 500)
+  cd = expr(m, unreal.MaterialExpressionSceneTexture, -1000, 650, scene_texture_id=unreal.SceneTextureId.PPI_CUSTOM_DEPTH)
+  front = custom(m, -800, 650, SOFT_DEPTH, F1, [("PD", (depth, "")), ("CD", (cd, "Color"))], "SoftDepth")
+  vis = expr(m, unreal.MaterialExpressionMultiply, -550, 450)
+  connect(alpha, "", vis, "A")
+  connect(front, "", vis, "B")
+  if glass:
+    vis = custom(m, -450, 450, GLASS_OPACITY, F1, [("A", (vis, "")), ("F", (expr(m, unreal.MaterialExpressionFresnel, -650, 380), ""))],
+                 "GlassOpacity")
+  op = custom(m, -300, 550, DRAW_CLIP, F1,
+              [("Depth", (depth, "")), ("DrawDistance", (coll(m, mpc, "DrawDistance", -700, 600), "")),
+               ("Scale", (coll(m, rm, "DrawDistanceScale", -700, 660), "")), ("Alpha", (vis, ""))],
+              "DrawClip")
+  connect_prop(op, "", unreal.MaterialProperty.MP_OPACITY)
+  finish(m)
 
 m = recreate("M_RmTrailStamp", unreal.Material, unreal.MaterialFactoryNew())
 m.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_UNLIT)
