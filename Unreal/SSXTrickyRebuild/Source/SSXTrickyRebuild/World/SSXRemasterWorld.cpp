@@ -325,6 +325,16 @@ void USSXRemasterWorld::Tick(float DeltaTime)
 	}
 	if (bApplied)
 	{
+		// The cloud drift (WorldTime) holds with the world frame (paused replay, replay menu).
+		const ASSXRaceManager* Race = ASSXRaceManager::Find(W);
+		if (!W->IsPaused() && !(Race && Race->IsWorldHeld()))
+		{
+			WorldTime += DeltaTime;
+			if (UMaterialParameterCollection* Mpc = LoadObject<UMaterialParameterCollection>(nullptr, SSXRemaster::CollectionPath))
+			{
+				UKismetMaterialLibrary::SetScalarParameterValue(GetWorld(), Mpc, TEXT("WorldTime"), float(WorldTime));
+			}
+		}
 		SyncFollowers();
 		UpdateFrontEndSpots();
 		UpdateDepthOfField();

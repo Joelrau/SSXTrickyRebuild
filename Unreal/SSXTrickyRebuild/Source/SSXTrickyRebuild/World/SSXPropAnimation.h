@@ -162,6 +162,7 @@ private:
 	int32 FrameNo = 0;
 	int32 RollersKnocked = 0;
 	double MaxRollerTravel = 0.0;
+	double GemSpinClock = 0.0;   // seconds of world time the idle crystals have turned (held with the world frame)
 	int32 CrowdSteps = 0;
 	bool bCrowdPreRace = false;
 	TArray<TPair<FVector, int32>> CrowdHumans;

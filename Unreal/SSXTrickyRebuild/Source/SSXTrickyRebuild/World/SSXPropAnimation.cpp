@@ -2,6 +2,7 @@
 #include "World/SSXRemasterWorld.h"
 #include "Sim/SimCoords.h"
 #include "Race/GameRng.h"
+#include "Race/SSXRaceManager.h"
 
 #include "Components/StaticMeshComponent.h"
 #include "Effects/SSXTrackEffects.h"
@@ -1098,7 +1099,10 @@ void USSXPropAnimation::ApplyGems()
 	// The original's crystal spin (AnimObject rz, 270 deg/s, notes showoff_crystals.md) runs only while the gem's .ltg
 	// cell is active (the 3 x 3 cells around a rider); without a controller the picture turns at the same rate.
 	const bool bSpin = CVarGemSpinAlways.GetValueOnGameThread() != 0;
-	const double Angle = -FMath::DegreesToRadians(270.0) * GetWorld()->GetTimeSeconds();
+	// 0x17F078: the AnimObject controllers (node group 3) hold while the world frame is held
+	const ASSXRaceManager* Race = ASSXRaceManager::Find(this);
+	if (!GetWorld()->IsPaused() && !(Race && Race->IsWorldHeld())) { GemSpinClock += GetWorld()->GetDeltaSeconds(); }
+	const double Angle = -FMath::DegreesToRadians(270.0) * GemSpinClock;
 	const float Glow = CVarGemGlow.GetValueOnGameThread();
 	for (const int32 Inst : GemInsts)
 	{

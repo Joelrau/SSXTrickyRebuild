@@ -182,6 +182,7 @@ private:
 	TMap<int32, int32> SurfaceClasses;   // terrain texture index -> SSXRemaster::SurfaceClass   // the hidden full-detail terrain meshes, made to cast the sun's shadow
 	bool bAllLightShadows = false;
 	int32 AppliedQuality = -1;
+	double WorldTime = 0.0;   // MPC WorldTime: seconds of unheld world time (the sky materials' cloud drift)
 	void ApplyQuality();
 	bool bApplied = false;
 	FDelegateHandle LevelAddedHandle;

@@ -478,7 +478,7 @@ scalars = []
 for n, v in (("BakedWeight", 0.6), ("BakedAmbient", 0.55), ("AlbedoScale", 0.9), ("BaseRoughness", 0.62), ("Clouds", 0.0),
              ("Exposure", 1.0), ("Saturation", 1.15), ("Emissive", 3.0), ("RiderFill", 0.6), ("RiderRim", 0.35),
              ("ParticleSoftness", 40.0), ("SpriteGlow", 0.35), ("DrawDistanceScale", 3.0), ("Sparkle", 3.0),
-             ("TrailX", 0.0), ("TrailY", 0.0), ("TrailSize", 1.0e9)):
+             ("TrailX", 0.0), ("TrailY", 0.0), ("TrailSize", 1.0e9), ("WorldTime", 0.0)):
     p = old.get(n) or unreal.CollectionScalarParameter()
     p.set_editor_property("parameter_name", n)
     p.set_editor_property("default_value", v)
@@ -710,7 +710,7 @@ connect(expr(m, unreal.MaterialExpressionConstant, -1300, -300, r=0.0), "", sky,
 connect_prop(custom(m, -400, 0, SKY_SHADE, F3, [("Tex", (sky, "RGB")), ("Factor", (coll(m, mpc, "SkyAmbient", -750, 100), "")),
                                                  ("WP", (expr(m, unreal.MaterialExpressionWorldPosition, -750, 200), "")),
                                                  ("Cam", (expr(m, unreal.MaterialExpressionCameraPositionWS, -750, 280), "")),
-                                                 ("T", (expr(m, unreal.MaterialExpressionTime, -750, 360), "")),
+                                                 ("T", (coll(m, rm, "WorldTime", -750, 360), "")),
                                                  ("Clouds", (coll(m, rm, "Clouds", -750, 440), ""))],
                     "RmSkyShade"), "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
 finish(m)
@@ -719,7 +719,7 @@ m = glow_material("M_RmClearColour")
 connect_prop(custom(m, -400, 0, CLEAR_SHADE, F3, [("C", (coll(m, mpc, "ClearColour", -750, 0), "")),
                                                    ("WP", (expr(m, unreal.MaterialExpressionWorldPosition, -750, 200), "")),
                                                    ("Cam", (expr(m, unreal.MaterialExpressionCameraPositionWS, -750, 280), "")),
-                                                   ("T", (expr(m, unreal.MaterialExpressionTime, -750, 360), "")),
+                                                   ("T", (coll(m, rm, "WorldTime", -750, 360), "")),
                                                    ("Clouds", (coll(m, rm, "Clouds", -750, 440), ""))], "RmClearColour"), "",
              unreal.MaterialProperty.MP_EMISSIVE_COLOR)
 finish(m)
