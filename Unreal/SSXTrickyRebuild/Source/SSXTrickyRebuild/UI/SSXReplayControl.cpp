@@ -331,7 +331,8 @@ void FSSXReplayControl::Update(FSSXReplay& R, uint32 InHeld, uint32 Prev, const 
 	}
 
 	if ((Held & 0x1E00000) && bEditor && CamMode() == 8) R.StoreCamera();
-	if (Cmd == 0) { if (R.GetState() == Paused) Add(EEvent::AudioPause); }
+	// A play command still pending: the replay has not stepped since (the UI and the race keep separate 60 Hz clocks).
+	if (Cmd == 0) { if (R.GetState() == Paused && R.GetCommand() != CmdPlayToggle) Add(EEvent::AudioPause); }
 	else if (Cmd == CmdPlayToggle) Add(EEvent::AudioResume);
 	else Add(EEvent::AudioPause);
 	if (Cmd != 0) R.SetCommand(Cmd);

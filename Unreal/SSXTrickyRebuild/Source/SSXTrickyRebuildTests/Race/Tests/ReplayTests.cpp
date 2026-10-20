@@ -511,6 +511,10 @@ bool FSSXReplayControlTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("paused: audio pause every frame"), Ctl.Events == TArray<EE>({ EE::AudioPause }));
 		Frame(PadCross);
 		TestTrue(TEXT("X paused: play (6), navigate + resume"), Ctl.LastCommand == CmdPlayToggle && Ctl.Events == TArray<EE>({ EE::Navigate, EE::AudioResume }));
+		Ctl.Events.Reset();
+		Ctl.Update(R, 0, Prev, Env);
+		Prev = 0;
+		TestTrue(TEXT("a second control step before the replay steps: the play command pending, no audio pause"), Ctl.Events.Num() == 0);
 		Frame(0); Frame(0);
 		TestEqual(TEXT("playing"), R.GetState(), int32(Play));
 		Frame(PadCross);
