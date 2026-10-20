@@ -94,7 +94,12 @@ bool FSSXUIWidescreenTest::RunTest(const FString&)
 	TestEqual(TEXT("left third moves out"), SSXFeWide::AnchorX(20.f, 106.f), -86.f);
 	TestEqual(TEXT("right third moves out"), SSXFeWide::AnchorX(600.f, 106.f), 706.f);
 	TestEqual(TEXT("centre stays"), SSXFeWide::AnchorX(320.f, 106.f), 320.f);
+	TestEqual(TEXT("16:9 image, 16:9 window: 106.67 past each side"), SSXFeWide::VisibleExtra(16.f / 9.f, 16.f / 9.f), 320.f * 4.f / 3.f - 320.f, 1e-3f);
+	TestEqual(TEXT("16:9 image in a 21:9 window: limited by the image"), SSXFeWide::VisibleExtra(16.f / 9.f, 21.f / 9.f), 320.f * 4.f / 3.f - 320.f, 1e-3f);
+	TestEqual(TEXT("4:3 image: none"), SSXFeWide::VisibleExtra(4.f / 3.f, 16.f / 9.f), 0.f);
+	TestFalse(TEXT("Classic look: the original's stretched frame"), SSXFeWide::Anchored());
 	SSXFeWide::SetImageAspect(4.f / 3.f);
+	TestEqual(TEXT("no stretch with a 4:3 image"), SSXFeWide::StretchX(), 1.f);
 	TestEqual(TEXT("4:3 image: no extra width"), SSXFeWide::ExtraX(), 0.f);
 	FVector2f P0(-50.f, 10.f), P1(30.f, 20.f);
 	FVector2f Uv[4] = { FVector2f(0, 0), FVector2f(1, 0), FVector2f(1, 1), FVector2f(0, 1) };

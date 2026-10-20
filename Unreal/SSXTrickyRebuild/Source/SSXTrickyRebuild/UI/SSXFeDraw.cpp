@@ -6,6 +6,8 @@
 #include "Engine/Texture.h"
 #include "Engine/Texture2D.h"
 #include "Engine/Engine.h"
+#include "HAL/IConsoleManager.h"
+#include "World/SSXRenderLook.h"
 #include "Engine/GameViewportClient.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Misc/FileHelper.h"
@@ -285,6 +287,11 @@ namespace
 namespace
 {
 	float GImageAspect = 4.f / 3.f;
+
+	TAutoConsoleVariable<int32> CVarUiWidescreen(TEXT("ssx.UI.Widescreen"), -1,
+		TEXT("UI with a 16:9 image (Options > Widescreen): 0 = the original's 640 x 480 frame stretched to the image width (as on ")
+		TEXT("a 16:9 TV), 1 = unstretched with the HUD anchored to the screen edges (deliberate difference), -1 = by look ")
+		TEXT("(Classic 0, Remastered 1)."));
 }
 
 void SSXFeWide::SetImageAspect(float Aspect)
@@ -292,19 +299,39 @@ void SSXFeWide::SetImageAspect(float Aspect)
 	GImageAspect = Aspect;
 }
 
-float SSXFeWide::ExtraX()
+float SSXFeWide::VisibleExtra(float ImageAspect, float WindowAspect)
 {
-	if (GImageAspect <= SSXFe::ScreenW / SSXFe::ScreenH + 1e-3f || !GEngine || !GEngine->GameViewport || !GEngine->GameViewport->Viewport)
+	if (ImageAspect <= SSXFe::ScreenW / SSXFe::ScreenH + 1e-3f || WindowAspect <= 0.f)
+	{
+		return 0.f;
+	}
+	return FMath::Max(0.f, FMath::Min(ImageAspect, WindowAspect) * SSXFe::ScreenH * 0.5f - SSXFe::ScreenW * 0.5f);
+}
+
+bool SSXFeWide::Anchored()
+{
+	const int32 Mode = CVarUiWidescreen.GetValueOnAnyThread();
+	return Mode < 0 ? SSXRenderLook::Get() == ESSXRenderLook::Remastered : Mode != 0;
+}
+
+static float CurrentExtra()
+{
+	if (!GEngine || !GEngine->GameViewport || !GEngine->GameViewport->Viewport)
 	{
 		return 0.f;
 	}
 	const FIntPoint Size = GEngine->GameViewport->Viewport->GetSizeXY();
-	if (Size.X <= 0 || Size.Y <= 0)
-	{
-		return 0.f;
-	}
-	const float Visible = FMath::Min(GImageAspect, float(Size.X) / float(Size.Y));
-	return FMath::Max(0.f, Visible * SSXFe::ScreenH * 0.5f - SSXFe::ScreenW * 0.5f);
+	return Size.Y > 0 ? SSXFeWide::VisibleExtra(GImageAspect, float(Size.X) / float(Size.Y)) : 0.f;
+}
+
+float SSXFeWide::ExtraX()
+{
+	return Anchored() ? CurrentExtra() : 0.f;
+}
+
+float SSXFeWide::StretchX()
+{
+	return Anchored() ? 1.f : 1.f + 2.f * CurrentExtra() / SSXFe::ScreenW;
 }
 
 float SSXFeWide::AnchorX(float X, float Extra)
@@ -760,6 +787,8 @@ int32 SSSXFeCanvas::OnPaint(const FPaintArgs& Args, const FGeometry& Geo, const 
 	int32 MaxLayerId = LayerId + 1;
 	const float Opacity = InWidgetStyle.GetColorAndOpacityTint().A;
 	const float Extra = SSXFeWide::ExtraX();
+	const float Stretch = SSXFeWide::StretchX();
+	const float Mid = SSXFe::ScreenW * 0.5f;
 
 	auto Flush = [&]()
 	{
@@ -808,8 +837,8 @@ int32 SSSXFeCanvas::OnPaint(const FPaintArgs& Args, const FGeometry& Geo, const 
 		FLinearColor Lc = FSSXFeDrawList::ScreenColor(C);
 		Lc.A *= Opacity;
 		const FColor Col = Lc.ToFColor(false);
-		const FVector2f P0 = Origin + Q0 * Scale;
-		const FVector2f P1 = Origin + Q1 * Scale;
+		const FVector2f P0 = Origin + FVector2f(Mid + (Q0.X - Mid) * Stretch, Q0.Y) * Scale;
+		const FVector2f P1 = Origin + FVector2f(Mid + (Q1.X - Mid) * Stretch, Q1.Y) * Scale;
 		const SlateIndex Base = (SlateIndex)Verts.Num();
 		Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RT, FVector2f(P0.X, P0.Y), Uv[0], Col));
 		Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RT, FVector2f(P1.X, P0.Y), Uv[1], Col));
