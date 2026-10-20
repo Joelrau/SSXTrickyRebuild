@@ -48,7 +48,7 @@ namespace SSXRemaster
 		float Bloom = 0.5f;             // bloom intensity, threshold 1 (highlights only)
 		float LightCandela = 15.f;      // track point / spot lights: candela per unit of the original colour
 		float RiderFill = 0.6f;         // share of the Classic rider shading kept under the new light (1 = all of it)
-		float SpriteGlow = 0.35f;       // share of their own brightness the lit alpha sprites keep
+		float SpriteGlow = 0.8f;        // share of their own brightness the lit alpha sprites keep (spray, fog puffs)
 		float Clouds = 0.6f;            // drifting cloud wisps over the open blue sky of the dome (0 = none)
 		float Sparkle = 3.0f;           // snow glints on the terrain
 		int32 MaxLights = 48;

@@ -14,7 +14,24 @@ import unreal
 assets = unreal.EditorAssetLibrary
 
 
+def flag_classic_materials():
+    """The Classic base materials stay on the Nanite meshes wherever the Remastered look keeps them: without the usage
+    flag those slots draw the default (checker) material. The flag only adds a shader permutation; Classic (r.Nanite 0)
+    draws as before."""
+    for path in assets.list_assets("/Game/World", recursive=False, include_folder=False):
+        name = path.split("/")[-1].split(".")[0]
+        if not name.startswith("M_SSX") or name.startswith("M_SSXRider") or name == "M_SSXClearColour":
+            continue
+        m = assets.load_asset(path)
+        if isinstance(m, unreal.Material) and not m.get_editor_property("used_with_nanite"):
+            m.set_editor_property("used_with_nanite", True)
+            unreal.MaterialEditingLibrary.recompile_material(m)
+            assets.save_asset(path, only_if_is_dirty=False)
+            unreal.log(f"[ssx] nanite usage flag on {name}")
+
+
 def main():
+    flag_classic_materials()
     maps = sys.argv[1:] or ["Alaska", "Aloha", "Elysium", "Gari", "Megaple", "Merquer", "Mesa", "Pipe", "Snow", "Trick", "Untrack"]
     for name in maps:
         t0 = time.time()

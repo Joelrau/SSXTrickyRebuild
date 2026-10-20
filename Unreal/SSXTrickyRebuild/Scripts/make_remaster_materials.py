@@ -681,8 +681,8 @@ for name, additive in (("M_RmParticleAdd", True), ("M_RmParticleAlpha", False)):
                      unreal.MaterialProperty.MP_EMISSIVE_COLOR)
         a = expr(m, unreal.MaterialExpressionComponentMask, -300, 200, r=False, g=False, b=False, a=True)
         connect(soft, "", a, "")
-        sat = expr(m, unreal.MaterialExpressionSaturate, -200, 200)
-        connect(a, "", sat, "")
+        # A little more opaque than the Classic alpha: lit, white spray over sunlit snow hardly showed.
+        sat = custom(m, -200, 200, "return pow(saturate(A), 0.75);", F1, [("A", (a, ""))], "RmSpriteOpacity")
         op = expr(m, unreal.MaterialExpressionMultiply, -100, 250)
         connect(sat, "", op, "A")
         connect(fade, "", op, "B")
@@ -810,7 +810,8 @@ for classic, name in (("M_SSXLensSprite", "M_RmLensSprite"), ("M_SSXLensFan", "M
         assets.delete_asset(f"{PATH}/{name}")
     m = assets.duplicate_asset(f"/Game/Particles/{classic}", f"{PATH}/{name}")
     src = mel.get_material_property_input_node(m, unreal.MaterialProperty.MP_EMISSIVE_COLOR)
-    dec = custom(m, 0, 0, f"return {DEC.format(x='saturate(C)')};", F3, [("C", (src, ""))], "RmLensDecode")
+    # Halfway between the display value and its decode: fully decoded the halos all but vanished.
+    dec = custom(m, 0, 0, f"return lerp(saturate(C), {DEC.format(x='saturate(C)')}, 0.5);", F3, [("C", (src, ""))], "RmLensDecode")
     connect_prop(dec, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
     finish(m)
 
