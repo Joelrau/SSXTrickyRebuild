@@ -46,6 +46,7 @@ public:
 	static constexpr int32 SpriteSortPriority = 1;
 
 	static USSXParticleWorld* Get(const UObject* WorldContext);
+	int32 GetFrameCounter() const { return FrameCounter; }
 	// Sampler setup of a PARTICLE.SSH texture loaded at run time: linear (stored bytes), CLAMP.
 	static void ConfigureSpriteTexture(UTexture2D* Tex);
 
