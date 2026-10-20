@@ -10,6 +10,7 @@
 #include "Misc/AutomationTest.h"
 #include "TestSkip.h"
 #include "Misc/Paths.h"
+#include "Particles/SSXParticleWorld.h"
 #include "Race/GameRng.h"
 #include "Race/RaceRules.h"
 #include "Race/SSXRaceManager.h"
@@ -78,6 +79,7 @@ namespace SSXReplayStart
 		int32 LastFrame = -1;
 		uint32 LastPlay = MAX_uint32;
 		uint32 MenuFrame = 0;
+		int32 MenuParticleFrame = 0;
 		bool bPrevFixed = false;
 		double PrevFixedDt = 0.0;
 		TArray<FSample> Live;
@@ -215,6 +217,7 @@ namespace SSXReplayStart
 			Test->AddInfo(FString::Printf(TEXT("replay menu: %d game voices playing before, %d unpaused after"), Before, Playing(true)));
 			Test->TestEqual(TEXT("the replay menu pauses every game voice"), Playing(true), 0);
 			R.MenuFrame = Rp.GetPlayFrame();
+			R.MenuParticleFrame = USSXParticleWorld::Get(World) ? USSXParticleWorld::Get(World)->GetFrameCounter() : 0;
 			R.Frames = 0;
 			R.Stage = 5;
 			return false;
@@ -223,6 +226,8 @@ namespace SSXReplayStart
 			if (!Race) return Finish(TEXT("race gone"));
 			if (++R.Frames < 30) return false;
 			Test->TestEqual(TEXT("the replay holds its frame while the replay menu is open"), Race->GetReplay().GetPlayFrame(), R.MenuFrame);
+			// 0x18F020 / 0x17F078: the particles (world state) hold with it
+			Test->TestEqual(TEXT("the particles hold while the replay menu is open"), USSXParticleWorld::Get(World) ? USSXParticleWorld::Get(World)->GetFrameCounter() : 0, R.MenuParticleFrame);
 			Race->GetUIHost().SetReplayMenu(false);   // 0x1EF990(3): continue
 			R.Frames = 0;
 			R.Stage = 6;

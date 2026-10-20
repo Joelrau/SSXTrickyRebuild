@@ -101,6 +101,8 @@ public:
 	// FUN_0014D6E0
 	void LessonPad(uint32 Bits) { if (bLesson) { Lesson.AddPad(Bits); } }
 	const FSSXReplay& GetReplay() const { return Replay; }
+	/** 0x18F020 / 0x17F078: the world frame is held (paused replay, replay menu). */
+	bool IsWorldHeld() const { return bWorldHeld; }
 	FSSXReplay& GetReplayMutable() { return Replay; }
 	const TArray<SSXReplayFile::FSnapshotCheck>& GetSnapshotChecks() const;
 	const FSSXRaceReplayWorld& GetReplayWorld() const { return ReplayWorld; }

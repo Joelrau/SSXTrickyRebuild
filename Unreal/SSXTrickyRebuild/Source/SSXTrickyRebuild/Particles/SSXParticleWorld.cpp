@@ -583,7 +583,9 @@ void USSXParticleWorld::Tick(float DeltaTime)
 		}
 	}
 #endif
-	Accum = FMath::Min(Accum + double(DeltaTime), 4.0 / 60.0);
+	// The particles are world state: a held world frame (0x18F020 / 0x17F078) holds them.
+	const ASSXRaceManager* Race = ASSXRaceManager::Find(GetWorld());
+	Accum = Race && Race->IsWorldHeld() ? 0.0 : FMath::Min(Accum + double(DeltaTime), 4.0 / 60.0);
 	while (Accum >= Frame)
 	{
 		Accum -= Frame;
