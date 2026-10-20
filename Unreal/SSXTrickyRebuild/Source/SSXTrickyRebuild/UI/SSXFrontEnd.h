@@ -184,6 +184,8 @@ public:
 	 *  its saved config (FUN_001635B8(P, 0, 0, rider)); then FUN_00267B18(rider, 0) for all 12. Runs at the FE load:
 	 *  Init after a race, the end of the start screen on a cold boot (cStartScreenSingle precedes cFE3D(1)). */
 	void BuildRiderGear();
+	/** After a save is loaded from the memory card screen: the models take the loaded gear (BuildRiderGear). */
+	void RefreshRiderGear();
 	void GoTo(ESSXFeScreen S, int32 Player = 0);
 
 	int32 NumPlayers = 1;

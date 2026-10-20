@@ -1865,6 +1865,13 @@ void FSSXFrontEnd::RiderGear(int32 Pad, int32& OutBoard, int32& OutOutfit) const
 	if (T && T->Player == Pad && T->Screen == ESSXFeScreen::CustomBody) { OutOutfit = Outfit; }
 }
 
+void FSSXFrontEnd::RefreshRiderGear()
+{
+	// A save loaded from the memory card screen replaces the riders' records and the pads' gear; the models were latched
+	// at the boot load (0x263B30), so they show the loaded gear only from here.
+	BuildRiderGear();
+}
+
 void FSSXFrontEnd::BuildRiderGear()
 {
 	// 0x263B30 / FUN_00164288 / FUN_001635B8 / FUN_00265788
@@ -2759,6 +2766,11 @@ void FSSXFrontEnd::Tick()
 		if (!MemCard.IsActive())
 		{
 			// 0x2917B0 / 0x2912E8 / 0x161A98
+			if (MemCard.bLoadedSettings)
+			{
+				MemCard.bLoadedSettings = false;
+				RefreshRiderGear();
+			}
 			Pop();
 			if (FSSXFeState* T = TopMut(); T && T->Screen == ESSXFeScreen::Options)
 			{
