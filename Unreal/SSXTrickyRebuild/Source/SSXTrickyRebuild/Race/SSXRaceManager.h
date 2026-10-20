@@ -81,6 +81,8 @@ public:
 	virtual void Tick(float DeltaSeconds) override;
 
 	static ASSXRaceManager* Find(const UObject* WorldContext);
+	/** The replay menu opened / closed (0x1EF990 states 2 / 3): while it is up, the modal overlay pauses the replay. */
+	void SetReplayMenuOpen(bool bOpen) { bReplayMenuOpen = bOpen; }
 
 	const FRaceSession* GetSession() const { return bReady ? &Session : nullptr; }
 	int32 GetRacerIndex(const ASnowboarderPawn* Pawn) const { return Pawns.IndexOfByKey(Pawn); }
@@ -159,6 +161,7 @@ private:
 	bool bRaceEndRoutine = false;
 	// 0x191298, 0x18F020
 	bool ReplayFrame();
+	bool bReplayMenuOpen = false;   // the replay menu (overlay slot 9 states 0 / 2 / 4): modal
 	void BindReplayInput();
 	FFixedStepClock Clock;
 	UPROPERTY(Transient) TArray<TObjectPtr<ASnowboarderPawn>> Pawns;
