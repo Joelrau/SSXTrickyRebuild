@@ -34,10 +34,9 @@ NANITE_MAX_SECTIONS = 64
 
 
 def build_terrain_shadow(path, mesh):
-    """A terrain past Nanite's section limit builds no Nanite data; its shadow-only copy (<mesh>_Shadow, opaque sections
-    merged) casts the Remastered sun shadow instead (USSXRemasterWorld::MakeTerrainShadowTwin)."""
-    pkg = path.split(".")[0]
-    shadow_pkg = pkg + "_Shadow"
+    """A terrain past Nanite's section limit builds no Nanite data; its shadow-only copy (/Game/TerrainShadow/<mesh>_Shadow,
+    opaque sections merged, git-ignored) casts the Remastered sun shadow instead (USSXRemasterWorld::MakeTerrainShadowTwin)."""
+    shadow_pkg = f"/Game/TerrainShadow/{path.split('/')[-1].split('.')[0]}_Shadow"
     if mesh.get_num_sections(0) <= NANITE_MAX_SECTIONS:
         if assets.does_asset_exist(shadow_pkg):
             assets.delete_asset(shadow_pkg)
@@ -62,8 +61,6 @@ def main():
         for path in paths:
             data = unreal.EditorAssetLibrary.find_asset_data(path)
             if str(data.asset_class_path.asset_name) != "StaticMesh":
-                continue
-            if path.split(".")[0].endswith("_Shadow"):
                 continue
             mesh = assets.load_asset(path)
             if path.split(".")[0].endswith("_terrain"):

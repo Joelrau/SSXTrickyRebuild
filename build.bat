@@ -1,10 +1,11 @@
 @echo off
 rem Build everything in one go: game data from your disc, the Unreal imports and maps, then the packaged game.
-rem Usage:  build.bat ["path\to\SLUS-20326.iso"] [refs] [dev]
+rem Usage:  build.bat ["path\to\SLUS-20326.iso"] [refs] [dev] [noremaster]
 rem   (no ISO path)  uses SSX_ISO from local_settings.bat, else .\SLUS-20326.iso
 rem   refs           also writes the test reference data (see build_data.bat)
 rem   dev            packages a Development build (Packaged-Dev\) instead of Shipping (Packaged\)
-rem Runs build_data.bat <iso> [refs] import, then package.bat [Development]. Stops at the first failure.
+rem   noremaster     skips the Remastered-look data (derived texture maps, Nanite); that look then lacks them
+rem Runs build_data.bat <iso> [refs] import remaster, then package.bat [Development]. Stops at the first failure.
 rem Unreal Engine 5.8 is found by tools\find_ue.bat.
 
 setlocal
@@ -13,12 +14,15 @@ set "REPO=%~dp0"
 
 set "ISO="
 set "REFS="
+set "REMASTER=remaster"
 set "PKGARG="
 set "OUT=%REPO%Packaged"
 :args
 if "%~1"=="" goto :argsdone
 if /i "%~1"=="refs" (
     set "REFS=refs"
+) else if /i "%~1"=="noremaster" (
+    set "REMASTER="
 ) else if /i "%~1"=="dev" (
     set "PKGARG=Development"
     set "OUT=%REPO%Packaged-Dev"
@@ -49,7 +53,7 @@ call "%REPO%tools\find_ue.bat" || exit /b 1
 for /f %%t in ('powershell -NoProfile -Command "[DateTimeOffset]::Now.ToUnixTimeSeconds()"') do set "T0=%%t"
 
 echo ===== Step 1 of 2: game data, editor build, imports and maps (build_data.bat)
-call "%REPO%build_data.bat" "%ISO%" %REFS% import
+call "%REPO%build_data.bat" "%ISO%" %REFS% import %REMASTER%
 if errorlevel 1 (
     echo.
     echo build.bat: FAILED in step 1 ^(build_data.bat^). See the messages above.

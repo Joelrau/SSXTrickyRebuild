@@ -729,7 +729,7 @@ UStaticMeshComponent* USSXRemasterWorld::MakeTerrainShadowTwin(UStaticMeshCompon
 	const UStaticMesh* Mesh = M.GetStaticMesh();
 	AActor* Owner = M.GetOwner();
 	if (!Mesh || !Owner) { return nullptr; }
-	const FString Pkg = Mesh->GetPackage()->GetName() + TEXT("_Shadow");
+	const FString Pkg = TEXT("/Game/TerrainShadow/") + Mesh->GetName() + TEXT("_Shadow");
 	UStaticMesh* Shadow = LoadObject<UStaticMesh>(nullptr, *(Pkg + TEXT(".") + FPackageName::GetShortName(Pkg)), nullptr, LOAD_NoWarn | LOAD_Quiet);
 	UMaterialInterface* Opaque = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Remastered/M_RmTerrainOpaque.M_RmTerrainOpaque"));
 	if (!Shadow || !Opaque) { return nullptr; }

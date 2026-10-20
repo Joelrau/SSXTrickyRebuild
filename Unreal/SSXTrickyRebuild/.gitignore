@@ -17,6 +17,8 @@ Content/FrontEnd/
 Content/Audio/
 # Remastered-look maps made from the disc textures by tools/make_remaster_maps.py (game data, never committed)
 Content/RemasterData/
+# Remastered-look terrain shadow meshes built from the imported tracks by Scripts/enable_nanite.py (game data)
+Content/TerrainShadow/
 Build/
 # Exe icon made from the game logo by tools/make_icon.py (game data, never committed)
 Build/Windows/Application.ico
