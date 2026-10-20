@@ -1254,7 +1254,8 @@ void USSXAudioSubsystem::PauseGameAudio()
 		for (TObjectIterator<UAudioComponent> It; It; ++It)
 		{
 			UAudioComponent* C = *It;
-			if (C->GetWorld() != W || C->bIsUISound || C->bIsPaused || !C->IsPlaying() || C == SpeechComps[0] || C == SpeechComps[1]) { continue; }
+			if (C->GetWorld() != W || C->bIsUISound || C->bIsPaused || !C->IsPlaying() || C == SpeechComps[0] || C == SpeechComps[1]
+				|| C == MusicComponent) { continue; }   // the song: its own pause 0x225240 (Player) above
 			C->SetPaused(true);
 			PausedVoices.Add(C);
 		}

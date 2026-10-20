@@ -1,3 +1,5 @@
+#include "Audio/SSXPathfinder.h"
+#include "Audio/SSXAudioSubsystem.h"
 #include "UObject/UObjectIterator.h"
 #include "Components/AudioComponent.h"
 #include "Engine/Engine.h"
@@ -227,7 +229,18 @@ namespace SSXReplayStart
 			return false;
 		case 6:
 			if (!Race) return Finish(TEXT("race gone"));
-			if (Race->GetReplay().GetPlayFrame() > R.MenuFrame) return Finish();
+			if (Race->GetReplay().GetPlayFrame() > R.MenuFrame)
+			{
+				// 0x215488: the song comes back with the replay (its own pause 0x225240, not the voice pause)
+				const USSXAudioSubsystem* A = USSXAudioSubsystem::Get(World);
+				const UAudioComponent* M = A ? A->GetMusicComponent() : nullptr;
+				const bool bSong = A && A->GetPathfinderPlayer().IsValid();
+				Test->AddInfo(FString::Printf(TEXT("after the menu: song %s, music component %s"), bSong ? TEXT("loaded") : TEXT("none"),
+					M ? (M->IsPlaying() ? (M->bIsPaused ? TEXT("paused") : TEXT("playing")) : TEXT("stopped")) : TEXT("none")));
+				Test->TestTrue(TEXT("the song plays again after the replay menu"), !bSong || (!A->GetPathfinderPlayer()->IsPaused() && M && M->IsPlaying() && !M->bIsPaused));
+				Test->TestFalse(TEXT("game audio not left paused"), A && A->IsMoviePaused());
+				return Finish();
+			}
 			return ++R.Frames > 120 ? Finish(TEXT("the replay did not continue after the menu closed")) : false;
 		default:
 			return Finish(TEXT("bad stage"));

@@ -256,6 +256,7 @@ public:
 	void PauseGameAudio();
 	void ResumeGameAudio() { ResumeAfterMovie(); }
 	bool IsMoviePaused() const { return bMoviePaused; }
+	UAudioComponent* GetMusicComponent() const { return MusicComponent; }
 	/** Sound manager vtable +0x34 (0x2213C8): removes every crowd entry (0x221330) and releases all 64 monitored bank voices (0x20C0F8); held board voices are restarted right after at the replay start (0x210A38). */
 	void StopAllSounds();
 	void AddBankVoice(UAudioComponent* C);
