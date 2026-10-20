@@ -259,7 +259,7 @@ TMap<int32, int32> SSXRemaster::TerrainSurfaceClasses(const FString& Stem)
 
 float SSXRemaster::DrawDistanceScale(int32 Quality)
 {
-	static const float Scale[] = { 1.5f, 2.f, 3.f, 4.f };
+	static const float Scale[] = { 1.25f, 1.5f, 2.f, 2.5f };   // Low .. Epic, x the original draw distance
 	return Scale[FMath::Clamp(Quality, 0, 3)];
 }
 

@@ -134,6 +134,17 @@ void USSXParticleWorld::OnWorldBeginPlay(UWorld& InWorld)
 	}
 	LensFanMaterial = LoadObject<UMaterialInterface>(nullptr, LensFanMaterialPath);
 	if (LensFanMaterial) { BaseMaterials.Add(LensFanMaterial); }
+	if (UMaterialInterface* RmSprite = LoadObject<UMaterialInterface>(nullptr, RmLensSpriteMaterialPath))
+	{
+		if (LensSpriteMid)
+		{
+			RmLensSpriteMid = UMaterialInstanceDynamic::Create(RmSprite, this);
+			RmLensSpriteMid->CopyParameterOverrides(LensSpriteMid);
+		}
+		BaseMaterials.Add(RmSprite);
+	}
+	RmLensFanMaterial = LoadObject<UMaterialInterface>(nullptr, RmLensFanMaterialPath);
+	if (RmLensFanMaterial) { BaseMaterials.Add(RmLensFanMaterial); }
 	if (!LensSpriteMid || !LensFanMaterial)
 	{
 		UE_LOG(LogSSX, Warning, TEXT("[particles] lens FX materials missing (Scripts/make_particle_materials.py): no halos / sun flare"));
@@ -1097,7 +1108,7 @@ void USSXParticleWorld::DrawLensFX(TArray<FSSXSpriteBatch>& Batches)
 	if (F.Sprites.Num() || F.Streaks.Num())
 	{
 		FSSXSpriteBatch& B = Batches.AddDefaulted_GetRef();
-		B.Material = LensSpriteMid;
+		B.Material = SSXRenderLook::Get() == ESSXRenderLook::Remastered && RmLensSpriteMid ? RmLensSpriteMid.Get() : LensSpriteMid.Get();
 		B.bOcclusion = true;
 		for (const SSXLensFX::FSprite& S : F.Sprites)
 		{
@@ -1128,7 +1139,7 @@ void USSXParticleWorld::DrawLensFX(TArray<FSSXSpriteBatch>& Batches)
 	if (F.Fan.Num())
 	{
 		FSSXSpriteBatch& B = Batches.AddDefaulted_GetRef();
-		B.Material = LensFanMaterial;
+		B.Material = SSXRenderLook::Get() == ESSXRenderLook::Remastered && RmLensFanMaterial ? RmLensFanMaterial.Get() : LensFanMaterial.Get();
 		B.bOcclusion = true;
 		for (const SSXLensFX::FTri& T : F.Fan)
 		{
