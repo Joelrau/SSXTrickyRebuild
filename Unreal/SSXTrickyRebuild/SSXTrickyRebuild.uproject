@@ -34,7 +34,10 @@
 		{
 			"Name": "FSR",
 			"Enabled": true,
-			"Optional": true
+			"Optional": true,
+			"TargetAllowList": [
+				"Game"
+			]
 		}
 	]
 }
