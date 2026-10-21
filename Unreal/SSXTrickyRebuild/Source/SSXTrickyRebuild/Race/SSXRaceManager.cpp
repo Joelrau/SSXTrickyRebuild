@@ -135,8 +135,15 @@ ASSXRaceManager* ASSXRaceManager::Find(const UObject* WorldContext)
 	{
 		return nullptr;
 	}
+	// looked up every frame from several places: the last one found is kept while it lives in this world
+	static TWeakObjectPtr<ASSXRaceManager> Last;
+	if (ASSXRaceManager* M = Last.Get(); M && M->GetWorld() == World && IsValid(M))
+	{
+		return M;
+	}
 	for (TActorIterator<ASSXRaceManager> It(const_cast<UWorld*>(World)); It; ++It)
 	{
+		Last = *It;
 		return *It;
 	}
 	return nullptr;

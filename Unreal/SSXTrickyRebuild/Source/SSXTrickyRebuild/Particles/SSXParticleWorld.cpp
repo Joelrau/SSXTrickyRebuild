@@ -292,7 +292,7 @@ int32 USSXParticleWorld::GetSprayBurstCount(const ASnowboarderPawn* Pawn) const
 bool USSXParticleWorld::IsShadowActive(const ASnowboarderPawn* Pawn) const
 {
 	const FRiderFx* R = Riders.FindByPredicate([&](const FRiderFx& X) { return X.Pawn.Get() == Pawn; });
-	return R && R->Capture.IsValid() && R->Capture->bCaptureEveryFrame && R->Projector.IsValid() && R->Projector->IsVisible();
+	return R && R->Capture.IsValid() && R->Projector.IsValid() && R->Projector->IsVisible();   // the capture itself runs only while on screen
 }
 
 USSXParticleWorld::FRiderFx* USSXParticleWorld::FindRider(const FRiderSim* Sim)
