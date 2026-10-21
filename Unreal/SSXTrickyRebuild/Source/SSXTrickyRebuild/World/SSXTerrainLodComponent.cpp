@@ -9,6 +9,7 @@
 #include "LocalVertexFactory.h"
 #include "MaterialDomain.h"
 #include "Materials/Material.h"
+#include "World/SSXRenderLook.h"
 #include "Materials/MaterialRenderProxy.h"
 #include "PrimitiveSceneProxy.h"
 #include "PrimitiveUniformShaderParametersBuilder.h"
@@ -422,7 +423,9 @@ int32 USSXTerrainLodComponent::AttachToTerrain(UWorld& World, TArray<TWeakObject
 
 void USSXTerrainLodComponent::ApplyCVar(TConstArrayView<TWeakObjectPtr<USSXTerrainLodComponent>> Attached)
 {
-	const bool bOn = CVarTerrainLod.GetValueOnGameThread() != 0;
+	// The Remastered look draws the full-detail (Nanite) terrain: the mesh that casts its sun shadow, so a coarser LOD
+	// surface never sits inside that shadow.
+	const bool bOn = CVarTerrainLod.GetValueOnGameThread() != 0 && SSXRenderLook::Get() != ESSXRenderLook::Remastered;
 	for (const TWeakObjectPtr<USSXTerrainLodComponent>& W : Attached)
 	{
 		USSXTerrainLodComponent* Lod = W.Get();

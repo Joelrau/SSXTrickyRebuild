@@ -1194,6 +1194,8 @@ void USSXRemasterWorld::Apply()
 		C->SetIntensity(T.SunLux);
 		C->SetLightColor(SunColour);
 		C->SetCastShadows(true);
+		// the spawn rotation does not reach the light (it kept pitch -81 on every track)
+		D->SetActorRotation(SunDir.Rotation());
 		Spawned.Add(D);
 	}
 	if (ASkyLight* K = W->SpawnActor<ASkyLight>(P))
@@ -1440,44 +1442,120 @@ void USSXRemasterLibrary::FinishLoadingForCapture()
 #if !UE_BUILD_SHIPPING
 namespace
 {
-	// Remastered look: name the meshes that shadow the player rider (the bounds on the ray from the rider to the sun).
-	FAutoConsoleCommandWithWorld GShadowCastersCmd(TEXT("ssx.Debug.ShadowCasters"),
-		TEXT("Log the shadow-casting meshes whose bounds lie on the ray from the player rider to the sun, nearest first."),
-		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld* W)
+#if WITH_EDITOR
+	// Nearest hit of a world ray on a static mesh component's source triangles (editor: the mesh description), or -1.
+	double RayMesh(const UStaticMeshComponent& C, const FVector& Start, const FVector& Dir, double MaxDist, FVector& OutHit)
+	{
+		const UStaticMesh* Mesh = C.GetStaticMesh();
+		const FMeshDescription* MD = Mesh ? Mesh->GetMeshDescription(0) : nullptr;
+		if (!MD) { return -1.0; }
+		const FTransform& T = C.GetComponentTransform();
+		const FVector3f O = FVector3f(T.InverseTransformPosition(Start));
+		const FVector3f D = FVector3f(T.InverseTransformVector(Dir));
+		const float Scale = D.Size();
+		const FVector3f Dn = D / Scale;
+		FStaticMeshConstAttributes Attr(*MD);
+		const TVertexAttributesConstRef<FVector3f> P = Attr.GetVertexPositions();
+		float Best = float(MaxDist * Scale);
+		bool bHit = false;
+		for (const FTriangleID Tri : MD->Triangles().GetElementIDs())
 		{
-			const ADirectionalLight* Sun = nullptr;
-			for (TActorIterator<ADirectionalLight> It(W); It && !Sun; ++It) { Sun = *It; }
-			const ASSXRaceManager* Race = ASSXRaceManager::Find(W);
-			const APawn* Rider = Race && Race->GetPlayerPawn() ? static_cast<const APawn*>(Race->GetPlayerPawn())
-				: (W->GetFirstPlayerController() ? W->GetFirstPlayerController()->GetPawn() : nullptr);
-			if (!Sun || !Rider)
+			const TArrayView<const FVertexID> V = MD->GetTriangleVertices(Tri);
+			const FVector3f A = P[V[0]], E1 = P[V[1]] - A, E2 = P[V[2]] - A;
+			const FVector3f H = FVector3f::CrossProduct(Dn, E2);
+			const float Det = FVector3f::DotProduct(E1, H);
+			if (FMath::Abs(Det) < 1e-8f) { continue; }
+			const FVector3f S = O - A;
+			const float U = FVector3f::DotProduct(S, H) / Det;
+			if (U < 0.f || U > 1.f) { continue; }
+			const FVector3f Q = FVector3f::CrossProduct(S, E1);
+			const float W = FVector3f::DotProduct(Dn, Q) / Det;
+			if (W < 0.f || U + W > 1.f) { continue; }
+			const float Dist = FVector3f::DotProduct(E2, Q) / Det;
+			if (Dist > 0.f && Dist < Best) { Best = Dist; bHit = true; }
+		}
+		if (!bHit) { return -1.0; }
+		OutHit = T.TransformPosition(FVector(O + Dn * Best));
+		return Best / Scale;
+	}
+#endif
+
+	void LogShadowCasters(UWorld* W, const FVector* At)
+	{
+		const ADirectionalLight* Sun = nullptr;
+		for (TActorIterator<ADirectionalLight> It(W); It; ++It)
+		{
+			const ULightComponent* L = It->GetLightComponent();
+			UE_LOG(LogSSX, Display, TEXT("[shadow casters] light %s: visible %d, shadows %d, intensity %.2f, elevation %.1f deg"), *It->GetName(),
+				int32(L && L->IsVisible()), int32(L && L->CastShadows), L ? L->Intensity : 0.f, FMath::RadiansToDegrees(FMath::Asin(-It->GetActorForwardVector().Z)));
+			if (L && L->IsVisible() && L->CastShadows && L->Intensity > 0.f) { Sun = *It; }
+		}
+		const ASSXRaceManager* Race = ASSXRaceManager::Find(W);
+		const APawn* Rider = Race && Race->GetPlayerPawn() ? static_cast<const APawn*>(Race->GetPlayerPawn())
+			: (W->GetFirstPlayerController() ? W->GetFirstPlayerController()->GetPawn() : nullptr);
+		if (!Sun || (!Rider && !At))
+		{
+			UE_LOG(LogSSX, Display, TEXT("[shadow casters] no sun or no rider"));
+			return;
+		}
+		FVector Start = At ? *At : Rider->GetActorLocation() + FVector(0.0, 0.0, 100.0);
+		const FVector ToSun = -Sun->GetActorForwardVector();
+#if WITH_EDITOR
+		// the terrain under the point; the sun ray starts 5 cm above it
+		{
+			double Ground = 1.0e9;
+			FString GroundName;
+			FVector Hit;
+			for (TObjectIterator<UStaticMeshComponent> It; It; ++It)
 			{
-				UE_LOG(LogSSX, Display, TEXT("[shadow casters] no sun or no rider"));
-				return;
+				const UStaticMeshComponent* C = *It;
+				if (C->GetWorld() != W || !C->IsRegistered() || !C->GetStaticMesh() || !C->GetStaticMesh()->GetName().EndsWith(TEXT("_terrain"))) { continue; }
+				const double D = RayMesh(*C, Start + FVector(0, 0, 2000.0), FVector(0, 0, -1), 10000.0, Hit);
+				if (D >= 0.0 && D < Ground) { Ground = D; GroundName = C->GetStaticMesh()->GetName(); Start = Hit + FVector(0, 0, 5.0); }
 			}
-			const FVector Start = Rider->GetActorLocation() + FVector(0.0, 0.0, 100.0);
-			const FVector End = Start - Sun->GetActorForwardVector() * 1.0e6;
-			TArray<TPair<double, FString>> Hits;
-			for (TObjectIterator<UPrimitiveComponent> It; It; ++It)
-			{
-				const UPrimitiveComponent* C = *It;
-				if (C->GetWorld() != W || !C->IsRegistered() || !C->CastShadow || C->GetOwner() == Rider) { continue; }
-				const FBox Box = C->Bounds.GetBox();
-				FVector HitAt, HitNormal;
-				float Time = 0.f;
-				if (!FMath::LineExtentBoxIntersection(Box, Start, End, FVector::ZeroVector, HitAt, HitNormal, Time) && !Box.IsInside(Start)) { continue; }
-				const UStaticMeshComponent* S = Cast<UStaticMeshComponent>(C);
-				Hits.Add({ Time * 1.0e6, FString::Printf(TEXT("%s / %s mesh %s: visible %d, actor hidden %d, hidden shadow %d, Nanite %d, bounds r %.0f"),
-					*GetNameSafe(C->GetOwner()), *C->GetName(), S && S->GetStaticMesh() ? *S->GetStaticMesh()->GetName() : TEXT("-"),
-					int32(C->IsVisible()), int32(C->GetOwner() && C->GetOwner()->IsHidden()), int32(C->bCastHiddenShadow),
-					int32(C->SceneProxy && C->SceneProxy->IsNaniteMesh()), C->Bounds.SphereRadius) });
-			}
-			Hits.Sort([](const auto& A, const auto& B) { return A.Key < B.Key; });
-			UE_LOG(LogSSX, Display, TEXT("[shadow casters] rider at %s, %d meshes on the sun ray"), *Start.ToString(), Hits.Num());
-			for (int32 I = 0; I < FMath::Min(20, Hits.Num()); ++I)
-			{
-				UE_LOG(LogSSX, Display, TEXT("[shadow casters] %.0f cm: %s"), Hits[I].Key, *Hits[I].Value);
-			}
+			UE_LOG(LogSSX, Display, TEXT("[shadow casters] ground under the point: %s at %s"), GroundName.IsEmpty() ? TEXT("none") : *GroundName, *Start.ToString());
+		}
+#endif
+		const FVector End = Start + ToSun * 1.0e6;
+		TArray<TPair<double, FString>> Hits;
+		for (TObjectIterator<UPrimitiveComponent> It; It; ++It)
+		{
+			const UPrimitiveComponent* C = *It;
+			if (C->GetWorld() != W || !C->IsRegistered() || !C->CastShadow || (Rider && C->GetOwner() == Rider)) { continue; }
+			const FBox Box = C->Bounds.GetBox();
+			FVector HitAt, HitNormal;
+			float Time = 0.f;
+			if (!FMath::LineExtentBoxIntersection(Box, Start, End, FVector::ZeroVector, HitAt, HitNormal, Time) && !Box.IsInside(Start)) { continue; }
+			const UStaticMeshComponent* S = Cast<UStaticMeshComponent>(C);
+			FString Tri = TEXT("bounds only");
+#if WITH_EDITOR
+			FVector Hit;
+			const double D = S ? RayMesh(*S, Start, ToSun, 1.0e6, Hit) : -1.0;
+			if (S && D < 0.0) { continue; }
+			if (S) { Tri = FString::Printf(TEXT("triangle hit %.0f cm away at %s (%.0f cm above the start)"), D, *Hit.ToString(), Hit.Z - Start.Z); Time = float(D / 1.0e6); }
+#endif
+			Hits.Add({ Time * 1.0e6, FString::Printf(TEXT("%s / %s mesh %s: %s; visible %d, actor hidden %d, hidden shadow %d, Nanite %d"),
+				*GetNameSafe(C->GetOwner()), *C->GetName(), S && S->GetStaticMesh() ? *S->GetStaticMesh()->GetName() : TEXT("-"), *Tri,
+				int32(C->IsVisible()), int32(C->GetOwner() && C->GetOwner()->IsHidden()), int32(C->bCastHiddenShadow),
+				int32(C->SceneProxy && C->SceneProxy->IsNaniteMesh())) });
+		}
+		Hits.Sort([](const auto& A, const auto& B) { return A.Key < B.Key; });
+		UE_LOG(LogSSX, Display, TEXT("[shadow casters] sun ray from %s (elevation %.1f deg): %d casters"), *Start.ToString(),
+			FMath::RadiansToDegrees(FMath::Asin(ToSun.Z)), Hits.Num());
+		for (int32 I = 0; I < FMath::Min(20, Hits.Num()); ++I)
+		{
+			UE_LOG(LogSSX, Display, TEXT("[shadow casters] %.0f cm: %s"), Hits[I].Key, *Hits[I].Value);
+		}
+	}
+
+	// Remastered look: the meshes that shadow the player rider (or the point X Y Z), on the ray to the sun.
+	FAutoConsoleCommandWithWorldAndArgs GShadowCastersCmd(TEXT("ssx.Debug.ShadowCasters"),
+		TEXT("Log the shadow-casting meshes on the ray from the player rider (or X Y Z) to the sun, nearest first (editor: triangle hits)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* W)
+		{
+			const FVector At(Args.Num() >= 3 ? FCString::Atod(*Args[0]) : 0.0, Args.Num() >= 3 ? FCString::Atod(*Args[1]) : 0.0,
+				Args.Num() >= 3 ? FCString::Atod(*Args[2]) : 0.0);
+			LogShadowCasters(W, Args.Num() >= 3 ? &At : nullptr);
 		}));
 }
 #endif
