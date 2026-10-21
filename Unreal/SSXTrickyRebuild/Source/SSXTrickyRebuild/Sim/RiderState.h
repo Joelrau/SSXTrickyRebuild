@@ -274,6 +274,7 @@ struct FRiderState
 	double ResetFade = 0.0;
 	double ResetWaitTime = 0.0;
 	double ResetDropHeight = 101.46;            // drop stored by the forced reset (cm)
+	uint32 RespawnSerial = 0;                   // +1 per respawn (the human camera cuts, 0x119220 -> 0x173A60)
 	FVector SpawnPosition = FVector::ZeroVector;
 	FVector LastGroundPosition = FVector::ZeroVector;
 	FVector LastGroundHeading = FVector(0, 1, 0);

@@ -446,6 +446,7 @@ double FRiderSim::GetWorldFloor() const
 void FRiderSim::Respawn()
 {
 	// 0x118C08, 0x119220, 0x119D30
+	++State.RespawnSerial;
 	FVector HookPos, HookHeading, HookVel;
 	if (RaceHooks && RaceHooks->PlaceRespawn(*this, HookPos, HookHeading, HookVel))
 	{
