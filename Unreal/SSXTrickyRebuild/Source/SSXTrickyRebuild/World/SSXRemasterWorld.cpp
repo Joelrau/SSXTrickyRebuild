@@ -20,6 +20,8 @@
 #include "Engine/Texture.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
+#include "GameFramework/Pawn.h"
+#include "PrimitiveSceneProxy.h"
 #include "SSXShowOffDraw.h"
 #include "SSXTrickyRebuild.h"
 #include "Materials/Material.h"
@@ -1419,3 +1421,48 @@ void USSXRemasterLibrary::FinishLoadingForCapture()
 	FlushRenderingCommands();
 #endif
 }
+
+#if !UE_BUILD_SHIPPING
+namespace
+{
+	// Remastered look: name the meshes that shadow the player rider (the bounds on the ray from the rider to the sun).
+	FAutoConsoleCommandWithWorld GShadowCastersCmd(TEXT("ssx.Debug.ShadowCasters"),
+		TEXT("Log the shadow-casting meshes whose bounds lie on the ray from the player rider to the sun, nearest first."),
+		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld* W)
+		{
+			const ADirectionalLight* Sun = nullptr;
+			for (TActorIterator<ADirectionalLight> It(W); It && !Sun; ++It) { Sun = *It; }
+			const ASSXRaceManager* Race = ASSXRaceManager::Find(W);
+			const APawn* Rider = Race && Race->GetPlayerPawn() ? static_cast<const APawn*>(Race->GetPlayerPawn())
+				: (W->GetFirstPlayerController() ? W->GetFirstPlayerController()->GetPawn() : nullptr);
+			if (!Sun || !Rider)
+			{
+				UE_LOG(LogSSX, Display, TEXT("[shadow casters] no sun or no rider"));
+				return;
+			}
+			const FVector Start = Rider->GetActorLocation() + FVector(0.0, 0.0, 100.0);
+			const FVector End = Start - Sun->GetActorForwardVector() * 1.0e6;
+			TArray<TPair<double, FString>> Hits;
+			for (TObjectIterator<UPrimitiveComponent> It; It; ++It)
+			{
+				const UPrimitiveComponent* C = *It;
+				if (C->GetWorld() != W || !C->IsRegistered() || !C->CastShadow || C->GetOwner() == Rider) { continue; }
+				const FBox Box = C->Bounds.GetBox();
+				FVector HitAt, HitNormal;
+				float Time = 0.f;
+				if (!FMath::LineExtentBoxIntersection(Box, Start, End, FVector::ZeroVector, HitAt, HitNormal, Time) && !Box.IsInside(Start)) { continue; }
+				const UStaticMeshComponent* S = Cast<UStaticMeshComponent>(C);
+				Hits.Add({ Time * 1.0e6, FString::Printf(TEXT("%s / %s mesh %s: visible %d, actor hidden %d, hidden shadow %d, Nanite %d, bounds r %.0f"),
+					*GetNameSafe(C->GetOwner()), *C->GetName(), S && S->GetStaticMesh() ? *S->GetStaticMesh()->GetName() : TEXT("-"),
+					int32(C->IsVisible()), int32(C->GetOwner() && C->GetOwner()->IsHidden()), int32(C->bCastHiddenShadow),
+					int32(C->SceneProxy && C->SceneProxy->IsNaniteMesh()), C->Bounds.SphereRadius) });
+			}
+			Hits.Sort([](const auto& A, const auto& B) { return A.Key < B.Key; });
+			UE_LOG(LogSSX, Display, TEXT("[shadow casters] rider at %s, %d meshes on the sun ray"), *Start.ToString(), Hits.Num());
+			for (int32 I = 0; I < FMath::Min(20, Hits.Num()); ++I)
+			{
+				UE_LOG(LogSSX, Display, TEXT("[shadow casters] %.0f cm: %s"), Hits[I].Key, *Hits[I].Value);
+			}
+		}));
+}
+#endif
