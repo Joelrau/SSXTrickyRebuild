@@ -180,7 +180,15 @@ bool FSSXOverlayPrimitivesTest::RunTest(const FString& Parameters)
 	NearSpr(*this, TEXT("back icon (centred, scale 0.9)"), F.Spr(HudTriangle), 600.f - Bw - 16.f - 9.f, 430.f - Pitch + MenuLh * 0.73f * 0.5f - 9.f, 18.f, 18.f);
 	FOv P;
 	TArray<float> Seen;
-	for (int32 I = 0; I < 120; ++I) { P.D.Reset(); P.O.Activate(OvViewHiScores); P.O.Draw(P.D); Seen.Add(P.O.GetPulse()); }
+	for (int32 I = 0; I < 120; ++I) { P.D.Reset(); P.O.Activate(OvViewHiScores); P.O.Draw(P.D); P.O.Tick(); Seen.Add(P.O.GetPulse()); }
+	{
+		// one step per 60 Hz frame, however often the frame is drawn
+		const float Before = P.O.GetPulse();
+		for (int32 I = 0; I < 3; ++I) { P.D.Reset(); P.O.Draw(P.D); }
+		TestEqual(TEXT("drawing without a game frame leaves the pulse"), P.O.GetPulse(), Before);
+		P.O.Tick();
+		TestTrue(TEXT("one game frame steps it once"), FMath::IsNearlyEqual(FMath::Abs(P.O.GetPulse() - Before), 0.004f, 1e-4f));
+	}
 	float Hi = 0.f, Lo = 2.f;
 	for (float V : Seen) { Hi = FMath::Max(Hi, V); Lo = FMath::Min(Lo, V); }
 	TestTrue(TEXT("pulse peaks just above 1.1"), Hi > 1.1f && Hi < 1.106f);

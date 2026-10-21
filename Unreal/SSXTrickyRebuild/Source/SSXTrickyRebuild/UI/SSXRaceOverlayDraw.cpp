@@ -329,11 +329,7 @@ void FSSXOverlayManager::DrawList(FSSXFeDrawList& D, float X, float Y, float Sca
 {
 	// 0x1AA630
 	const bool bSelOn = Sel < 0 || !Enabled || !Enabled->IsValidIndex(Sel) || (*Enabled)[Sel];
-	if (bPulse && bSelOn)
-	{
-		if (Pulse > 1.1f || Pulse < 0.99f) PulseStep = -PulseStep;
-		Pulse += PulseStep;
-	}
+	if (bPulse && bSelOn) bPulseDrawn = true;
 	const float Lh = LineH(D, EFont::Menu);
 	const float Pitch = Lh * Scale + 4.f;
 	float Y0 = Y;
@@ -1088,8 +1084,7 @@ void FSSXOverlayManager::DrawResults(FSSXFeDrawList& D) const
 			}
 		}
 		// FUN_001A91C8
-		AggressionAnim += 1.f;
-		if (AggressionAnim > 30.f) AggressionAnim = 0.f;
+		bAggressionDrawn = true;
 		const float Anim = AggressionAnim / 2.5f;
 		for (int32 R = 0; R < T.NumRows; ++R)
 		{

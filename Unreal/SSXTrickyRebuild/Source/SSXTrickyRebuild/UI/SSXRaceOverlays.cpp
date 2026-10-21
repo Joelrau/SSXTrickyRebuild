@@ -996,6 +996,27 @@ void FSSXOverlayManager::PointsPad(uint32 Bits)
 void FSSXOverlayManager::Tick()
 {
 	++Frame;
+	if (bPulseDrawn)
+	{
+		// 0x1AA630
+		if (Pulse > 1.1f || Pulse < 0.99f) PulseStep = -PulseStep;
+		Pulse += PulseStep;
+		bPulseDrawn = false;
+	}
+	if (bLessonPulseDrawn)
+	{
+		// 0x36E508 / 0x36E520 / 0x36E538
+		if (LessonPulse > 1.05f || LessonPulse < 0.95f) { LessonPulseStep = -LessonPulseStep; }
+		LessonPulse += LessonPulseStep;
+		bLessonPulseDrawn = false;
+	}
+	if (bAggressionDrawn)
+	{
+		// FUN_001A91C8
+		AggressionAnim += 1.f;
+		if (AggressionAnim > 30.f) AggressionAnim = 0.f;
+		bAggressionDrawn = false;
+	}
 	for (int32 I = 0; I < OvCount; ++I)
 	{
 		if (!Active[I]) continue;
