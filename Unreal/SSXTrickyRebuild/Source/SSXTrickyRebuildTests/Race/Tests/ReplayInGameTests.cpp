@@ -13,6 +13,7 @@
 #include "Audio/SSXAudioSubsystem.h"
 #include "Audio/SSXPathfinder.h"
 #include "Audio/SSXRaceAudioFlow.h"
+#include "Input/SSXRumbleSubsystem.h"
 #include "Race/GameRng.h"
 #include "Race/SSXReplay.h"
 #include "Race/RaceRules.h"
@@ -60,6 +61,7 @@ namespace SSXReplayInGame
 		double WallStart = 0.0;
 		int32 Frames = 0;
 		int32 LastOvFrame = -1;
+		float RebuildRumble = 0.f;
 		int32 Resumes = 0;
 		TArray<uint8> File;
 		FString PrevMemCard;
@@ -172,6 +174,10 @@ namespace SSXReplayInGame
 				O->Tick();
 			}
 			R.LastOvFrame = O->Frame;
+			if (const USSXRumbleSubsystem* Rumble = Race->GetReplay().IsRebuilding() ? USSXRumbleSubsystem::Get(Race) : nullptr)
+			{
+				R.RebuildRumble = FMath::Max(R.RebuildRumble, Rumble->GetPlayer(0).Strength);
+			}
 			if (Race->GetReplay().IsRebuilding() || !O->IsActive(OvReplay))
 			{
 				if (++R.Frames <= 60 * 120) return false;
@@ -182,6 +188,8 @@ namespace SSXReplayInGame
 					Rp.GetRecordFrame(), Rp.GetRecordedLength(), O->Frame, Rp.IsLoaded() ? 1 : 0, Race->GetUIHost().bLoadedReplayStart ? 1 : 0,
 					O->IsActive(OvReplayControl) ? 1 : 0, O->ReplayState));
 			}
+			// 0x153390: replay playback sends no rumble; the rebuild re-simulates the race as playback
+			Test->TestEqual(TEXT("loaded replay: no rumble while the race is rebuilt"), R.RebuildRumble, 0.f);
 			Test->TestTrue(TEXT("loaded replay: the object is loaded with its keyframes"), Race->GetReplay().IsLoaded()
 				&& Race->GetReplay().KeyframeFrames().Num() > 0);
 			Test->TestTrue(TEXT("replay overlay state 1 and its control"), O->ReplayState == 1 && O->IsActive(OvReplayControl));
