@@ -85,6 +85,11 @@ public:
 	void RacePostFrame();
 	// 0x114730, 0x113A88, 0x1797A8, 0x179758
 	void StepCameraReverse(bool bReplayFlag);
+	/** 0x1784D0: the camera of a held world frame that is not modal (a paused replay): it keeps following its mode. */
+	void StepHeldCamera() { if (!bAIRider) { StepCamera(false); } }
+	/** 0x17CB40 / 0x17A740: the pad translate runs every frame, also while the game is paused, so a button pressed in
+	 *  the pause menu (Continue's X) is already held when the rider steps again: no press edge for the rider. */
+	void HoldPadFrame();
 	void RaceRender(double Alpha, float DeltaSeconds);
 	void ResetRenderState();
 	void CaptureRenderPose();

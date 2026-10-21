@@ -996,6 +996,12 @@ void ASSXRaceManager::Tick(float DeltaSeconds)
 		}
 		if (!bWorldRuns)
 		{
+			// 0x1784D0: the camera control skips only for a modal overlay (0x1A77F8), so a paused replay's camera keeps
+			// updating (a new camera style shows at once)
+			if (!bReplayMenuOpen && Replay.IsPlaying())
+			{
+				for (ASnowboarderPawn* P : Pawns) { if (P) { P->StepHeldCamera(); } }
+			}
 			continue;   // 0x18F020
 		}
 		if (Fx)

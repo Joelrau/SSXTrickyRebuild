@@ -47,6 +47,11 @@ void ASSXPlayerController::ForwardPad()
 	{
 		return;
 	}
+	// before the menus take this frame's buttons (the Continue press resumes the game below)
+	if (ASnowboarderPawn* Rider = GetWorld() && GetWorld()->IsPaused() ? Cast<ASnowboarderPawn>(GetPawn()) : nullptr)
+	{
+		Rider->HoldPadFrame();
+	}
 	// 0x1A8688
 	struct FMap { FKey Key; uint32 Bit; };
 	static const FMap Map[] = {
