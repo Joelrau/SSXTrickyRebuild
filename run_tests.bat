@@ -21,7 +21,7 @@ if defined SSX_ORIGINAL_REPLAY (echo SSX_ORIGINAL_REPLAY: %SSX_ORIGINAL_REPLAY%)
 set "UPROJECT=%REPO%Unreal\SSXTrickyRebuild\SSXTrickyRebuild.uproject"
 set "LOG=%REPO%Unreal\SSXTrickyRebuild\Saved\Logs\SSXTests.log"
 if exist "%LOG%" del "%LOG%"
-"%UE_ROOT%\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" "%UPROJECT%" -nullrhi -unattended -nosplash -ExecCmds="Automation RunTests %FILTER%; Quit" -log=SSXTests.log
+"%UE_ROOT%\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" "%UPROJECT%" -nullrhi -DisablePlugins=FSR -unattended -nosplash -ExecCmds="Automation RunTests %FILTER%; Quit" -log=SSXTests.log
 if not exist "%LOG%" (
     echo run_tests.bat: no log written: "%LOG%"
     exit /b 1

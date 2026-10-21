@@ -47,7 +47,7 @@ The game's behaviour is reimplemented in fresh C++; all game data comes from the
   `#if !UE_BUILD_SHIPPING`. The Shipping package must contain no tests or debug switches.
 - Build: `"%UE_ROOT%\Engine\Build\BatchFiles\Build.bat" SSXTrickyRebuildEditor Win64 Development
   -Project="<abs>\Unreal\SSXTrickyRebuild\SSXTrickyRebuild.uproject" -WaitMutex`.
-- Tests: `UnrealEditor-Cmd <uproject> -nullrhi -unattended -nosplash -ExecCmds="Automation RunTests SSX; Quit"
+- Tests: `UnrealEditor-Cmd <uproject> -nullrhi -DisablePlugins=FSR -unattended -nosplash -ExecCmds="Automation RunTests SSX; Quit"
   -log=<unique>.log`, with `SSX_ORIGINAL_REPLAY` pointing at the user's REP0001 memory-card replay for the replay
   tests. The full suite must stay green. Run targeted groups while iterating and the full suite once at the end;
   never run two full suites at the same time (they share `Saved/Automation`).
