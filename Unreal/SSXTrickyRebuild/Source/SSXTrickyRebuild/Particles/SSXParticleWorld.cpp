@@ -22,6 +22,7 @@
 #include "ImageUtils.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Misc/Paths.h"
+#include "Kismet/KismetRenderingLibrary.h"
 #include "Camera/RaceCamera.h"
 #include "Particles/SSXLensFX.h"
 #include "Particles/SSXSpriteRenderer.h"
@@ -41,7 +42,12 @@ namespace
 {
 	TAutoConsoleVariable<int32> CVarParticles(TEXT("ssx.Particles.Enable"), 1,
 		TEXT("Particle and rider effects: 0 = off."));
+	TAutoConsoleVariable<int32> CVarShadowCaptureCheap(TEXT("ssx.Shadow.CaptureCheap"), 1,
+		TEXT("1: the rider shadow captures render as passes of the main renderer and only while their shadow is on screen ")
+		TEXT("(render cost only). 0: an independent scene render per rider every frame."));
 #if !UE_BUILD_SHIPPING
+	TAutoConsoleVariable<int32> CVarShadowDumpFrame(TEXT("ssx.Shadow.DumpFrame"), 0,
+		TEXT("At this particle frame, write every rider's shadow silhouette target to Saved/ShadowDump/rider<N>.hdr (0 = off)."));
 	TAutoConsoleVariable<int32> CVarShadowMode(TEXT("ssx.Shadow.Mode"), 0,
 		TEXT("Rider shadow projection: 0 = subtractive, GS ALPHA mode 7 Cd - Cs As clamped (default), "
 			 "1 = multiply by (1 - grey) (diagnostic), -1 = off."));
@@ -1264,7 +1270,21 @@ void USSXParticleWorld::UpdateShadow(FRiderFx& R, int32 Racers)
 	Cap->CustomProjectionMatrix = FReversedZOrthoMatrix(float(HalfX), float(HalfY), 1.f / (UE_FLOAT_HUGE_DISTANCE / 4.f), 0.f);
 	Cap->OrthoWidth = float(2.0 * HalfX);
 	Cap->SetWorldLocationAndRotation(Centre + FVector(0, 0, Top - CentreG.Z + 50.0), FRotator(-90.0, Yaw, 0.0));
-	Cap->bCaptureEveryFrame = true;
+	const bool bCheap = CVarShadowCaptureCheap.GetValueOnGameThread() != 0;
+	if (Cap->bRenderInMainRenderer != bCheap)
+	{
+		Cap->bRenderInMainRenderer = bCheap;
+		UE_LOG(LogSSX, Log, TEXT("[particles] rider shadow capture: %s"), bCheap ? TEXT("main renderer, on screen only") : TEXT("own scene render"));
+	}
+#if !UE_BUILD_SHIPPING
+	if (CVarShadowDumpFrame.GetValueOnGameThread() == FrameCounter && R.ShadowTarget.IsValid())
+	{
+		UKismetRenderingLibrary::ExportRenderTarget(this, R.ShadowTarget.Get(), FPaths::ProjectSavedDir() / TEXT("ShadowDump"),
+			FString::Printf(TEXT("rider%d.hdr"), int32(&R - Riders.GetData())));
+	}
+#endif
+	// a shadow off screen needs no silhouette: its projector box was not drawn last frame
+	Cap->bCaptureEveryFrame = !bCheap || R.Projector->WasRecentlyRendered(0.1f) || !R.Projector->IsVisible();
 	const double ZMax = ShadowDepthAbove, ZMin = -ShadowDepthBelow;
 	UStaticMeshComponent* Proj = R.Projector.Get();
 	Proj->SetVisibility(true);
