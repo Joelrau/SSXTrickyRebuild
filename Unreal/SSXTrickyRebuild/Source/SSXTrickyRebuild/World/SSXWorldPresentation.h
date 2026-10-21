@@ -70,7 +70,7 @@ public:
 	static bool IsSoftBlendMaterial(const UMaterialInterface* M);
 	/** Every static mesh component of the world with a soft blend section renders custom depth (the emulated depth
 	 *  write the later translucent pixels test). Called when a track or the front end begins; returns the count. */
-	static int32 MarkSoftPropDepth(UWorld& InWorld);
+	static int32 MarkSoftPropDepth(UWorld& InWorld, TArray<TWeakObjectPtr<UStaticMeshComponent>>* OutComponents = nullptr);
 
 	/** Rider gloss pass (Characters/SSXRiderGloss.h, FUN_0025EDF0): load the specmap record's `<trk>s` / `<trk>e` images
 	 *  (a missing one falls back to PARTICLE 'spec' / 'envr'). Called with the track's record when a track or the front end
@@ -107,6 +107,10 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UMaterialInterface> RiderMaskedMaterial;
 	UPROPERTY(Transient) TArray<TWeakObjectPtr<AActor>> SkyActors;
 	TArray<TWeakObjectPtr<class USSXTerrainLodComponent>> TerrainLods;
+	/** The soft props (MarkSoftPropDepth): only those near the camera write custom depth (ssx.Render.SoftDepthRange). */
+	TArray<TWeakObjectPtr<UStaticMeshComponent>> SoftDepthProps;
+	int32 SoftDepthFrame = 0;
+	void UpdateSoftDepthRange();
 	UPROPERTY(Transient) TWeakObjectPtr<AActor> ClearShell;
 	UPROPERTY(Transient) TObjectPtr<class UTexture2D> GlossSpecTex;
 	UPROPERTY(Transient) TObjectPtr<class UTexture2D> GlossEnvTex;

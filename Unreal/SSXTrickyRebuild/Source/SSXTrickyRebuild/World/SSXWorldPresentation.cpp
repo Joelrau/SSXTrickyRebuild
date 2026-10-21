@@ -32,6 +32,9 @@ const FName USSXWorldPresentation::SkyTag(TEXT("SSXSky"));
 
 namespace
 {
+	TAutoConsoleVariable<float> CVarSoftDepthRange(TEXT("ssx.Render.SoftDepthRange"), 20000.f,
+		TEXT("Soft props further than this from the camera (cm) write no custom depth: their soft texels then hide no ")
+		TEXT("sprites or later soft layers (render cost; default 200 m; 0 = every soft prop, as the original)."));
 #if !UE_BUILD_SHIPPING   // screenshot / lightmap debug switches, compiled out of the release build
 	TAutoConsoleVariable<float> CVarShotAfter(TEXT("ssx.World.ShotAfter"), 0.0f,
 		TEXT("Take a 1280x720 HighResShot this many seconds after the track starts, then quit (0 = off)."));
@@ -137,7 +140,8 @@ void USSXWorldPresentation::OnWorldBeginPlay(UWorld& InWorld)
 	{
 		SpawnClearShell(InWorld);
 	}
-	const int32 SoftProps = MarkSoftPropDepth(InWorld);
+	SoftDepthProps.Reset();
+	const int32 SoftProps = MarkSoftPropDepth(InWorld, &SoftDepthProps);
 	TerrainLods.Reset();
 	const int32 LodMeshes = USSXTerrainLodComponent::AttachToTerrain(InWorld, TerrainLods);
 	bActive = true;
@@ -161,7 +165,7 @@ bool USSXWorldPresentation::IsSoftBlendMaterial(const UMaterialInterface* M)
 	return N == FName(TEXT("M_SSXProp_Translucent")) || N == FName(TEXT("M_SSXProp_Translucent_TwoSided"));
 }
 
-int32 USSXWorldPresentation::MarkSoftPropDepth(UWorld& InWorld)
+int32 USSXWorldPresentation::MarkSoftPropDepth(UWorld& InWorld, TArray<TWeakObjectPtr<UStaticMeshComponent>>* OutComponents)
 {
 	// FUN_00200390 / 0x1E1F70
 	int32 N = 0;
@@ -178,6 +182,7 @@ int32 USSXWorldPresentation::MarkSoftPropDepth(UWorld& InWorld)
 			if (bSoft)
 			{
 				C->SetRenderCustomDepth(true);
+				if (OutComponents) { OutComponents->Add(C); }
 				++N;
 			}
 		}
@@ -188,6 +193,7 @@ int32 USSXWorldPresentation::MarkSoftPropDepth(UWorld& InWorld)
 void USSXWorldPresentation::Tick(float DeltaTime)
 {
 	USSXTerrainLodComponent::ApplyCVar(TerrainLods);
+	UpdateSoftDepthRange();
 	UpdateSky();
 	UpdateRiders();
 #if !UE_BUILD_SHIPPING
@@ -285,6 +291,25 @@ void USSXWorldPresentation::SpawnClearShell(UWorld& InWorld)
 	A->SetActorLabel(TEXT("SSXClearColour"));
 #endif
 	ClearShell = A;
+}
+
+void USSXWorldPresentation::UpdateSoftDepthRange()
+{
+	if (++SoftDepthFrame < 8) { return; }   // a few times a second: each change rebuilds the component's render state
+	SoftDepthFrame = 0;
+	const double Range = CVarSoftDepthRange.GetValueOnGameThread();
+	const APlayerController* PC = GetWorld()->GetFirstPlayerController();
+	if (!PC || !PC->PlayerCameraManager) { return; }
+	const FVector Cam = PC->PlayerCameraManager->GetCameraLocation();
+	for (const TWeakObjectPtr<UStaticMeshComponent>& W : SoftDepthProps)
+	{
+		UStaticMeshComponent* C = W.Get();
+		if (!C) { continue; }
+		const double Gap = FVector::Dist(C->Bounds.Origin, Cam) - C->Bounds.SphereRadius;
+		// 10 % hysteresis so a prop at the edge does not flip every update
+		const bool bWant = Range <= 0.0 || Gap < (C->bRenderCustomDepth ? Range * 1.1 : Range);
+		if (C->bRenderCustomDepth != bWant) { C->SetRenderCustomDepth(bWant); }
+	}
 }
 
 void USSXWorldPresentation::UpdateSky()
