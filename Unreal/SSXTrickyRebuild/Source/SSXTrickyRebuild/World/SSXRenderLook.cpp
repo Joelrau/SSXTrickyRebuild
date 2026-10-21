@@ -125,7 +125,8 @@ namespace SSXRenderLook
 
 	void SetFrameGeneration(bool bOn)
 	{
-		if (IConsoleVariable* V = FrameGenerationCvar()) { V->Set(bOn ? 1 : 0, ECVF_SetByGameSetting); }
+		// by code: above the off default in DefaultEngine.ini [SystemSettings], which would win over a game setting
+		if (IConsoleVariable* V = FrameGenerationCvar()) { V->Set(bOn ? 1 : 0, ECVF_SetByCode); }
 	}
 }
 

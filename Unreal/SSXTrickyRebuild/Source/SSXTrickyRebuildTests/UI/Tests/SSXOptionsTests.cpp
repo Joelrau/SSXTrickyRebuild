@@ -380,6 +380,14 @@ bool FSSXUIOptionsVideoTest::RunTest(const FString& Parameters)
 		F.Press(ESSXFeKey::Cross);
 		TestEqual(TEXT("DONE keeps Remastered"), int32(SSXRenderLook::Get()), int32(ESSXRenderLook::Remastered));
 		TestTrue(TEXT("DONE asks to save the Video settings"), F.HasHook(TEXT("saveVideo")));
+		if (SSXRenderLook::FrameGenerationAvailable())
+		{
+			// the setting outranks the off default in DefaultEngine.ini
+			SSXRenderLook::SetFrameGeneration(true);
+			TestTrue(TEXT("frame generation stays on"), SSXRenderLook::GetFrameGeneration());
+			SSXRenderLook::SetFrameGeneration(false);
+			TestFalse(TEXT("frame generation turns off"), SSXRenderLook::GetFrameGeneration());
+		}
 		TestEqual(TEXT("DONE leaves the page"), F.FE.Top()->Page, -1);
 	}
 	return true;
