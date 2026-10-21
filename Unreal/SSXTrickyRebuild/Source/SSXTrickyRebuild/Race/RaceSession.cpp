@@ -918,7 +918,8 @@ bool FRaceSession::PlaceRespawn(int32 I, FVector& OutPos, FVector& OutHeading, F
 		TArray<TPair<double, int32>> Keys;
 		for (const FRacePath& A : PathSet->AIPaths)
 		{
-			Keys.Add({ A.BoundsDistance(Q), A.Index });
+			// 0x197F08 runs 0x197F28 with the candidate filter: lines with candidate flag 0 sort last
+			Keys.Add({ A.CandidateFlag == 0 ? 1e37 : A.BoundsDistance(Q), A.Index });
 		}
 		Algo::StableSortBy(Keys, [](const TPair<double, int32>& K) { return K.Key; });
 		double Best = 1e37;
