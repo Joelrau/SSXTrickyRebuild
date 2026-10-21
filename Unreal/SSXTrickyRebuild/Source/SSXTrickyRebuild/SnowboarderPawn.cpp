@@ -487,7 +487,9 @@ void ASnowboarderPawn::RacePostFrame()
 	BoardSound->UpdateFromRider(Sim->State, float(Clock.StepSeconds));
 	CurPos = Sim->State.Position;
 	CurRot = RenderQuat(Sim->State);
-	const bool bTeleported = FVector::Dist(PrevPos, CurPos) > TeleportDistance;
+	// 0x119220 -> 0x173A60 / 0x177DB0: every respawn cuts the camera, however short the move
+	const bool bTeleported = FVector::Dist(PrevPos, CurPos) > TeleportDistance || Sim->State.RespawnSerial != LastRespawnSerial;
+	LastRespawnSerial = Sim->State.RespawnSerial;
 	if (bTeleported)
 	{
 		PrevPos = CurPos;
@@ -764,7 +766,9 @@ void ASnowboarderPawn::StepSim(int32 Steps, const FSSXPadHardware& Pad)
 		}
 		CurPos = Sim->State.Position;
 		CurRot = RenderQuat(Sim->State);
-		const bool bTeleported = FVector::Dist(PrevPos, CurPos) > TeleportDistance;
+		// 0x119220 -> 0x173A60 / 0x177DB0: every respawn cuts the camera, however short the move
+		const bool bTeleported = FVector::Dist(PrevPos, CurPos) > TeleportDistance || Sim->State.RespawnSerial != LastRespawnSerial;
+		LastRespawnSerial = Sim->State.RespawnSerial;
 		if (bTeleported)
 		{
 			PrevPos = CurPos;

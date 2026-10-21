@@ -167,6 +167,7 @@ private:
 	FVector SpawnHeading = FVector(0, 1, 0);
 
 	FVector PrevPos = FVector::ZeroVector, CurPos = FVector::ZeroVector;
+	uint32 LastRespawnSerial = 0;
 	bool bHiddenByResetFade = false;
 	FQuat PrevRot = FQuat::Identity, CurRot = FQuat::Identity;
 	FVector RenderVelocity = FVector::ZeroVector;

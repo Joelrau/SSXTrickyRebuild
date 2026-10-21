@@ -470,6 +470,7 @@ bool FSSXRaceRespawnTest::RunTest(const FString& Parameters)
 	Rec.Line.Cache = FRacePathCache();
 	Session.TrackScan(0);
 	TestTrue(TEXT("path param follows the rider"), FMath::Abs(Sim.State.PathParam - Param) < 1.0);
+	const uint32 Serial = Sim.State.RespawnSerial;
 	Sim.ForcedReset(false, TEXT("test"));
 	TestTrue(TEXT("ResetWait"), Sim.State.Control == ERiderControl::ResetWait && Sim.State.Motion == ERiderMotion::Static);
 	int32 Frames = 0, AlphaOk = 0, AlphaN = 0, FirstZero = -1;
@@ -496,6 +497,8 @@ bool FSSXRaceRespawnTest::RunTest(const FString& Parameters)
 		Frames, PlacedParam, (Sim.State.Position - (ExpP + FVector(0, 0, SSXRace::RespawnDrop))).Size(), Sim.State.Velocity.Size(),
 		LexToString(Sim.State.Motion), LexToString(Sim.State.Control)));
 	TestTrue(TEXT("respawned after 0.8 s"), Frames >= 48 && Frames <= 50);
+	// 0x119220 -> 0x173A60 / 0x177DB0: the respawn cuts the human camera (SnowboarderPawn watches the serial)
+	TestEqual(TEXT("one respawn, one camera cut"), Sim.State.RespawnSerial, Serial + 1);
 	TestTrue(TEXT("Air + NaturalAir"), Sim.State.Motion == ERiderMotion::Air && Sim.State.Control == ERiderControl::NaturalAir);
 	TestTrue(TEXT("param unchanged for an AI (advance 0)"), FMath::Abs(PlacedParam - Param) < 1.0);
 	// 0x11CAE8
