@@ -248,9 +248,11 @@ private:
 	int32 ActiveFrame[OvCount] = {};
 	int32 Blink[OvCount] = {};
 	mutable FSSXBackdrop Backdrop[OvCount];
-	mutable float Pulse = 1.f, PulseStep = 0.004f;
-	mutable float AggressionAnim = 0.f;
-	mutable float LessonPulse = 1.f, LessonPulseStep = 0.004f;
+	// Drawn pulses step once per 60 Hz frame (Tick), not per drawn frame (0x1AA630 ran at the PS2's 60 Hz).
+	mutable bool bPulseDrawn = false, bLessonPulseDrawn = false, bAggressionDrawn = false;
+	float Pulse = 1.f, PulseStep = 0.004f;
+	float AggressionAnim = 0.f;
+	float LessonPulse = 1.f, LessonPulseStep = 0.004f;
 	ISSXRaceUIHost* Host = nullptr;
 	FSSXProfile* Profile = nullptr;
 	int32 LocalHudDetail = 0;

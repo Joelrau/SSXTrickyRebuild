@@ -207,8 +207,7 @@ void FSSXOverlayManager::DrawLesson(FSSXFeDrawList& D) const
 		Txt(D, EFont::Title, 212.f, 110.f, 1.12f, CurChapter < M.Chapter ? LockedGrey : LessonGold, ChapterStr, L6);
 		TxtC(D, EFont::Title, 318.f, 155.f, 0.61f, LessonGold, TrickNo, L6);
 		// 0x36E508 / 0x36E520 / 0x36E538
-		if (LessonPulse > 1.05f || LessonPulse < 0.95f) { LessonPulseStep = -LessonPulseStep; }
-		LessonPulse += LessonPulseStep;
+		bLessonPulseDrawn = true;
 		const float Pl = LessonPulse;
 		static const float Fx[5] = { 0.166f, 0.333f, 0.5f, 0.666f, 0.833f };
 		float Tw[5] = { 90.f, 90.f, 90.f, 90.f, 90.f }, Th[5] = { 70.f, 70.f, 70.f, 70.f, 70.f };
