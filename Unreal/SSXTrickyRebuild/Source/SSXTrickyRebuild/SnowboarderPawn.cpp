@@ -454,6 +454,19 @@ void ASnowboarderPawn::RaceSimFrame()
 	FeedRumble();
 }
 
+void ASnowboarderPawn::HoldPadFrame()
+{
+	if (!Sim || bAIRider || !Driver)
+	{
+		return;
+	}
+	const APlayerController* PC = Cast<APlayerController>(GetController());
+	const UEnhancedPlayerInput* PlayerInput = PC ? Cast<UEnhancedPlayerInput>(PC->PlayerInput) : nullptr;
+	PendingPad = SSXInput::ReadHardware(PlayerInput, InputBindings);
+	if (TestPadScript) { TestPadScript(PendingPad); }
+	Mapper.Step(PadDevice.Update(PendingPad));
+}
+
 void ASnowboarderPawn::StepCameraReverse(bool bReplayFlag)
 {
 	if (bAIRider || !RaceCamera)

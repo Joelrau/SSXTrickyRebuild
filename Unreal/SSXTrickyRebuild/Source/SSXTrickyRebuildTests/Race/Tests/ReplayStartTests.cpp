@@ -10,6 +10,7 @@
 #include "Misc/AutomationTest.h"
 #include "TestSkip.h"
 #include "Misc/Paths.h"
+#include "Camera/ReplayCamera.h"
 #include "Particles/SSXParticleWorld.h"
 #include "Race/GameRng.h"
 #include "Race/RaceRules.h"
@@ -80,6 +81,10 @@ namespace SSXReplayStart
 		uint32 LastPlay = MAX_uint32;
 		uint32 MenuFrame = 0;
 		int32 MenuParticleFrame = 0;
+		int32 JumpPresses = 0;
+		uint32 PausedFrame = 0;
+		FVector CamBefore = FVector::ZeroVector;
+		int32 ModeBefore = 0;
 		bool bPrevFixed = false;
 		double PrevFixedDt = 0.0;
 		TArray<FSample> Live;
@@ -168,6 +173,36 @@ namespace SSXReplayStart
 			R.LastFrame = Ses.GetFrame();
 			R.Live.Add(Take(*Race, *O));
 			if (Rp.GetRecordFrame() < uint32(Samples + 40)) return false;
+			R.Stage = 8;
+			return false;
+		}
+		case 8:
+		{
+			// 0x17CB40 / 0x17A740: the pad translate also runs while paused, so X pressed in the pause menu (Continue) is
+			// already held when the rider steps again: no jump press. Paused frames: HoldPadFrame with X held.
+			ASnowboarderPawn* P = Race ? Race->GetPlayerPawn() : nullptr;
+			if (!P || !P->GetSim()) return Finish(TEXT("no rider"));
+			if (P->GetSim()->State.Motion != ERiderMotion::Ground) return ++R.Frames > 600 ? Finish(TEXT("rider never on the ground")) : false;
+			P->TestPadScript = [](FSSXPadHardware& H) { H.Buttons |= SSXPadButton::Cross; };
+			P->HoldPadFrame();
+			P->HoldPadFrame();
+			R.JumpPresses = 0;
+			Race->TestOnFrame = [&R](ASSXRaceManager& M)
+			{
+				const ASnowboarderPawn* Rider = M.GetPlayerPawn();
+				if (Rider && Rider->GetSim() && Rider->GetSim()->State.Motion == ERiderMotion::Ground && (Rider->GetLastWord() & 2u)) { ++R.JumpPresses; }
+			};
+			R.LastFrame = Race->GetSession()->GetFrame();
+			R.Stage = 9;
+			return false;
+		}
+		case 9:
+		{
+			if (!Race) return Finish(TEXT("race gone"));
+			if (int32(Race->GetSession()->GetFrame()) < R.LastFrame + 4) return false;
+			Test->TestEqual(TEXT("X held across the pause (Continue): no jump press when the rider steps again"), R.JumpPresses, 0);
+			Race->GetPlayerPawn()->TestPadScript = nullptr;
+			Race->TestOnFrame = nullptr;
 			Race->GetReplayMutable().EndRecording();
 			R.Stage = 2;
 			return false;
@@ -244,9 +279,34 @@ namespace SSXReplayStart
 					M ? (M->IsPlaying() ? (M->bIsPaused ? TEXT("paused") : TEXT("playing")) : TEXT("stopped")) : TEXT("none")));
 				Test->TestTrue(TEXT("the song plays again after the replay menu"), !bSong || (!A->GetPathfinderPlayer()->IsPaused() && M && M->IsPlaying() && !M->bIsPaused));
 				Test->TestFalse(TEXT("game audio not left paused"), A && A->IsMoviePaused());
-				return Finish();
+				Race->GetReplayMutable().SetCommand(SSXReplay::CmdPause);
+				R.Frames = 0;
+				R.Stage = 7;
+				return false;
 			}
 			return ++R.Frames > 120 ? Finish(TEXT("the replay did not continue after the menu closed")) : false;
+		case 7:
+		{
+			// 0x1784D0: a paused replay (not modal) keeps its camera control running; a new camera style shows at once
+			if (!Race) return Finish(TEXT("race gone"));
+			FSSXReplayCamera* Cam = Race->GetReplayCamera();
+			if (!Cam) return Finish(TEXT("no replay camera"));
+			if (Race->GetReplay().GetState() != SSXReplay::Paused) return ++R.Frames > 120 ? Finish(TEXT("the replay did not pause")) : false;
+			if (R.Frames < 1000)
+			{
+				R.PausedFrame = Race->GetReplay().GetPlayFrame();
+				R.CamBefore = Cam->GetCam().GetPosition();
+				R.ModeBefore = Cam->GetMode();
+				Cam->NextMode();
+				R.Frames = 1000;
+				return false;
+			}
+			if (++R.Frames < 1030) return false;
+			Test->TestNotEqual(TEXT("paused replay: the camera style changed"), Cam->GetMode(), R.ModeBefore);
+			Test->TestTrue(TEXT("paused replay: the camera moves to the new style"), !Cam->GetCam().GetPosition().Equals(R.CamBefore, 1.0));
+			Test->TestEqual(TEXT("paused replay: the replay frame holds"), Race->GetReplay().GetPlayFrame(), R.PausedFrame);
+			return Finish();
+		}
 		default:
 			return Finish(TEXT("bad stage"));
 		}
