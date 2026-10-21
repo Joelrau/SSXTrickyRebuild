@@ -769,6 +769,32 @@ bool FSSXTrackMegaplexLaunchTest::RunTest(const FString&)
 		FVector2D(On.Sim.State.Velocity).Size(), Off.Sim.State.Position.Z, Off.Sim.State.Velocity.Z, Dz));
 	TestTrue(TEXT("launched: rising after 1 s"), On.Sim.State.Velocity.Z > 1000.0);
 	TestTrue(TEXT("launched: higher than the same ride with 0 laps left"), Dz > 300.0);
+	// 0x118C08 -> 0x197F08: a reset above the boost exit respawns on a candidate AI line (the snow run ahead), not on the
+	// candidate-flag-0 line 60 the line follow picked during the launch
+	for (int32 F = 0; F < 150; ++F)
+	{
+		On.Fx.Frame();
+		On.Sim.Step(FRiderInputWord());
+		Session.Tick();
+	}
+	const FRacerRecord& Rr = Session.GetRacer(0);
+	const int32 LineBefore = Rr.Race.Path;
+	const FVector Above = On.Sim.State.Position;
+	On.Sim.ForcedReset(false, TEXT("test"));
+	const uint32 Serial = On.Sim.State.RespawnSerial;
+	for (int32 F = 0; On.Sim.State.RespawnSerial == Serial && F < 120; ++F)
+	{
+		On.Fx.Frame();
+		On.Sim.Step(FRiderInputWord());
+		Session.Tick();
+	}
+	const FRacePath& Picked = Session.Paths().AIPaths[Rr.Race.Path];
+	Report(this, FString::Printf(TEXT("reset at (%.0f %.0f %.0f) on AI line %d: respawn on line %d (candidate %d) param %.0f at (%.0f %.0f %.0f)"),
+		Above.X, Above.Y, Above.Z, LineBefore, Picked.Index, Picked.CandidateFlag, Rr.Race.Param,
+		On.Sim.State.Position.X, On.Sim.State.Position.Y, On.Sim.State.Position.Z));
+	TestEqual(TEXT("respawned"), On.Sim.State.RespawnSerial, Serial + 1);
+	TestEqual(TEXT("respawn on a candidate AI line"), Picked.CandidateFlag, 1);
+	TestTrue(TEXT("respawn ahead of the boost exit, within 50 m"), (On.Sim.State.Position - Above).Size() < 5000.0);
 	return true;
 }
 
