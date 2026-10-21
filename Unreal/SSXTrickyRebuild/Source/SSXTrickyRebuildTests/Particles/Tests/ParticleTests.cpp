@@ -452,6 +452,24 @@ bool FSSXParticlesSnowfallTest::RunTest(const FString&)
 	TestTrue(TEXT("flake colour 128, alpha <= 24"), bAlpha);
 	TestTrue(TEXT("fade over 2100..2450 cm"), bFade);
 	TestTrue(TEXT("flakes drawn"), Out.Num() > 1000);
+	{
+		// 0x1C9740: view-culled cubes keep every flake inside the view cone
+		const FVector Dir(1.0, 0.0, 0.0);
+		const double Cone = FMath::DegreesToRadians(45.0);
+		TArray<FSprite> Culled;
+		S.Gather(Cam, Culled, &Dir, Cone);
+		int32 Inside = 0, Kept = 0;
+		for (const FSprite& F : Out)
+		{
+			const FVector To = (F.Pos - Cam).GetSafeNormal();
+			if (FVector::DotProduct(To, Dir) < FMath::Cos(Cone)) { continue; }
+			++Inside;
+			Kept += Culled.ContainsByPredicate([&F](const FSprite& C) { return C.Pos.Equals(F.Pos, 1e-6); }) ? 1 : 0;
+		}
+		TestEqual(TEXT("view cull keeps every flake in the cone"), Kept, Inside);
+		TestTrue(TEXT("view cull drops most flakes outside it"), Culled.Num() < Out.Num() / 2);
+		AddInfo(FString::Printf(TEXT("view cull: %d of %d flakes (%d inside the cone)"), Culled.Num(), Out.Num(), Inside));
+	}
 	// fall: (0, 0, -300) cm/s, wrapping every 700 cm (140 frames)
 	TArray<FSprite> A, B;
 	S.Gather(Cam, A);

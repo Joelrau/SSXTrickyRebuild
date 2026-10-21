@@ -945,7 +945,14 @@ void USSXParticleWorld::Render()
 			if (PC && PC->PlayerCameraManager)
 			{
 				Scratch.Reset();
-				Snow.Gather(SSXSim::UnrealToGame(PC->PlayerCameraManager->GetCameraLocation()), Scratch);
+				// the view cone around the camera's frustum (its half diagonal angle)
+				const APlayerCameraManager* Pcm = PC->PlayerCameraManager;
+				int32 Vx = 16, Vy = 9;
+				PC->GetViewportSize(Vx, Vy);
+				const double TanH = FMath::Tan(FMath::DegreesToRadians(double(Pcm->GetFOVAngle()) * 0.5));
+				const double TanV = TanH * double(FMath::Max(Vy, 1)) / double(FMath::Max(Vx, 1));
+				const FVector ViewDir = SSXSim::UnrealToGame(Pcm->GetCameraRotation().Vector());
+				Snow.Gather(SSXSim::UnrealToGame(Pcm->GetCameraLocation()), Scratch, &ViewDir, FMath::Atan(FMath::Sqrt(TanH * TanH + TanV * TanV)));
 				if (FSSXSpriteBatch* Out = Bt.For(SpriteMaterial(FSnowfall::Texture, BlendAdditive)))
 				{
 					for (const FSprite& S : Scratch) { PushSprite(*Out, S.Pos, S.HalfSize, GsColor(S.Rgba)); }
