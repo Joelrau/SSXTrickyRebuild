@@ -51,6 +51,30 @@ def build_terrain_shadow(path, mesh):
         unreal.log_warning(f"[ssx] terrain shadow {shadow_pkg}: still past {NANITE_MAX_SECTIONS} sections")
 
 
+def flag_translucent_components(name):
+    """A component with a translucent slot never draws as Nanite (Nanite draws opaque / masked only): Disallow Nanite in
+    the map, so the engine logs no invalid-material warning for it. Its mesh keeps the Nanite data for the Remastered
+    shadow twin (USSXRemasterWorld::ApplyTranslucentProps)."""
+    path = f"/Game/Maps/{name}"
+    if not assets.does_asset_exist(path):
+        return
+    world = unreal.EditorLoadingAndSavingUtils.load_map(path)
+    actors = unreal.get_editor_subsystem(unreal.EditorActorSubsystem).get_all_level_actors()
+    solid = (unreal.BlendMode.BLEND_OPAQUE, unreal.BlendMode.BLEND_MASKED)
+    changed = flagged = 0
+    for actor in actors:
+        for c in actor.get_components_by_class(unreal.StaticMeshComponent):
+            mats = [c.get_material(i) for i in range(c.get_num_materials())]
+            want = any(m is not None and m.get_blend_mode() not in solid for m in mats)
+            flagged += want
+            if bool(c.get_editor_property("disallow_nanite")) != want:
+                c.set_editor_property("disallow_nanite", want)
+                changed += 1
+    if changed:
+        unreal.EditorLoadingAndSavingUtils.save_map(world, path)
+    unreal.log(f"[ssx] {name}: {flagged} components with a translucent slot drawn non-Nanite ({changed} changed)")
+
+
 def main():
     flag_classic_materials()
     maps = sys.argv[1:] or ["Alaska", "Aloha", "Elysium", "Gari", "Megaple", "Merquer", "Mesa", "Pipe", "Snow", "Trick", "Untrack"]
@@ -76,6 +100,7 @@ def main():
             assets.save_asset(path, only_if_is_dirty=False)
             done += 1
         unreal.log(f"[ssx] nanite {name}: {done} meshes enabled in {time.time() - t0:.0f} s")
+        flag_translucent_components(name)
 
 
 main()

@@ -62,6 +62,10 @@
 
 namespace
 {
+	TAutoConsoleVariable<float> CVarSunMinElevation(TEXT("ssx.Render.SunMinElevation"), 35.f,
+		TEXT("Remastered look: lowest sun elevation in degrees. The sun takes the track's rider light direction, which on some ")
+		TEXT("tracks is nearly level (Tricky 5, Aloha 13, Elysium 17); raised to this, distant terrain casts no course-long shadows."));
+
 	const UMaterial* RootOf(const UMaterialInterface* M)
 	{
 		while (const UMaterialInstance* MI = Cast<UMaterialInstance>(M)) { M = MI->Parent; }
@@ -767,7 +771,7 @@ void USSXRemasterWorld::ApplyTranslucentProps()
 	{
 		UStaticMeshComponent* C = *It;
 		const UStaticMesh* Mesh = C->GetWorld() == GetWorld() && C->IsRegistered() ? C->GetStaticMesh() : nullptr;
-		if (Mesh && Mesh->HasValidNaniteData() && !C->bDisallowNanite) { Found.Add(C); }
+		if (Mesh && Mesh->HasValidNaniteData()) { Found.Add(C); }   // also those the map already marks (Scripts/enable_nanite.py)
 	}
 	int32 Twins = 0;
 	for (UStaticMeshComponent* C : Found)
@@ -1166,6 +1170,17 @@ void USSXRemasterWorld::Apply()
 	{
 		const FSSXLight& L = Lights[Sun];
 		SunDir = SSXSim::GameToUnreal(L.Direction).GetSafeNormal();
+		const double Elevation = FMath::RadiansToDegrees(FMath::Asin(FMath::Clamp(-SunDir.Z, -1.0, 1.0)));
+		const double MinElevation = CVarSunMinElevation.GetValueOnGameThread();
+		const FVector2D Flat(SunDir.X, SunDir.Y);
+		if (Elevation < MinElevation && !Flat.IsNearlyZero())
+		{
+			const double R = FMath::DegreesToRadians(MinElevation);
+			const FVector2D H = Flat.GetSafeNormal() * FMath::Cos(R);
+			SunDir = FVector(H.X, H.Y, -FMath::Sin(R));
+		}
+		UE_LOG(LogSSX, Display, TEXT("[remaster] sun from light %d: elevation %.1f deg (drawn at %.1f)"), Sun, Elevation,
+			FMath::RadiansToDegrees(FMath::Asin(-SunDir.Z)));
 		const double Max = FMath::Max3(L.Colour.X, L.Colour.Y, L.Colour.Z);
 		if (Max > 0.0)
 		{
