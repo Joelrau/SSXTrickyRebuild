@@ -8,6 +8,9 @@
 #include "UI/SSXFrontEndData.h"
 #include "World/SSXRenderLook.h"
 #include "HAL/IConsoleManager.h"
+#include "Engine/Engine.h"
+#include "GameFramework/GameUserSettings.h"
+#include "Misc/App.h"
 
 namespace
 {
@@ -2019,6 +2022,11 @@ void FSSXFrontEnd::OptionsSync(FSSXFeState& S)
 	O.Bar[2][5] = St.Brightness;
 	O.List[SSXFeOptions::VideoPage][0] = int32(SSXRenderLook::Get());
 	O.List[SSXFeOptions::VideoPage][1] = SSXRenderLook::GetQuality();
+	if (const UGameUserSettings* G = GEngine ? GEngine->GetGameUserSettings() : nullptr)
+	{
+		O.List[SSXFeOptions::VideoPage][2] = SSXFeOptions::ResolutionIndex(G->GetScreenResolution());
+		O.List[SSXFeOptions::VideoPage][3] = FMath::Clamp(int32(G->GetFullscreenMode()), 0, 2);
+	}
 }
 
 void FSSXFrontEnd::OptionsDiagram(FSSXFeState& S)
@@ -2092,6 +2100,20 @@ void FSSXFrontEnd::OptionsCommit(FSSXFeState& S, int32 P)
 		SSXRenderLook::Set(ESSXRenderLook(S.Opt.List[P][0]));
 		SSXRenderLook::SetQuality(S.Opt.List[P][1]);
 		SoundHooks.Add(TEXT("saveVideo"));
+		UGameUserSettings* G = GEngine ? GEngine->GetGameUserSettings() : nullptr;
+		const TArray<FIntPoint>& Res = SSXFeOptions::Resolutions();
+		if (G && Res.IsValidIndex(S.Opt.List[P][2]) && FApp::CanEverRender() && !GIsAutomationTesting)
+		{
+			const FIntPoint R = Res[S.Opt.List[P][2]];
+			const EWindowMode::Type Mode = EWindowMode::ConvertIntToWindowMode(FMath::Clamp(S.Opt.List[P][3], 0, 2));
+			if (G->GetScreenResolution() != R || G->GetFullscreenMode() != Mode)
+			{
+				G->SetScreenResolution(R);
+				G->SetFullscreenMode(Mode);
+				G->ApplyResolutionSettings(false);
+				G->SaveSettings();
+			}
+		}
 		return;
 	}
 	if (!Profile)

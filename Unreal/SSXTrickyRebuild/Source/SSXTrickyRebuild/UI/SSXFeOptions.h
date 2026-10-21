@@ -31,6 +31,10 @@ namespace SSXFeOptions
 	};
 
 	SSXTRICKYREBUILD_API const TArray<FRow>& PageRows(int32 Page);
+	/** Video page rows 2 / 3 (PC only): the display's resolutions (largest last) and the window modes
+	 *  (0 fullscreen, 1 windowed fullscreen, 2 windowed: EWindowMode order). */
+	SSXTRICKYREBUILD_API const TArray<FIntPoint>& Resolutions();
+	SSXTRICKYREBUILD_API int32 ResolutionIndex(const FIntPoint& Res);
 	/** Top-list items and page titles: 3608 Sound, 176 Configure Controller, 186 Game Options, 204 Save/Load, 180 Credits
 	 *  (vfunc_12 0x2A8A30 writes them to state +0x7C + 12 i). */
 	SSXTRICKYREBUILD_API int32 PageTitleLoc(int32 Page);

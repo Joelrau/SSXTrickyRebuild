@@ -1,5 +1,39 @@
 #include "UI/SSXFeOptions.h"
 
+#include "Kismet/KismetSystemLibrary.h"
+
+const TArray<FIntPoint>& SSXFeOptions::Resolutions()
+{
+	static const TArray<FIntPoint> All = []()
+	{
+		TArray<FIntPoint> R;
+		UKismetSystemLibrary::GetSupportedFullscreenResolutions(R);
+		if (R.Num() == 0)
+		{
+			R = { { 1280, 720 }, { 1600, 900 }, { 1920, 1080 }, { 2560, 1440 }, { 3840, 2160 } };
+		}
+		R.RemoveAll([](const FIntPoint& P) { return P.X < 640 || P.Y < 480; });
+		R.Sort([](const FIntPoint& A, const FIntPoint& B) { return A.X != B.X ? A.X < B.X : A.Y < B.Y; });
+		TArray<FIntPoint> Unique;
+		for (const FIntPoint& P : R) { Unique.AddUnique(P); }
+		return Unique;
+	}();
+	return All;
+}
+
+int32 SSXFeOptions::ResolutionIndex(const FIntPoint& Res)
+{
+	const TArray<FIntPoint>& All = Resolutions();
+	int32 Best = All.Num() - 1;
+	int64 BestD = MAX_int64;
+	for (int32 I = 0; I < All.Num(); ++I)
+	{
+		const int64 D = FMath::Abs(int64(All[I].X) * All[I].Y - int64(Res.X) * Res.Y) + FMath::Abs(All[I].X - Res.X);
+		if (D < BestD) { BestD = D; Best = I; }
+	}
+	return FMath::Max(Best, 0);
+}
+
 const TArray<SSXFeOptions::FRow>& SSXFeOptions::PageRows(int32 Page)
 {
 	auto List = [](int32 Id, int32 Loc, TArray<FValue> V) { FRow R; R.Id = Id; R.Loc = Loc; R.Kind = EKind::List; R.Values = MoveTemp(V); return R; };
@@ -41,7 +75,15 @@ const TArray<SSXFeOptions::FRow>& SSXFeOptions::PageRows(int32 Page)
 		Look.Text = TEXT("LOOK");
 		FRow Quality = List(1, -1, { { 0, -1, TEXT("LOW") }, { 1, -1, TEXT("MEDIUM") }, { 2, -1, TEXT("HIGH") }, { 3, -1, TEXT("EPIC") } });
 		Quality.Text = TEXT("QUALITY");
-		return TArray<FRow>{ Look, Quality, Done() };
+		static TArray<FString> ResText;
+		for (const FIntPoint& R : Resolutions()) { ResText.Add(FString::Printf(TEXT("%dx%d"), R.X, R.Y)); }
+		TArray<FValue> ResValues;
+		for (int32 I = 0; I < ResText.Num(); ++I) { ResValues.Add({ I, -1, *ResText[I] }); }
+		FRow Res = List(2, -1, MoveTemp(ResValues));
+		Res.Text = TEXT("RESOLUTION");
+		FRow Mode = List(3, -1, { { 0, -1, TEXT("FULLSCREEN") }, { 1, -1, TEXT("BORDERLESS") }, { 2, -1, TEXT("WINDOWED") } });
+		Mode.Text = TEXT("DISPLAY");
+		return TArray<FRow>{ Look, Quality, Res, Mode, Done() };
 	}();
 	static const TArray<FRow> None;
 	switch (Page)
@@ -71,6 +113,8 @@ const TCHAR* SSXFeOptions::HelpText(int32 Page, int32 ItemId)
 	if (Page == -1 && ItemId == VideoPage) { return TEXT("Change the PC display settings."); }
 	if (Page == VideoPage && ItemId == 0) { return TEXT("Classic: the original look. Remastered: modern lighting and materials."); }
 	if (Page == VideoPage && ItemId == 1) { return TEXT("Detail of the Remastered look. Low has no global illumination."); }
+	if (Page == VideoPage && ItemId == 2) { return TEXT("Screen resolution, applied with DONE. Borderless always uses the desktop resolution."); }
+	if (Page == VideoPage && ItemId == 3) { return TEXT("Fullscreen, borderless window over the desktop, or a window. Applied with DONE."); }
 	return nullptr;
 }
 
