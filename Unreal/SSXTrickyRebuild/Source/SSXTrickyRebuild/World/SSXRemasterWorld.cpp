@@ -764,7 +764,7 @@ void USSXRemasterWorld::ApplyTranslucentProps()
 	{
 		UStaticMeshComponent* C = *It;
 		const UStaticMesh* Mesh = C->GetWorld() == GetWorld() && C->IsRegistered() ? C->GetStaticMesh() : nullptr;
-		if (Mesh && Mesh->IsNaniteEnabled() && !C->bDisallowNanite) { Found.Add(C); }
+		if (Mesh && Mesh->HasValidNaniteData() && !C->bDisallowNanite) { Found.Add(C); }
 	}
 	int32 Twins = 0;
 	for (UStaticMeshComponent* C : Found)
