@@ -338,13 +338,8 @@ void USSXWorldPresentation::UpdateRiders()
 		const SSXSettings::FWidescreenView Ws = SSXSettings::WidescreenView(FrontEndSub ? FrontEndSub->Profile.Settings.Widescreen : 0);
 		RiderGuard = SSXRiderDepth::GuardNdc(Ws.ViewTop, Ws.ViewHeight);
 	}
-	for (TActorIterator<AActor> It(GetWorld()); It; ++It)
-	{
-		if (It->IsA<ASnowboarderPawn>() || It->IsA<ASSXFeRiderActor>())
-		{
-			LightActor(**It);
-		}
-	}
+	for (TActorIterator<ASnowboarderPawn> It(GetWorld()); It; ++It) { LightActor(**It); }
+	for (TActorIterator<ASSXFeRiderActor> It(GetWorld()); It; ++It) { LightActor(**It); }
 }
 
 void USSXWorldPresentation::LightActor(AActor& Actor)
