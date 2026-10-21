@@ -307,7 +307,9 @@ namespace SSXParticles
 		void Init(double X, double R1, double R2, TFunctionRef<double()> Rng);
 		void Frame() { Offset = FMath::Fmod(Offset + FallSpeed * Frame_(), Wrap); }
 		static int32 FlakesPerSlot(double I) { return int32(I * Cube * Cube * Cube / 1.0e6); }
-		void Gather(const FVector& Camera, TArray<FSprite>& Out) const;
+		/** The flakes of the cubes around the camera. With a view direction (unit) and the view cone's half angle (rad),
+		 *  only cubes whose bounding sphere touches the cone (the original's octree is culled to the view frustum). */
+		void Gather(const FVector& Camera, TArray<FSprite>& Out, const FVector* ViewDir = nullptr, double ConeHalfAngle = 0.0) const;
 		double GetIntensity() const { return Intensity; }
 
 	private:

@@ -765,7 +765,7 @@ namespace SSXParticles
 		bInit = true;
 	}
 
-	void FSnowfall::Gather(const FVector& Cam, TArray<FSprite>& Out) const
+	void FSnowfall::Gather(const FVector& Cam, TArray<FSprite>& Out, const FVector* ViewDir, double ConeHalfAngle) const
 	{
 		if (!bInit)
 		{
@@ -780,10 +780,18 @@ namespace SSXParticles
 		{
 			const FIntVector I = C + FIntVector(Dx, Dy, Dz);
 			const FVector Origin(I.X * Cube, I.Y * Cube, I.Z * Cube);
-			const double D = FVector::Dist(Origin + FVector(Cube * 0.5), Cam);
+			const FVector ToCube = Origin + FVector(Cube * 0.5) - Cam;
+			const double D = ToCube.Size();
 			if (D > DrawRadius)
 			{
 				continue;
+			}
+			// 0x1C9740: frustum-culled octree; here the cube's bounding sphere against the view cone
+			constexpr double CubeRadius = Cube * 0.8660254;
+			if (ViewDir && D > CubeRadius)
+			{
+				const double Angle = FMath::Acos(FMath::Clamp(FVector::DotProduct(ToCube / D, *ViewDir), -1.0, 1.0));
+				if (Angle > ConeHalfAngle + FMath::Asin(CubeRadius / D)) { continue; }
 			}
 			const double Fade = D <= FadeStart ? 1.0 : (DrawRadius - D) / (DrawRadius - FadeStart);
 			const int32 S = (I.X & 1) | ((I.Y & 1) << 1) | ((I.Z & 1) << 2);
