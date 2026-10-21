@@ -63,15 +63,23 @@ namespace
 				const FVector3f R = FVector3f(View->GetViewRight());
 				const FVector3f U = FVector3f(View->GetViewUp());
 				const FVector3f N = FVector3f(-View->GetViewDirection());
-				for (const FProxyBatch& B : Batches)
+				// One builder per vertex layout (1 or 4 texcoords): its buffers and vertex factory are made once per view and
+				// every batch draws a range of them, in batch order (the translucent sprites keep their order).
+				FDynamicMeshBuilder Builders[2] = { FDynamicMeshBuilder(View->GetFeatureLevel(), 1), FDynamicMeshBuilder(View->GetFeatureLevel(), 4) };
+				int32 Verts[2] = { 0, 0 }, Tris[2] = { 0, 0 };
+				TArray<TPair<int32, FDynamicMeshDrawOffset>, TInlineAllocator<32>> Draws;
+				for (int32 BI = 0; BI < Batches.Num(); ++BI)
 				{
+					const FProxyBatch& B = Batches[BI];
 					if (!B.Material || (B.Sprites.Num() == 0 && B.Strips.Num() == 0))
 					{
 						continue;
 					}
-					FDynamicMeshBuilder MB(View->GetFeatureLevel(), B.bOcclusion ? 4 : 1);
-					MB.ReserveVertices(B.Sprites.Num() * 4);
-					MB.ReserveTriangles(B.Sprites.Num() * 2);
+					const int32 K = B.bOcclusion ? 1 : 0;
+					FDynamicMeshBuilder& MB = Builders[K];
+					FDynamicMeshDrawOffset Off;
+					Off.FirstIndex = uint32(Tris[K] * 3);
+					Off.MinVertexIndex = uint32(Verts[K]);
 					for (const FSSXSpriteVertexData& S : B.Sprites)
 					{
 						const FVector3f Rh = R * S.Half, Uh = U * (S.HalfY >= 0.f ? S.HalfY : S.Half);
@@ -81,6 +89,8 @@ namespace
 						MB.AddVertex(WithOcc(FDynamicMeshVertex(S.Pos - Rh - Uh, FVector3f(R), N, FVector2f(S.UV.X, S.UV.W), S.Color), S.Occ, S.Block));
 						MB.AddTriangle(V0, V0 + 1, V0 + 2);
 						MB.AddTriangle(V0, V0 + 2, V0 + 3);
+						Verts[K] += 4;
+						Tris[K] += 2;
 					}
 					for (const TArray<FSSXStripVertex>& St : B.Strips)
 					{
@@ -98,9 +108,20 @@ namespace
 						{
 							MB.AddTriangle(First + I, First + I + 1, First + I + 2);
 							MB.AddTriangle(First + I + 1, First + I + 3, First + I + 2);
+							Tris[K] += 2;
 						}
+						Verts[K] += NV;
 					}
-					MB.GetMesh(FMatrix::Identity, B.Material, SDPG_World, true, false, ViewIndex, Collector);
+					Off.NumPrimitives = uint32(Tris[K]) - Off.FirstIndex / 3;
+					Off.MaxVertexIndex = uint32(FMath::Max(Verts[K] - 1, 0));
+					if (Off.NumPrimitives > 0) { Draws.Add({ BI * 2 + K, Off }); }
+				}
+				FDynamicMeshBuilderSettings Settings;
+				Settings.bDisableBackfaceCulling = true;
+				Settings.bReceivesDecals = false;
+				for (const TPair<int32, FDynamicMeshDrawOffset>& D : Draws)
+				{
+					Builders[D.Key & 1].GetMesh(FMatrix::Identity, Batches[D.Key / 2].Material, SDPG_World, Settings, &D.Value, ViewIndex, Collector);
 				}
 			}
 		}
