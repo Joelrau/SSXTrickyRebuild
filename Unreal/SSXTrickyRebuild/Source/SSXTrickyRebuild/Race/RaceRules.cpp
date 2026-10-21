@@ -218,6 +218,33 @@ namespace SSXRace
 		return Ahead;
 	}
 
+	double RespawnZoneParam(const FRacePath& Path, double Param)
+	{
+		const float P = float(Param);
+		float Ahead = P, Moved = P;
+		for (const FRacePathEvent& E : Path.Events)
+		{
+			const float S = float(E.Start), En = float(E.End);
+			if (P < S || En < P)
+			{
+				continue;
+			}
+			if (E.Type == SSXRaceEvent::AIJump)
+			{
+				Ahead = FMath::Max(Ahead, En);
+			}
+			else if (E.Type == SSXRaceEvent::AI103)
+			{
+				Moved = FMath::Min(Moved, S);
+			}
+			else if (E.Type == SSXRaceEvent::AI105)
+			{
+				Moved = FMath::Max(Moved, En);
+			}
+		}
+		return Moved == P ? Ahead : Moved;
+	}
+
 	bool RespawnPoint(const FRacePath& Path, double Param, TConstArrayView<FCrowdRacer> Others, FVector& OutPos,
 	                  double& OutHeading, FVector& OutVel, TFunctionRef<bool(const FVector&)> SphereFree)
 	{

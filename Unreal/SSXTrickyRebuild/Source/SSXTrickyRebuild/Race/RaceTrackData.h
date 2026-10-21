@@ -19,6 +19,7 @@ namespace SSXRaceEvent
 		AIJump = 25,   // file 100: take-off zone; param bit 0 flip, bit 1 spin, >> 2 km/h
 		AISpeed = 26,   // file 101: speed request km/h
 		AI102 = 27,
+		AI103 = 28,
 		AINoReset = 29,
 		AI105 = 30,
 		Repick = 31,
