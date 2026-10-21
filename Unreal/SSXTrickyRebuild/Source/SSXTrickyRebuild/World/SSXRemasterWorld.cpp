@@ -344,6 +344,7 @@ void USSXRemasterWorld::Tick(float DeltaTime)
 		}
 		SyncFollowers();
 		SyncShadowTwins();
+		SyncTerrainShadows();
 		UpdateFrontEndSpots();
 		UpdateDepthOfField();
 		UpdateTrails();
@@ -812,6 +813,22 @@ void USSXRemasterWorld::ApplyTranslucentProps()
 	UE_LOG(LogSSX, Display, TEXT("[remaster] %d props with a translucent layer drawn non-Nanite, %d Nanite shadow twins"), TranslucentProps.Num(), Twins);
 }
 
+void USSXRemasterWorld::SyncTerrainShadows()
+{
+	for (const FShadowFlags& F : TerrainShadows)
+	{
+		UPrimitiveComponent* M = F.Component.Get();
+		UPrimitiveComponent* Caster = F.Twin.IsValid() ? static_cast<UPrimitiveComponent*>(F.Twin.Get()) : M;
+		if (!M || !Caster) { continue; }
+		const bool bCast = M->GetOwner() && !M->GetOwner()->IsHidden();
+		if (Caster->CastShadow != bCast)
+		{
+			Caster->SetCastShadow(bCast);
+			UE_LOG(LogSSX, Display, TEXT("[remaster] terrain shadow %s: %s"), *GetNameSafe(Cast<UStaticMeshComponent>(M) ? Cast<UStaticMeshComponent>(M)->GetStaticMesh() : nullptr), bCast ? TEXT("on") : TEXT("off (hidden)"));
+		}
+	}
+}
+
 void USSXRemasterWorld::SyncShadowTwins()
 {
 	for (const FTranslucentProp& P : TranslucentProps)
@@ -1048,20 +1065,14 @@ void USSXRemasterWorld::Apply()
 	{
 		UStaticMeshComponent* M = It->GetWorld() == W ? It->Replaced.Get() : nullptr;
 		if (!M) { continue; }
-		TerrainShadows.Add({ M, M->CastShadow != 0, M->bCastHiddenShadow != 0 });
-		if (UStaticMeshComponent* T = !M->HasValidNaniteData() ? MakeTerrainShadowTwin(*M) : nullptr)
-		{
-			// Past Nanite's section limit the full mesh would cast through the slow non-Nanite VSM path; its shadow copy casts.
-			TerrainShadowTwins.Add(T);
-			M->SetCastShadow(false);
-		}
-		else
-		{
-			M->SetCastShadow(true);
-			M->bCastHiddenShadow = true;
-		}
+		FShadowFlags& F = TerrainShadows.Add_GetRef({ M, M->CastShadow != 0, M->bCastHiddenShadow != 0 });
+		// Past Nanite's section limit the full mesh would cast through the slow non-Nanite VSM path; its shadow copy casts.
+		F.Twin = !M->HasValidNaniteData() ? MakeTerrainShadowTwin(*M) : nullptr;
+		M->SetCastShadow(false);
+		M->bCastHiddenShadow = !F.Twin.IsValid();
 		M->MarkRenderStateDirty();
 	}
+	SyncTerrainShadows();
 
 	for (TActorIterator<APostProcessVolume> It(W); It; ++It)
 	{
@@ -1296,6 +1307,7 @@ void USSXRemasterWorld::Revert()
 	LocalLights.Reset();
 	for (const FShadowFlags& F : TerrainShadows)
 	{
+		if (UStaticMeshComponent* T = F.Twin.Get()) { T->DestroyComponent(); }
 		if (UPrimitiveComponent* C = F.Component.Get())
 		{
 			C->SetCastShadow(F.bCast);
@@ -1304,11 +1316,6 @@ void USSXRemasterWorld::Revert()
 		}
 	}
 	TerrainShadows.Reset();
-	for (const TWeakObjectPtr<UStaticMeshComponent>& T : TerrainShadowTwins)
-	{
-		if (T.IsValid()) { T->DestroyComponent(); }
-	}
-	TerrainShadowTwins.Reset();
 	for (const FTranslucentProp& P : TranslucentProps)
 	{
 		if (UStaticMeshComponent* T = P.Twin.Get()) { T->DestroyComponent(); }

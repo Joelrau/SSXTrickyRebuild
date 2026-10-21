@@ -177,9 +177,16 @@ private:
 	TArray<TWeakObjectPtr<class ULocalLightComponent>> LocalLights;   // strongest first
 	TWeakObjectPtr<class UExponentialHeightFogComponent> Fog;
 	double FogStartBase = 0.0;   // fog start at draw distance scale 1, cm
-	struct FShadowFlags { TWeakObjectPtr<UPrimitiveComponent> Component; bool bCast = false; bool bHidden = false; };
+	struct FShadowFlags
+	{
+		TWeakObjectPtr<UPrimitiveComponent> Component;
+		bool bCast = false;
+		bool bHidden = false;
+		TWeakObjectPtr<UStaticMeshComponent> Twin;   // past Nanite's section limit: /Game/TerrainShadow/<mesh>_Shadow casts
+	};
 	TArray<FShadowFlags> TerrainShadows;
-	TArray<TWeakObjectPtr<UStaticMeshComponent>> TerrainShadowTwins;   // terrains past Nanite's section limit: /Game/TerrainShadow/<mesh>_Shadow
+	/** A terrain casts only while its actor is shown: the hidden Showoff terrain (SSXShowOffDraw) casts no shadow in a race. */
+	void SyncTerrainShadows();
 	/** Nanite props with a translucent slot (Nanite draws opaque / masked only) draw non-Nanite without a shadow; a hidden
 	 *  Nanite twin (translucent slots clipped: M_RmShadowHole) casts it, which keeps large props out of the non-Nanite VSM
 	 *  marking queue. Translucent slots cast no shadow, so the shadow is unchanged. */
