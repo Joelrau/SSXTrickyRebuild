@@ -588,7 +588,10 @@ void ASnowboarderPawn::FeedRumble()
 		const APlayerController* PC = Cast<APlayerController>(GetController());
 		const ULocalPlayer* LP = PC ? PC->GetLocalPlayer() : nullptr;
 		const ASSXRaceManager* RaceMgr = ASSXRaceManager::Find(this);
-		Rumble->RiderFrame(LP ? LP->GetLocalPlayerIndex() : 0, Calls, RaceMgr && RaceMgr->GetReplay().IsPlaying());
+		// 0x1532C0 / 0x153350 / 0x153390: no rumble in replay states 1..9; the loaded-replay rebuild (record state, a port
+		// mechanism) re-simulates the race and counts as playback
+		const bool bReplay = RaceMgr && (RaceMgr->GetReplay().IsPlaying() || RaceMgr->GetReplay().IsRebuilding());
+		Rumble->RiderFrame(LP ? LP->GetLocalPlayerIndex() : 0, Calls, bReplay);
 	}
 }
 
