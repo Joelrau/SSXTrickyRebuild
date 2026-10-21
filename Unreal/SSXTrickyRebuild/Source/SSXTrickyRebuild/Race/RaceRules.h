@@ -116,6 +116,8 @@ namespace SSXRace
 		FVector Pos = FVector::ZeroVector;
 		FVector Vel = FVector::ZeroVector;
 	};
+	// 0x196758: a respawn parameter inside an AIJump or AI105 zone moves to the zone end, inside an AI103 zone to its start
+	SSXTRICKYREBUILD_API double RespawnZoneParam(const FRacePath& Path, double Param);
 	// 0x119220
 	SSXTRICKYREBUILD_API bool RespawnPoint(const FRacePath& Path, double Param, TConstArrayView<FCrowdRacer> Others,
 	                                 FVector& OutPos, double& OutHeading, FVector& OutVel,

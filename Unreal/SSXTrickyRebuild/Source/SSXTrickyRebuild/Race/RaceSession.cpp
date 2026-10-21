@@ -955,6 +955,7 @@ bool FRaceSession::PlaceRespawn(int32 I, FVector& OutPos, FVector& OutHeading, F
 		Param = PathSet->AIPaths[R.Race.Path].Project(Q, Pt, Lat, &R.Race.Cache);
 	}
 	// 0x119220, 0x119D30
+	Param = RespawnZoneParam(PathSet->AIPaths[R.Race.Path], Param);
 	FVector P, V;
 	double H = 0.0;
 	RespawnPoint(PathSet->AIPaths[R.Race.Path], Param, {}, P, H, V, [](const FVector&) { return true; });

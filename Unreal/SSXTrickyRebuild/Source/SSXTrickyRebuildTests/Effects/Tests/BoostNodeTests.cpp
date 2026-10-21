@@ -795,6 +795,55 @@ bool FSSXTrackMegaplexLaunchTest::RunTest(const FString&)
 	TestEqual(TEXT("respawned"), On.Sim.State.RespawnSerial, Serial + 1);
 	TestEqual(TEXT("respawn on a candidate AI line"), Picked.CandidateFlag, 1);
 	TestTrue(TEXT("respawn ahead of the boost exit, within 50 m"), (On.Sim.State.Position - Above).Size() < 5000.0);
+
+	// Showoff (.sop lines), PCSX2 RAM: a reset above the boost exit on line 20 at parameter 0 respawns at 2403, the end
+	// of the line's AI105 zone over Mdl_EndholeCover_A_1000 (0x119220 -> 0x196758)
+	FRide So;
+	if (!So.Setup(this, TEXT("megaple"), 8, true))
+	{
+		return true;
+	}
+	FRaceSession Show;
+	FRaceConfig ShowCfg;
+	ShowCfg.Mode = ERaceEventMode::PracticeShowoff;
+	Show.Init(Data, ShowCfg);
+	Show.AddRacer(&So.Sim, true);
+	Show.Start();
+	Show.Tick();
+	Show.SetPhase(ERacePhase::Race);
+	Show.Tick();
+	So.Fx.LapsLeftOf = [&Show](const FEffectRider&) { return Show.GetLapsLeft(0); };
+	So.Launch(Start, V0);
+	FRacerRecord& Sr = Show.GetRacerMutable(0);
+	const FRacePath& Into = Show.Paths().AIPaths[25];
+	Sr.Race.SetPath(25);
+	Sr.Race.PlaceAt(Show.Paths(), Into.Length() - 100.0);
+	So.Fx.Touch(Lap, So.R);
+	// the RAM snapshot: (513 -2457 4588) on line 20 at parameter 0
+	for (int32 F = 0; F < 400 && !(Sr.Race.Path == 20 && So.Sim.State.Position.Y > -2500.0); ++F)
+	{
+		So.Fx.Frame();
+		So.Sim.Step(FRiderInputWord());
+		Show.Tick();
+	}
+	TestTrue(TEXT("showoff: line 20 at parameter 0 above the boost exit"), Sr.Race.Path == 20 && Sr.Race.Param == 0.0);
+	double ZoneEnd = -1.0;
+	for (const FRacePathEvent& E : Show.Paths().AIPaths[20].Events)
+	{
+		if (E.Type == SSXRaceEvent::AI105 && E.Start <= 0.0 && 0.0 <= E.End) { ZoneEnd = E.End; }
+	}
+	TestTrue(TEXT("line 20 AI105 zone 0..2403"), FMath::Abs(ZoneEnd - 2403.0) < 1.0);
+	So.Sim.ForcedReset(false, TEXT("test"));
+	const uint32 ShowSerial = So.Sim.State.RespawnSerial;
+	for (int32 F = 0; So.Sim.State.RespawnSerial == ShowSerial && F < 120; ++F)
+	{
+		So.Fx.Frame();
+		So.Sim.Step(FRiderInputWord());
+		Show.Tick();
+	}
+	Report(this, FString::Printf(TEXT("showoff reset: respawn on line %d param %.1f at (%.0f %.0f %.0f)"), Sr.Race.Path, Sr.Race.Param,
+		So.Sim.State.Position.X, So.Sim.State.Position.Y, So.Sim.State.Position.Z));
+	TestTrue(TEXT("showoff: respawn at the AI105 zone end (PCSX2: 2417 one frame later)"), Sr.Race.Path == 20 && FMath::Abs(Sr.Race.Param - ZoneEnd) < 30.0);
 	return true;
 }
 
