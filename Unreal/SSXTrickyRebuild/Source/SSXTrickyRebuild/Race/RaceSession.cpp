@@ -947,9 +947,11 @@ bool FRaceSession::PlaceRespawn(int32 I, FVector& OutPos, FVector& OutHeading, F
 	}
 	double Param;
 	{
+		// 0x197478 with the rider's own cache (+0x390): on the same line the search runs forward from the rider's
+		// segment, at most 3000 cm; a switched line has cleared it (+0x3A4 = -1), so that one searches every segment
 		FVector Pt;
 		double Lat;
-		Param = PathSet->AIPaths[R.Race.Path].Project(Q, Pt, Lat);
+		Param = PathSet->AIPaths[R.Race.Path].Project(Q, Pt, Lat, &R.Race.Cache);
 	}
 	// 0x119220, 0x119D30
 	FVector P, V;
