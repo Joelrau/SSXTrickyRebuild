@@ -1,6 +1,7 @@
 #include "UI/SSXFeOptions.h"
 
 #include "Kismet/KismetSystemLibrary.h"
+#include "World/SSXRenderLook.h"
 
 const TArray<FIntPoint>& SSXFeOptions::Resolutions()
 {
@@ -83,7 +84,15 @@ const TArray<SSXFeOptions::FRow>& SSXFeOptions::PageRows(int32 Page)
 		Res.Text = TEXT("RESOLUTION");
 		FRow Mode = List(3, -1, { { 0, -1, TEXT("FULLSCREEN") }, { 1, -1, TEXT("BORDERLESS") }, { 2, -1, TEXT("WINDOWED") } });
 		Mode.Text = TEXT("DISPLAY");
-		return TArray<FRow>{ Look, Quality, Res, Mode, Done() };
+		TArray<FRow> Rows{ Look, Quality, Res, Mode };
+		if (SSXRenderLook::FrameGenerationAvailable())   // only with the optional AMD FSR plugin installed
+		{
+			FRow Fg = List(FrameGenerationId, -1, { { 0, -1, TEXT("OFF") }, { 1, -1, TEXT("ON") } });
+			Fg.Text = TEXT("FRAME GENERATION");
+			Rows.Add(Fg);
+		}
+		Rows.Add(Done());
+		return Rows;
 	}();
 	static const TArray<FRow> None;
 	switch (Page)
@@ -95,6 +104,11 @@ const TArray<SSXFeOptions::FRow>& SSXFeOptions::PageRows(int32 Page)
 	case VideoPage: return Video;
 	default: return None;
 	}
+}
+
+int32 SSXFeOptions::RowIndex(int32 Page, int32 Id)
+{
+	return PageRows(Page).IndexOfByPredicate([Id](const FRow& R) { return R.Id == Id; });
 }
 
 int32 SSXFeOptions::PageTitleLoc(int32 Page)
@@ -114,6 +128,7 @@ const TCHAR* SSXFeOptions::HelpText(int32 Page, int32 ItemId)
 	if (Page == VideoPage && ItemId == 0) { return TEXT("Classic: the original look. Remastered: modern lighting and materials."); }
 	if (Page == VideoPage && ItemId == 1) { return TEXT("Detail of the Remastered look. Low has no global illumination."); }
 	if (Page == VideoPage && ItemId == 2) { return TEXT("Screen resolution, applied with DONE. Borderless always uses the desktop resolution."); }
+	if (Page == VideoPage && ItemId == FrameGenerationId) { return TEXT("AMD FSR Frame Generation: generated frames between the rendered ones. Adds input latency."); }
 	if (Page == VideoPage && ItemId == 3) { return TEXT("Fullscreen, borderless window over the desktop, or a window. Applied with DONE."); }
 	return nullptr;
 }

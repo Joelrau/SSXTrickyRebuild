@@ -353,6 +353,8 @@ bool FSSXUIOptionsVideoTest::RunTest(const FString& Parameters)
 		TestNotNull(TEXT("value CLASSIC"), F.Txt(TEXT("CLASSIC")));
 		TestNotNull(TEXT("row RESOLUTION"), F.Txt(TEXT("RESOLUTION")));
 		TestNotNull(TEXT("row DISPLAY"), F.Txt(TEXT("DISPLAY")));
+		TestEqual(TEXT("FRAME GENERATION row only with the FSR plugin"), F.Txt(TEXT("FRAME GENERATION")) != nullptr,
+			SSXRenderLook::FrameGenerationAvailable());
 		const TArray<FIntPoint>& Res = Resolutions();
 		TestTrue(TEXT("resolutions listed, smallest first"), Res.Num() > 0 && Res[0].X <= Res.Last().X);
 		TestEqual(TEXT("the nearest listed resolution"), Res[ResolutionIndex(Res.Last())], Res.Last());
@@ -372,9 +374,8 @@ bool FSSXUIOptionsVideoTest::RunTest(const FString& Parameters)
 		F.Press(ESSXFeKey::Down);
 		F.Press(ESSXFeKey::Left);
 		TestEqual(TEXT("QUALITY Left previews Medium"), SSXRenderLook::GetQuality(), 1);
-		F.Press(ESSXFeKey::Down);   // RESOLUTION
-		F.Press(ESSXFeKey::Down);   // DISPLAY
-		F.Press(ESSXFeKey::Down);
+		// down from QUALITY to DONE (FRAME GENERATION is there only with the FSR plugin)
+		for (int32 I = 1; I < RowIndex(VideoPage, DoneId); ++I) { F.Press(ESSXFeKey::Down); }
 		F.FE.SoundHooks.Reset();
 		F.Press(ESSXFeKey::Cross);
 		TestEqual(TEXT("DONE keeps Remastered"), int32(SSXRenderLook::Get()), int32(ESSXRenderLook::Remastered));

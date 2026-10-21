@@ -11,6 +11,10 @@ namespace SSXFeOptions
 	constexpr int32 NumPages = 6;
 	constexpr int32 VideoPage = 5;
 	constexpr int32 MaxRows = 9;
+	/** Video page row id of FRAME GENERATION (present only with the FSR plugin). */
+	constexpr int32 FrameGenerationId = 4;
+	/** Row position of the row with this id on the page, or INDEX_NONE. */
+	SSXTRICKYREBUILD_API int32 RowIndex(int32 Page, int32 Id);
 
 	/** Row widget kinds: a cFE3DWTextEntry with a value list (cFE3DWList style 2, wrap 1) or a progress bar
 	 *  (cFE3DProgressBar), the DONE entry (label only), or a plain single-line text item (Save/Load). */

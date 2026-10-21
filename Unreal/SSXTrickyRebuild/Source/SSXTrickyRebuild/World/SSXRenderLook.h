@@ -45,6 +45,12 @@ namespace SSXRenderLook
 	/** Remastered: remember each cvar's current value (once) and set the new one. Classic: restore every remembered value.
 	 *  Unknown cvars are skipped. */
 	SSXTRICKYREBUILD_API void ApplyCvars(TConstArrayView<FCvarValue> Cvars, ESSXRenderLook Look);
+
+	/** Frame generation (PC only, user request): AMD FSR Frame Generation through the optional FSR plugin
+	 *  (r.FidelityFX.FI.Enabled). Unavailable when the plugin is not installed. */
+	SSXTRICKYREBUILD_API bool FrameGenerationAvailable();
+	SSXTRICKYREBUILD_API bool GetFrameGeneration();
+	SSXTRICKYREBUILD_API void SetFrameGeneration(bool bOn);
 }
 
 /** PC video options (Video page), saved in GameUserSettings.ini, never on the memory card. */
@@ -61,6 +67,10 @@ public:
 	/** ssx.Render.Quality. */
 	UPROPERTY(config)
 	int32 Quality = SSXRenderLook::DefaultQuality;
+
+	/** SSXRenderLook::SetFrameGeneration (0 off, 1 on). */
+	UPROPERTY(config)
+	int32 FrameGeneration = 0;
 
 	/** Store the current ssx.Render.Look / ssx.Render.Quality and write the ini. */
 	static void Save();

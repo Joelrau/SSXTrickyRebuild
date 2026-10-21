@@ -2027,6 +2027,10 @@ void FSSXFrontEnd::OptionsSync(FSSXFeState& S)
 		O.List[SSXFeOptions::VideoPage][2] = SSXFeOptions::ResolutionIndex(G->GetScreenResolution());
 		O.List[SSXFeOptions::VideoPage][3] = FMath::Clamp(int32(G->GetFullscreenMode()), 0, 2);
 	}
+	if (const int32 Fg = SSXFeOptions::RowIndex(SSXFeOptions::VideoPage, SSXFeOptions::FrameGenerationId); Fg != INDEX_NONE)
+	{
+		O.List[SSXFeOptions::VideoPage][Fg] = SSXRenderLook::GetFrameGeneration() ? 1 : 0;
+	}
 }
 
 void FSSXFrontEnd::OptionsDiagram(FSSXFeState& S)
@@ -2099,6 +2103,10 @@ void FSSXFrontEnd::OptionsCommit(FSSXFeState& S, int32 P)
 	{
 		SSXRenderLook::Set(ESSXRenderLook(S.Opt.List[P][0]));
 		SSXRenderLook::SetQuality(S.Opt.List[P][1]);
+		if (const int32 Fg = SSXFeOptions::RowIndex(P, SSXFeOptions::FrameGenerationId); Fg != INDEX_NONE)
+		{
+			SSXRenderLook::SetFrameGeneration(S.Opt.List[P][Fg] != 0);
+		}
 		SoundHooks.Add(TEXT("saveVideo"));
 		UGameUserSettings* G = GEngine ? GEngine->GetGameUserSettings() : nullptr;
 		const TArray<FIntPoint>& Res = SSXFeOptions::Resolutions();

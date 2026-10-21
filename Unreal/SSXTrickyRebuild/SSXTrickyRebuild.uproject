@@ -30,6 +30,11 @@
 		{
 			"Name": "EditorScriptingUtilities",
 			"Enabled": true
+		},
+		{
+			"Name": "FSR",
+			"Enabled": true,
+			"Optional": true
 		}
 	]
 }

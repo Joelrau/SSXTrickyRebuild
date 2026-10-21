@@ -108,11 +108,33 @@ namespace SSXRenderLook
 	}
 }
 
+namespace SSXRenderLook
+{
+	namespace
+	{
+		IConsoleVariable* FrameGenerationCvar() { return IConsoleManager::Get().FindConsoleVariable(TEXT("r.FidelityFX.FI.Enabled")); }
+	}
+
+	bool FrameGenerationAvailable() { return FrameGenerationCvar() != nullptr; }
+
+	bool GetFrameGeneration()
+	{
+		const IConsoleVariable* V = FrameGenerationCvar();
+		return V && V->GetInt() != 0;
+	}
+
+	void SetFrameGeneration(bool bOn)
+	{
+		if (IConsoleVariable* V = FrameGenerationCvar()) { V->Set(bOn ? 1 : 0, ECVF_SetByGameSetting); }
+	}
+}
+
 void USSXVideoSettings::Save()
 {
 	USSXVideoSettings* S = GetMutableDefault<USSXVideoSettings>();
 	S->Look = int32(SSXRenderLook::Get());
 	S->Quality = SSXRenderLook::GetQuality();
+	S->FrameGeneration = SSXRenderLook::GetFrameGeneration() ? 1 : 0;
 	S->SaveConfig();
 }
 
@@ -125,4 +147,5 @@ void USSXRenderLookSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	}
 	SSXRenderLook::SetQuality(GetDefault<USSXVideoSettings>()->Quality);
 	SSXRenderLook::Set(FromInt(GetDefault<USSXVideoSettings>()->Look));
+	SSXRenderLook::SetFrameGeneration(GetDefault<USSXVideoSettings>()->FrameGeneration != 0);
 }
