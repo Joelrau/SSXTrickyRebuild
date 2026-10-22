@@ -1,4 +1,5 @@
 #include "World/SSXRenderLook.h"
+#include "Interfaces/IPluginManager.h"
 
 #include "HAL/IConsoleManager.h"
 
@@ -116,6 +117,18 @@ namespace SSXRenderLook
 	}
 
 	bool FrameGenerationAvailable() { return FrameGenerationCvar() != nullptr; }
+
+	FString FrameGenerationName()
+	{
+		const TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(TEXT("FSR"));
+		FString Major;
+		if (Plugin.IsValid())
+		{
+			Plugin->GetDescriptor().VersionName.Split(TEXT("."), &Major, nullptr);
+			if (Major.IsEmpty()) { Major = Plugin->GetDescriptor().VersionName; }
+		}
+		return Major.IsEmpty() ? FString(TEXT("AMD FSR")) : FString::Printf(TEXT("AMD FSR %s"), *Major);
+	}
 
 	bool GetFrameGeneration()
 	{

@@ -87,7 +87,8 @@ const TArray<SSXFeOptions::FRow>& SSXFeOptions::PageRows(int32 Page)
 		TArray<FRow> Rows{ Look, Quality, Res, Mode };
 		if (SSXRenderLook::FrameGenerationAvailable())   // only with the optional AMD FSR plugin installed
 		{
-			FRow Fg = List(FrameGenerationId, -1, { { 0, -1, TEXT("OFF") }, { 1, -1, TEXT("ON") } });
+			static const FString Fsr = SSXRenderLook::FrameGenerationName();
+			FRow Fg = List(FrameGenerationId, -1, { { 0, -1, TEXT("OFF") }, { 1, -1, *Fsr } });
 			Fg.Text = TEXT("FRAME GENERATION");
 			Rows.Add(Fg);
 		}

@@ -173,8 +173,8 @@ in the Classic look, which stays the default and renders exactly as before.
 - **Resolution and display:** Options → VIDEO → RESOLUTION (the monitor's resolutions) and DISPLAY (fullscreen /
   borderless / windowed), applied with DONE and saved in `GameUserSettings.ini`. Borderless always uses the desktop
   resolution.
-- **Frame generation (optional, AMD FSR):** Options → VIDEO → FRAME GENERATION (off / on, saved with the other video
-  settings) inserts generated frames between the rendered ones with AMD FSR Frame Generation. It works in both looks
+- **Frame generation (optional, AMD FSR):** Options → VIDEO → FRAME GENERATION (OFF / AMD FSR <plugin major version>,
+  saved with the other video settings) inserts generated frames between the rendered ones with AMD FSR Frame Generation. It works in both looks
   and with any GPU the plugin supports (ML frame generation on RDNA 4, analytical elsewhere), and adds some input
   latency. The row appears only when AMD's free FSR plugin is installed in the engine:
   1. Download `UE-FSR-4_1_1.zip` (about 2 GB, MIT license) from <https://gpuopen.com/learn/ue-fsr/>.

@@ -355,6 +355,7 @@ bool FSSXUIOptionsVideoTest::RunTest(const FString& Parameters)
 		TestNotNull(TEXT("row DISPLAY"), F.Txt(TEXT("DISPLAY")));
 		TestEqual(TEXT("FRAME GENERATION row only with the FSR plugin"), F.Txt(TEXT("FRAME GENERATION")) != nullptr,
 			SSXRenderLook::FrameGenerationAvailable());
+		TestTrue(TEXT("frame generation value names the AMD FSR version"), SSXRenderLook::FrameGenerationName().StartsWith(TEXT("AMD FSR")));
 		const TArray<FIntPoint>& Res = Resolutions();
 		TestTrue(TEXT("resolutions listed, smallest first"), Res.Num() > 0 && Res[0].X <= Res.Last().X);
 		TestEqual(TEXT("the nearest listed resolution"), Res[ResolutionIndex(Res.Last())], Res.Last());

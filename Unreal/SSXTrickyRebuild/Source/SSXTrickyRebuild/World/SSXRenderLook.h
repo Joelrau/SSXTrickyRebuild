@@ -49,6 +49,8 @@ namespace SSXRenderLook
 	/** Frame generation (PC only, user request): AMD FSR Frame Generation through the optional FSR plugin
 	 *  (r.FidelityFX.FI.Enabled). Unavailable when the plugin is not installed. */
 	SSXTRICKYREBUILD_API bool FrameGenerationAvailable();
+	/** "AMD FSR <major version of the installed FSR plugin>". */
+	SSXTRICKYREBUILD_API FString FrameGenerationName();
 	SSXTRICKYREBUILD_API bool GetFrameGeneration();
 	SSXTRICKYREBUILD_API void SetFrameGeneration(bool bOn);
 }
