@@ -5,8 +5,8 @@
 struct FSSXSprite;
 class UTexture;
 
-/** Which key map a prompt describes: the menus / race overlays (USSXFeWidget::PadBitForKey), racing (SSXInputSetup.h),
- *  or the original PS2 glyphs whatever the device (the lessons). */
+/** Which prompts to draw: the menus / race overlays and racing (both show the KEYBINDS keys; the menus show Esc for
+ *  "previous"), or the original PS2 glyphs whatever the device (the lessons). */
 enum class ESSXPromptContext : uint8 { Menu, Race, Original };
 
 enum class ESSXPromptDevice : uint8 { PS2, Keyboard, Xbox, PS4, PS5 };

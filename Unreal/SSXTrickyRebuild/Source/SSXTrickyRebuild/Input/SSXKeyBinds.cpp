@@ -38,7 +38,7 @@ namespace SSXKeyBinds
 			{ Up, TEXT("UP") }, { Down, TEXT("DOWN") }, { Left, TEXT("LEFT") }, { Right, TEXT("RIGHT") },
 			{ Cross, TEXT("CROSS") }, { Square, TEXT("SQUARE") }, { Circle, TEXT("CIRCLE") }, { Triangle, TEXT("TRIANGLE") },
 			{ L1, TEXT("L1") }, { R1, TEXT("R1") }, { L2, TEXT("L2") }, { R2, TEXT("R2") },
-			{ L3, TEXT("L3") }, { R3, TEXT("R3") }, { Select, TEXT("SELECT") }, { Start, TEXT("START") } };
+			{ Select, TEXT("SELECT") }, { Start, TEXT("START") } };
 		return T[FMath::Clamp(Row, 0, NumButtons - 1)];
 	}
 
@@ -51,8 +51,8 @@ namespace SSXKeyBinds
 				{ EKeys::W, EKeys::Up }, { EKeys::S, EKeys::Down }, { EKeys::A, EKeys::Left }, { EKeys::D, EKeys::Right },
 				{ EKeys::SpaceBar, EKeys::Invalid }, { EKeys::LeftShift, EKeys::Invalid }, { EKeys::F, EKeys::Invalid },
 				{ EKeys::G, EKeys::Invalid }, { EKeys::Q, EKeys::Invalid }, { EKeys::E, EKeys::Invalid },
-				{ EKeys::Z, EKeys::Invalid }, { EKeys::C, EKeys::Invalid }, { EKeys::LeftControl, EKeys::Invalid },
-				{ EKeys::V, EKeys::Invalid }, { EKeys::R, EKeys::Invalid }, { EKeys::Enter, EKeys::Invalid } };
+				{ EKeys::Z, EKeys::Invalid }, { EKeys::C, EKeys::Invalid }, { EKeys::R, EKeys::Invalid },
+				{ EKeys::Enter, EKeys::Invalid } };
 			for (int32 R = 0; R < NumButtons; ++R)
 			{
 				for (int32 Sl = 0; Sl < NumSlots; ++Sl) { S.Keys[R][Sl] = T[R][Sl]; }

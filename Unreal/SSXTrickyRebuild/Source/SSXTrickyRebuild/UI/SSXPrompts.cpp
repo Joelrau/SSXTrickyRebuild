@@ -5,7 +5,9 @@
 #include "Framework/Application/SlateApplication.h"
 #include "HAL/IConsoleManager.h"
 #include "ImageUtils.h"
+#include "Input/PadMapper.h"
 #include "Input/SSXDualSense.h"
+#include "Input/SSXKeyBinds.h"
 #include "Misc/Paths.h"
 #include "UI/SSXFeDraw.h"
 #include "UObject/StrongObjectPtr.h"
@@ -64,47 +66,87 @@ namespace
 		return Names[uint8(B)];
 	}
 
-	const TCHAR* KeyName(EButton B, ESSXPromptContext Ctx)
+	uint32 PadBit(EButton B)
 	{
-		if (Ctx == ESSXPromptContext::Race)
+		using namespace SSXPadButton;
+		switch (B)
 		{
-			switch (B)   // SSXInputSetup.h
+		case EButton::Cross: return Cross;
+		case EButton::Circle: return Circle;
+		case EButton::Square: return Square;
+		case EButton::Triangle: return Triangle;
+		case EButton::L1: return L1;
+		case EButton::R1: return R1;
+		case EButton::L2: return L2;
+		case EButton::R2: return R2;
+		case EButton::Start: return Start;
+		case EButton::Select: return Select;
+		case EButton::Up: return Up;
+		case EButton::Down: return Down;
+		case EButton::Left: return Left;
+		case EButton::Right: return Right;
+		default: return 0;
+		}
+	}
+
+	/** Image name of a keyboard key in <Project>/Prompts/key, empty if the pack has none. */
+	FString KeyImage(const FKey& K)
+	{
+		static const TMap<FKey, const TCHAR*> Special = {
+			{ EKeys::SpaceBar, TEXT("space") }, { EKeys::Enter, TEXT("enter") }, { EKeys::Tab, TEXT("tab") },
+			{ EKeys::Escape, TEXT("esc") }, { EKeys::BackSpace, TEXT("backspace") }, { EKeys::LeftShift, TEXT("shift") },
+			{ EKeys::RightShift, TEXT("shift") }, { EKeys::LeftControl, TEXT("ctrl") }, { EKeys::RightControl, TEXT("ctrl") },
+			{ EKeys::LeftAlt, TEXT("alt") }, { EKeys::RightAlt, TEXT("alt") }, { EKeys::CapsLock, TEXT("capslock") },
+			{ EKeys::Up, TEXT("up") }, { EKeys::Down, TEXT("down") }, { EKeys::Left, TEXT("left") }, { EKeys::Right, TEXT("right") },
+			{ EKeys::Home, TEXT("home") }, { EKeys::End, TEXT("end") }, { EKeys::PageUp, TEXT("pageup") },
+			{ EKeys::PageDown, TEXT("pagedown") }, { EKeys::Insert, TEXT("ins") }, { EKeys::Delete, TEXT("del") },
+			{ EKeys::Hyphen, TEXT("minus") }, { EKeys::Subtract, TEXT("minus") }, { EKeys::Add, TEXT("plus") },
+			{ EKeys::Equals, TEXT("plus") }, { EKeys::Multiply, TEXT("asterisk") }, { EKeys::Asterix, TEXT("asterisk") },
+			{ EKeys::Slash, TEXT("slash") }, { EKeys::Divide, TEXT("slash") }, { EKeys::Semicolon, TEXT("semicolon") },
+			{ EKeys::Apostrophe, TEXT("quotation") }, { EKeys::Tilde, TEXT("tilde") }, { EKeys::LeftBracket, TEXT("brackets_l") },
+			{ EKeys::RightBracket, TEXT("brackets_r") }, { EKeys::NumLock, TEXT("numlock") },
+			{ EKeys::Zero, TEXT("0") }, { EKeys::One, TEXT("1") }, { EKeys::Two, TEXT("2") }, { EKeys::Three, TEXT("3") },
+			{ EKeys::Five, TEXT("5") }, { EKeys::Six, TEXT("6") }, { EKeys::Seven, TEXT("7") }, { EKeys::Eight, TEXT("8") },
+			{ EKeys::Nine, TEXT("9") } };
+		if (const TCHAR* const* Name = Special.Find(K))
+		{
+			return *Name;
+		}
+		const FString N = K.GetFName().ToString();
+		if (N.Len() == 1 && FChar::IsAlpha(N[0]))
+		{
+			return N.ToLower();
+		}
+		if (N.Len() >= 2 && N.Len() <= 3 && N[0] == TEXT('F') && FChar::IsDigit(N[1]))
+		{
+			return N.ToLower();
+		}
+		return FString();
+	}
+
+	/** The key on a prompt: the button's KEYBINDS key (primary, else alternate); in the menus "previous" (Triangle /
+	 *  Select) shows Esc, which always goes back there. */
+	FString KeyName(EButton B, ESSXPromptContext Ctx)
+	{
+		if (Ctx == ESSXPromptContext::Menu && (B == EButton::Triangle || B == EButton::Select))
+		{
+			return TEXT("esc");
+		}
+		const uint32 Bit = PadBit(B);
+		const SSXKeyBinds::FSet& Kb = SSXKeyBinds::Current();
+		for (int32 Row = 0; Bit && Row < SSXKeyBinds::NumButtons; ++Row)
+		{
+			if (SSXKeyBinds::Button(Row).Bit != Bit)
 			{
-			case EButton::Cross: return TEXT("space");
-			case EButton::Square: return TEXT("shift");
-			case EButton::Circle: return TEXT("f");
-			case EButton::Triangle: return TEXT("g");
-			case EButton::L1: return TEXT("q");
-			case EButton::R1: return TEXT("e");
-			case EButton::L2: return TEXT("z");
-			case EButton::R2: return TEXT("c");
-			case EButton::Select: return TEXT("r");
-			case EButton::Start: return TEXT("enter");
-			case EButton::Up: return TEXT("w");
-			case EButton::Down: return TEXT("s");
-			case EButton::Left: return TEXT("a");
-			case EButton::Right: return TEXT("d");
-			default: return nullptr;
+				continue;
+			}
+			for (const FKey& K : Kb.Keys[Row])
+			{
+				const FString Img = K.IsValid() ? KeyImage(K) : FString();
+				if (!Img.IsEmpty()) { return Img; }
 			}
 		}
-		switch (B)   // USSXFeWidget::PadBitForKey
-		{
-		case EButton::Cross: return TEXT("space");
-		case EButton::Circle: return TEXT("ctrl");
-		case EButton::Triangle: return TEXT("backspace");
-		case EButton::Square: return TEXT("tab");
-		case EButton::Start: return TEXT("enter");
-		case EButton::Select: return TEXT("esc");
-		case EButton::L1: return TEXT("q");
-		case EButton::R1: return TEXT("e");
-		case EButton::L2: return TEXT("1");
-		case EButton::R2: return TEXT("3");
-		case EButton::Up: return TEXT("up");
-		case EButton::Down: return TEXT("down");
-		case EButton::Left: return TEXT("left");
-		case EButton::Right: return TEXT("right");
-		default: return nullptr;
-		}
+		return FString();
 	}
 
 	ESSXPromptDevice PadDevice()
@@ -209,8 +251,8 @@ FString SSXPrompts::ImageFor(int32 Id, bool bHud, ESSXPromptContext Ctx, ESSXPro
 	}
 	if (Dev == ESSXPromptDevice::Keyboard)
 	{
-		const TCHAR* K = KeyName(B, Ctx);
-		return K ? FString(TEXT("key/")) + K : FString();
+		const FString K = KeyName(B, Ctx);
+		return K.IsEmpty() ? FString() : FString(TEXT("key/")) + K;
 	}
 	const TCHAR* Set = Dev == ESSXPromptDevice::Xbox ? TEXT("xbox/") : Dev == ESSXPromptDevice::PS4 ? TEXT("ps4/") : TEXT("ps5/");
 	return FString(Set) + PadName(B);

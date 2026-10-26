@@ -29,7 +29,9 @@ bool FSSXUIPromptsTest::RunTest(const FString&)
 	TestEqual(TEXT("HUD cross on Xbox"), ImageFor(0x74, true, Race, ESSXPromptDevice::Xbox), FString(TEXT("xbox/cross")));
 	TestEqual(TEXT("FE square on PS5"), ImageFor(82, false, Menu, ESSXPromptDevice::PS5), FString(TEXT("ps5/square")));
 	TestEqual(TEXT("cross is Space in the menus"), ImageFor(81, false, Menu, ESSXPromptDevice::Keyboard), FString(TEXT("key/space")));
-	TestEqual(TEXT("circle is Left Ctrl in the menus"), ImageFor(0x72, true, Menu, ESSXPromptDevice::Keyboard), FString(TEXT("key/ctrl")));
+	TestEqual(TEXT("circle is F in the menus too (KEYBINDS)"), ImageFor(0x72, true, Menu, ESSXPromptDevice::Keyboard), FString(TEXT("key/f")));
+	TestEqual(TEXT("previous is Esc in the menus"), ImageFor(80, false, Menu, ESSXPromptDevice::Keyboard), FString(TEXT("key/esc")));
+	TestEqual(TEXT("triangle is G while racing"), ImageFor(0x73, true, Race, ESSXPromptDevice::Keyboard), FString(TEXT("key/g")));
 	TestEqual(TEXT("circle is F while racing"), ImageFor(0x72, true, Race, ESSXPromptDevice::Keyboard), FString(TEXT("key/f")));
 	TestEqual(TEXT("L2 is Z while racing"), ImageFor(0x6F, true, Race, ESSXPromptDevice::Keyboard), FString(TEXT("key/z")));
 	TestTrue(TEXT("lessons keep the PS2 glyph"), ImageFor(0x74, true, ESSXPromptContext::Original, ESSXPromptDevice::Xbox).IsEmpty());

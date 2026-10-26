@@ -30,9 +30,15 @@ SETS = {
     # T_X_X is the Menu button, T_X_Share the View button.
     "xbox": pad("X", "XGamepad/Default", ("A_Color", "B_Color", "X_Color", "Y_Color", "LB", "RB", "LT", "RT", "X",
                                           "Share", "Dpad_Up", "Dpad_Down", "Dpad_Left", "Dpad_Right", "L", "R")),
+    # every keyboard key of the pack: the KEYBINDS page can put any of them on a button
     "key": {k.lower(): f"Keyboard_Mouse/Dark/T_{k}_Key_Dark.png" for k in (
-        "Space", "Crtl", "BackSpace", "Tab", "Enter", "Esc", "Shift", "Up", "Down", "Left", "Right", "1", "3",
-        "Q", "E", "F", "G", "Z", "C", "R", "V", "W", "A", "S", "D", "I", "J", "K", "L")},
+        "Space", "Crtl", "BackSpace", "Tab", "Enter", "Esc", "Shift", "Alt", "CapsLock", "Up", "Down", "Left", "Right",
+        "Home", "End", "PageUp", "PageDown", "Ins", "Del", "Minus", "Plus", "Asterisk", "Slash", "Semicolon",
+        "Quotation", "Tilde", "Brackets_L", "Brackets_R", "NumLock",
+        "0", "1", "2", "3", "5", "6", "7", "8", "9",
+        "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12",
+        "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V",
+        "W", "X", "Y", "Z")},
 }
 
 

@@ -426,7 +426,8 @@ bool FSSXUIOptionsKeybindsTest::RunTest(const FString& Parameters)
 	F.OpenPage(KeybindsPage);
 	const FSSXFeState* S = F.FE.Top();
 	if (!TestTrue(TEXT("Keybinds page open"), S && S->Page == KeybindsPage)) return false;
-	TestEqual(TEXT("16 buttons + RESET + DONE"), PageRows(KeybindsPage).Num(), 18);
+	TestEqual(TEXT("14 buttons (no L3 / R3) + RESET + DONE"), PageRows(KeybindsPage).Num(), 16);
+	TestNull(TEXT("no L3 row"), F.Txt(TEXT("L3")));
 	F.Redraw();
 	TestNotNull(TEXT("title KEYBINDS"), F.Txt(TEXT("KEYBINDS")));
 	TestNotNull(TEXT("row TRIANGLE"), F.Txt(TEXT("TRIANGLE")));

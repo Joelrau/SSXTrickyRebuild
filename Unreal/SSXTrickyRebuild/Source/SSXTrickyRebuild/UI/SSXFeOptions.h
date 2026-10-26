@@ -12,10 +12,10 @@ namespace SSXFeOptions
 	constexpr int32 NumPages = 7;
 	constexpr int32 VideoPage = 5;
 	constexpr int32 KeybindsPage = 6;
-	constexpr int32 MaxRows = 18;
-	/** Keybinds page: rows 0..15 are the SSXKeyBinds buttons (row id = button row), then RESET TO DEFAULTS and DONE. */
-	constexpr int32 KeyResetId = 16;
-	/** Keybinds page layout: first row y and row pitch (18 rows do not fit the original's centring). */
+	constexpr int32 MaxRows = 16;
+	/** Keybinds page: rows 0..13 are the SSXKeyBinds buttons (row id = button row), then RESET TO DEFAULTS and DONE. */
+	constexpr int32 KeyResetId = SSXKeyBinds::NumButtons;
+	/** Keybinds page layout: first row y and the key column width (16 rows do not fit the original's centring). */
 	constexpr float KeyTopY = 92.f;
 	constexpr float KeyColumnW = 150.f;
 	/** Video page row id of FRAME GENERATION (present only with the FSR plugin). */

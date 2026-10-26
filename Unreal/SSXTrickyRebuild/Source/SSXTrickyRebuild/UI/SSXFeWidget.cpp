@@ -90,8 +90,8 @@ uint32 USSXFeWidget::PadBitForKey(const FKey& K)
 	if (K == EKeys::Gamepad_DPad_Down || K == EKeys::Gamepad_LeftStick_Down) return PadDown;
 	if (K == EKeys::Gamepad_DPad_Left || K == EKeys::Gamepad_LeftStick_Left) return PadLeft;
 	if (K == EKeys::Gamepad_DPad_Right || K == EKeys::Gamepad_LeftStick_Right) return PadRight;
-	// keyboard: the KEYBINDS page (the menus take the 14 pad bits; L3 / R3 have none)
-	if (!K.IsGamepadKey()) return SSXKeyBinds::PadBits(K) & 0x3FFFu;
+	// keyboard: the KEYBINDS page
+	if (!K.IsGamepadKey()) return SSXKeyBinds::PadBits(K);
 	return 0;
 }
 
