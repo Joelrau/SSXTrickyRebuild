@@ -1,5 +1,7 @@
 #include "Input/SSXInputSetup.h"
 
+#include "Input/SSXKeyBinds.h"
+
 #include "EnhancedPlayerInput.h"
 #include "InputAction.h"
 #include "InputCoreTypes.h"
@@ -39,22 +41,31 @@ namespace SSXInput
 				Ctx->MapKey(Out.Buttons[Index], K);
 			}
 		};
-		Btn(Up, { EKeys::W, EKeys::Up, EKeys::Gamepad_DPad_Up });
-		Btn(Down, { EKeys::S, EKeys::Down, EKeys::Gamepad_DPad_Down });
-		Btn(Left, { EKeys::A, EKeys::Left, EKeys::Gamepad_DPad_Left });
-		Btn(Right, { EKeys::D, EKeys::Right, EKeys::Gamepad_DPad_Right });
-		Btn(Cross, { EKeys::SpaceBar, EKeys::Gamepad_FaceButton_Bottom });
-		Btn(Square, { EKeys::LeftShift, EKeys::Gamepad_FaceButton_Left });
-		Btn(Circle, { EKeys::F, EKeys::Gamepad_FaceButton_Right });
-		Btn(Triangle, { EKeys::G, EKeys::Gamepad_FaceButton_Top });
-		Btn(L1, { EKeys::Q, EKeys::Gamepad_LeftShoulder });
-		Btn(R1, { EKeys::E, EKeys::Gamepad_RightShoulder });
-		Btn(L2, { EKeys::Z, EKeys::Gamepad_LeftTrigger });
-		Btn(R2, { EKeys::C, EKeys::Gamepad_RightTrigger });
-		Btn(L3, { EKeys::LeftControl, EKeys::Gamepad_LeftThumbstick });
-		Btn(R3, { EKeys::V, EKeys::Gamepad_RightThumbstick });
-		Btn(Select, { EKeys::R, EKeys::Gamepad_Special_Left });
-		Btn(Start, { EKeys::Enter, EKeys::Gamepad_Special_Right });
+		Btn(Up, { EKeys::Gamepad_DPad_Up });
+		Btn(Down, { EKeys::Gamepad_DPad_Down });
+		Btn(Left, { EKeys::Gamepad_DPad_Left });
+		Btn(Right, { EKeys::Gamepad_DPad_Right });
+		Btn(Cross, { EKeys::Gamepad_FaceButton_Bottom });
+		Btn(Square, { EKeys::Gamepad_FaceButton_Left });
+		Btn(Circle, { EKeys::Gamepad_FaceButton_Right });
+		Btn(Triangle, { EKeys::Gamepad_FaceButton_Top });
+		Btn(L1, { EKeys::Gamepad_LeftShoulder });
+		Btn(R1, { EKeys::Gamepad_RightShoulder });
+		Btn(L2, { EKeys::Gamepad_LeftTrigger });
+		Btn(R2, { EKeys::Gamepad_RightTrigger });
+		Btn(L3, { EKeys::Gamepad_LeftThumbstick });
+		Btn(R3, { EKeys::Gamepad_RightThumbstick });
+		Btn(Select, { EKeys::Gamepad_Special_Left });
+		Btn(Start, { EKeys::Gamepad_Special_Right });
+		// keyboard: the KEYBINDS page
+		const SSXKeyBinds::FSet& Kb = SSXKeyBinds::Current();
+		for (int32 Row = 0; Row < SSXKeyBinds::NumButtons; ++Row)
+		{
+			for (const FKey& K : Kb.Keys[Row])
+			{
+				if (K.IsValid()) { Btn(SSXKeyBinds::Button(Row).Bit, { K }); }
+			}
+		}
 		Ctx->MapKey(Out.Restart, EKeys::BackSpace);
 
 		// Sticks: raw values, no UE dead zone (the mapper applies the game's 0.38047 dead zone).

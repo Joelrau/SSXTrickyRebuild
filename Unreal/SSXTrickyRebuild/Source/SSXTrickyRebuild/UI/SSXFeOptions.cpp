@@ -35,6 +35,23 @@ const TArray<SSXFeOptions::FRow>& SSXFeOptions::PageRows(int32 Page)
 	};
 	// FUN_002A7FD8
 	static const TArray<FRow> SaveLoad = { Item(0, 222), Item(1, 198), Item(2, 199) };
+	static const TArray<FRow> Keybinds = [&]()
+	{
+		TArray<FRow> Rows;
+		for (int32 I = 0; I < SSXKeyBinds::NumButtons; ++I)
+		{
+			FRow R;
+			R.Id = I;
+			R.Kind = EKind::Key;
+			R.Text = SSXKeyBinds::Button(I).Name;
+			Rows.Add(R);
+		}
+		FRow Reset = Item(KeyResetId, -1);
+		Reset.Text = TEXT("RESET TO DEFAULTS");
+		Rows.Add(Reset);
+		Rows.Add(Done());
+		return Rows;
+	}();
 	static const TArray<FRow> None;
 	switch (Page)
 	{
@@ -42,14 +59,36 @@ const TArray<SSXFeOptions::FRow>& SSXFeOptions::PageRows(int32 Page)
 	case 1: return Controller;
 	case 2: return Game;
 	case 3: return SaveLoad;
+	case KeybindsPage: return Keybinds;
 	default: return None;
 	}
 }
 
+int32 SSXFeOptions::RowIndex(int32 Page, int32 Id)
+{
+	return PageRows(Page).IndexOfByPredicate([Id](const FRow& R) { return R.Id == Id; });
+}
+
 int32 SSXFeOptions::PageTitleLoc(int32 Page)
 {
-	static const int32 Locs[NumPages] = { 3608, 176, 186, 204, 180 };
+	static const int32 Locs[NumPages] = { 3608, 176, 186, 204, 180, -1 };
 	return Page >= 0 && Page < NumPages ? Locs[Page] : -1;
+}
+
+const TCHAR* SSXFeOptions::PageTitleText(int32 Page)
+{
+	return Page == KeybindsPage ? TEXT("KEYBINDS") : nullptr;
+}
+
+const TCHAR* SSXFeOptions::HelpText(int32 Page, int32 ItemId)
+{
+	if (Page == -1 && ItemId == KeybindsPage) { return TEXT("Change the keyboard keys of the controller buttons."); }
+	if (Page == KeybindsPage && ItemId == KeyResetId) { return TEXT("Put back the default keys. Applied with DONE."); }
+	if (Page == KeybindsPage && ItemId >= 0 && ItemId < SSXKeyBinds::NumButtons)
+	{
+		return TEXT("Left/right picks the key, accept changes it. Delete clears it, Esc cancels. Applied with DONE.");
+	}
+	return nullptr;
 }
 
 int32 SSXFeOptions::HelpLoc(int32 Page, int32 ItemId)
@@ -82,6 +121,7 @@ float SSXFeOptions::MenuTopY(int32 Page, int32 Rows, float CellH)
 {
 	if (Page == 1) { return CtrlMenuY; }
 	if (Page == 4) { return CreditsY; }
+	if (Page == KeybindsPage) { return KeyTopY; }
 	return (TopGroupBoxH - 70.f) + ((450.f - BarEdge) - Rows * CellH) * 0.5f;
 }
 

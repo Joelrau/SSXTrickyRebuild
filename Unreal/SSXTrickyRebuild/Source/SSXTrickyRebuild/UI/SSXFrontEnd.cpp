@@ -487,6 +487,12 @@ FSSXFeState FSSXFrontEnd::Make(ESSXFeScreen Screen, int32 Player) const
 		Item(2, 186);
 		Item(3, 204);
 		Item(4, 180);
+		{
+			FSSXFeItem Keys;   // PC-only Keybinds page (user request)
+			Keys.Id = SSXFeOptions::KeybindsPage;
+			Keys.Text = SSXFeOptions::PageTitleText(SSXFeOptions::KeybindsPage);
+			S.Items.Add(Keys);
+		}
 		for (int32 I = 0; I < S.Items.Num(); ++I) { S.Items[I].HelpLoc = SSXFeOptions::HelpLoc(-1, I); }   // 0x3481D0
 		S.InFade = 0;   // 0x2A8A30
 		// FUN_002A8380
@@ -2068,6 +2074,11 @@ void FSSXFrontEnd::OptionsEnterPage(FSSXFeState& S, int32 P)
 		O.bCreditsActive = true;
 		Speech(41);   // FUN_002626B0
 		break;
+	case KeybindsPage:
+		O.Binds = SSXKeyBinds::Current();
+		O.KeySlot = 0;
+		O.bKeyCapture = false;
+		break;
 	default:
 		break;
 	}
@@ -2075,6 +2086,12 @@ void FSSXFrontEnd::OptionsEnterPage(FSSXFeState& S, int32 P)
 
 void FSSXFrontEnd::OptionsCommit(FSSXFeState& S, int32 P)
 {
+	if (P == SSXFeOptions::KeybindsPage)
+	{
+		SSXKeyBinds::SetCurrent(S.Opt.Binds);
+		SoundHooks.Add(TEXT("saveKeys"));
+		return;
+	}
 	if (!Profile)
 	{
 		return;
@@ -2213,6 +2230,16 @@ void FSSXFrontEnd::OptionsKey(FSSXFeState& S, ESSXFeKey K)
 {
 	using namespace SSXFeOptions;
 	FSSXFeOptionsUI& O = S.Opt;
+	if (S.Page == KeybindsPage && O.bKeyCapture)
+	{
+		// the keyboard goes to RawKey; a pad's back button cancels
+		if (IsBack(K))
+		{
+			O.bKeyCapture = false;
+			Sound(TEXT("back"));
+		}
+		return;
+	}
 	const bool bUpDown = K == ESSXFeKey::Up || K == ESSXFeKey::Down;
 	const bool bLeftRight = K == ESSXFeKey::Left || K == ESSXFeKey::Right;
 	if (K == ESSXFeKey::Circle || K == ESSXFeKey::Square)
@@ -2288,6 +2315,18 @@ void FSSXFrontEnd::OptionsKey(FSSXFeState& S, ESSXFeKey K)
 		OptionsApplyBar(S, Sel);
 		return;
 	}
+	if (R.Kind == EKind::Key && bLeftRight)
+	{
+		O.KeySlot = O.KeySlot == 0 ? 1 : 0;
+		Sound(TEXT("move"));
+		return;
+	}
+	if (R.Kind == EKind::Key && IsAccept(K))
+	{
+		O.bKeyCapture = true;
+		Sound(TEXT("accept"));
+		return;
+	}
 	if (IsAccept(K) && (R.Kind == EKind::List || R.Kind == EKind::Bar))
 	{
 		return;
@@ -2318,6 +2357,11 @@ void FSSXFrontEnd::OptionsKey(FSSXFeState& S, ESSXFeKey K)
 	if (IsAccept(K))
 	{
 		Sound(TEXT("accept"));
+		if (P == KeybindsPage && R.Id == KeyResetId)
+		{
+			O.Binds = SSXKeyBinds::Defaults();
+			return;
+		}
 		if (P == 3)
 		{
 			MemCard.Begin(R.Id == 2 ? FSSXMemCard::EMode::Replay : FSSXMemCard::EMode::Game, R.Id == 0, Profile);
@@ -2330,6 +2374,43 @@ void FSSXFrontEnd::OptionsKey(FSSXFeState& S, ESSXFeKey K)
 			OptionsLeavePage(S);
 		}
 	}
+}
+
+bool FSSXFrontEnd::WantsRawKey() const
+{
+	const FSSXFeState* S = Top();
+	return S && S->Screen == ESSXFeScreen::Options && S->Page == SSXFeOptions::KeybindsPage && S->Opt.bKeyCapture;
+}
+
+void FSSXFrontEnd::RawKey(const FKey& Key)
+{
+	FSSXFeState* S = TopMut();
+	if (!WantsRawKey() || !S)
+	{
+		return;
+	}
+	FSSXFeOptionsUI& O = S->Opt;
+	const int32 Row = O.RowSel[SSXFeOptions::KeybindsPage];
+	if (Key == EKeys::Escape)
+	{
+		O.bKeyCapture = false;
+		Sound(TEXT("back"));
+		return;
+	}
+	if (Key == EKeys::Delete)
+	{
+		O.Binds.Keys[Row][O.KeySlot] = EKeys::Invalid;
+	}
+	else if (SSXKeyBinds::IsReserved(Key))
+	{
+		return;
+	}
+	else
+	{
+		SSXKeyBinds::Assign(O.Binds, Row, O.KeySlot, Key);
+	}
+	O.bKeyCapture = false;
+	Sound(TEXT("accept"));
 }
 
 void FSSXFrontEnd::UserNameKey(FSSXFeState& S, ESSXFeKey K)
@@ -2865,8 +2946,10 @@ FString FSSXFrontEnd::HelpLine(const FSSXFeState& S) const
 	if (S.Screen == ESSXFeScreen::Options)
 	{
 		// FUN_002AA998
-		const int32 HelpId = SSXFeOptions::HelpLoc(S.Page, OptionsSelectedId(S));
-		return HelpId >= 0 ? L(HelpId) : FString();
+		const int32 Id = OptionsSelectedId(S);
+		const int32 HelpId = SSXFeOptions::HelpLoc(S.Page, Id);
+		const TCHAR* Text = HelpId < 0 ? SSXFeOptions::HelpText(S.Page, Id) : nullptr;
+		return HelpId >= 0 ? L(HelpId) : Text ? FString(Text) : FString();
 	}
 	if (S.Screen == ESSXFeScreen::TrickBook)
 	{
@@ -3495,7 +3578,8 @@ void FSSXFrontEnd::DrawOptions(FSSXFeDrawList& D, const FSSXFeState& S) const
 	const float Y0 = BarY(S);
 	const int32 Tl = TextLayer(TitleBarLayer + 1);
 	auto MenuW = [&D](const FString& Str, float Scale) { return D.TextBoxWidth(EFont::Menu, Str, Scale) + ShadowOffset; };
-	const FString Title = L(PageTitleLoc(S.Page));
+	const TCHAR* TitleText = PageTitleText(S.Page);
+	const FString Title = TitleText ? FString(TitleText) : L(PageTitleLoc(S.Page));
 	const float TitleW = D.TextBoxWidth(EFont::Title, Title, 1.f) + ShadowOffset;
 	D.Text(EFont::Title, (ScreenW - TitleW) * 0.5f, Y0 + TitleY, 1.f, White, Title, ESSXAlign::Left, true, Tl);
 
@@ -3547,7 +3631,11 @@ void FSSXFrontEnd::DrawOptions(FSSXFeDrawList& D, const FSSXFeState& S) const
 		for (const FRow& R : Rows) { CellW = FMath::Max(CellW, MenuW(L(R.Loc), 1.f)); }
 		X = ListX - CellW * 0.5f;
 	}
-	const float Pitch = CellH + (S.Page == 1 ? CtrlSpacing : PageSpacing);
+	else if (S.Page == KeybindsPage)
+	{
+		X = ListX - KeyColumnW * 0.5f;
+	}
+	const float Pitch = CellH + (S.Page == 1 ? CtrlSpacing : (S.Page == KeybindsPage ? 0.f : PageSpacing));
 	const float Top = Y0 + MenuTopY(S.Page, Rows.Num(), CellH);
 	const int32 Sel = O.RowSel[S.Page];
 
@@ -3594,11 +3682,11 @@ void FSSXFrontEnd::DrawOptions(FSSXFeDrawList& D, const FSSXFeState& S) const
 		const FLinearColor C = bHi ? Gold : White;
 		if (R.Kind == EKind::Item)
 		{
-			const FString Str = L(R.Loc);
+			const FString Str = R.Text ? FString(R.Text) : L(R.Loc);
 			D.Text(EFont::Menu, X + (CellW - MenuW(Str, 1.f)) * 0.5f, Y, 1.f, C, Str, ESSXAlign::Left, true, Tl);
 			continue;
 		}
-		const FString Label = L(R.Loc);
+		const FString Label = R.Text ? FString(R.Text) : L(R.Loc);
 		D.Text(EFont::Menu, X - MenuW(Label, 1.f), Y, 1.f, C, Label, ESSXAlign::Left, true, Tl);
 		const float Vx = X + EntryGap;
 		if (R.Kind == EKind::List)
@@ -3613,6 +3701,26 @@ void FSSXFrontEnd::DrawOptions(FSSXFeDrawList& D, const FSSXFeState& S) const
 				const float Ay = Y + CellH * 0.5f - OptArrowSize * 0.5f;
 				D.Sprite(SprArrowL, Vx - OptArrowSize - OptArrowGap, Ay, OptArrowSize, OptArrowSize, ArrowColor(0), ArrowLayer);
 				D.Sprite(SprArrowR, Vx + Vw + OptArrowGap, Ay, OptArrowSize, OptArrowSize, ArrowColor(1), ArrowLayer);
+			}
+		}
+		else if (R.Kind == EKind::Key)
+		{
+			// PC only: primary and alternate key; the selected one is gold, "PRESS A KEY" while capturing
+			for (int32 Slot = 0; Slot < SSXKeyBinds::NumSlots; ++Slot)
+			{
+				const bool bSlot = bHi && Slot == O.KeySlot;
+				const bool bCap = bSlot && O.bKeyCapture;
+				const FString Val = bCap ? FString(TEXT("PRESS A KEY")) : SSXKeyBinds::KeyText(O.Binds.Keys[R.Id][Slot]);
+				FLinearColor Vc = bSlot ? Gold : White;
+				if (bCap) { Vc.A = (S.Frame / 15) % 2 == 0 ? 1.f : 0.4f; }
+				const float Sx = Vx + Slot * KeyColumnW;
+				D.Text(EFont::Menu, Sx, Y, 1.f, Vc, Val, ESSXAlign::Left, true, Tl);
+				if (bSlot && !bCap)
+				{
+					const float Ay = Y + CellH * 0.5f - OptArrowSize * 0.5f;
+					D.Sprite(SprArrowL, Sx - OptArrowSize - OptArrowGap, Ay, OptArrowSize, OptArrowSize, White, ArrowLayer);
+					D.Sprite(SprArrowR, Sx + MenuW(Val, 1.f) + OptArrowGap, Ay, OptArrowSize, OptArrowSize, White, ArrowLayer);
+				}
 			}
 		}
 		else if (R.Kind == EKind::Bar)

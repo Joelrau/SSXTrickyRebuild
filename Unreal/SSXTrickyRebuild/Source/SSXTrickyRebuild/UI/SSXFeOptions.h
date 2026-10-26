@@ -2,17 +2,27 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Input/SSXKeyBinds.h"
 #include "UI/SSXFeTypes.h"
 
 namespace SSXFeOptions
 {
 	constexpr int32 DoneId = int32(0xABCD1234);
-	constexpr int32 NumPages = 5;
-	constexpr int32 MaxRows = 9;
+	/** Pages 0..4 are the original's; KeybindsPage is PC-only (user request, not in the original). */
+	constexpr int32 NumPages = 6;
+	constexpr int32 KeybindsPage = 5;
+	constexpr int32 MaxRows = 18;
+	/** Keybinds page: rows 0..15 are the SSXKeyBinds buttons (row id = button row), then RESET TO DEFAULTS and DONE. */
+	constexpr int32 KeyResetId = 16;
+	/** Keybinds page layout: first row y and row pitch (18 rows do not fit the original's centring). */
+	constexpr float KeyTopY = 92.f;
+	constexpr float KeyColumnW = 150.f;
+	/** Row position of the row with this id on the page, or INDEX_NONE. */
+	SSXTRICKYREBUILD_API int32 RowIndex(int32 Page, int32 Id);
 
 	/** Row widget kinds: a cFE3DWTextEntry with a value list (cFE3DWList style 2, wrap 1) or a progress bar
 	 *  (cFE3DProgressBar), the DONE entry (label only), or a plain single-line text item (Save/Load). */
-	enum class EKind : uint8 { List, Bar, Done, Item };
+	enum class EKind : uint8 { List, Bar, Done, Item, Key };
 
 	// 0x3B40E0
 	struct FValue { int32 Id = 0; int32 Loc = -1; const TCHAR* Text = nullptr; };
@@ -22,6 +32,7 @@ namespace SSXFeOptions
 		int32 Id = 0;
 		int32 Loc = -1;
 		EKind Kind = EKind::List;
+		const TCHAR* Text = nullptr;   // label of a PC-only row (Loc -1)
 		TArray<FValue> Values;
 		float BarW = 0.f;
 		float BarStep = 0.f;
@@ -31,6 +42,10 @@ namespace SSXFeOptions
 	/** Top-list items and page titles: 3608 Sound, 176 Configure Controller, 186 Game Options, 204 Save/Load, 180 Credits
 	 *  (vfunc_12 0x2A8A30 writes them to state +0x7C + 12 i). */
 	SSXTRICKYREBUILD_API int32 PageTitleLoc(int32 Page);
+	/** Top-list item / page title text of the PC-only pages (no LOC entry); nullptr for the original's pages. */
+	SSXTRICKYREBUILD_API const TCHAR* PageTitleText(int32 Page);
+	/** Help line of the PC-only items (HelpLoc -1): the Keybinds top-list item (Page -1) and the Keybinds page rows. */
+	SSXTRICKYREBUILD_API const TCHAR* HelpText(int32 Page, int32 ItemId);
 	/** FUN_002AA998: DONE -> 3534; else table[item id] of page -1 (0x3481D0), 0 (0x3481E8), 1 (0x348238), 2 (0x3483F8),
 	 *  3 (0x348450); page 4 sets "" (returns -1). Value items have their own entries in the same tables. */
 	SSXTRICKYREBUILD_API int32 HelpLoc(int32 Page, int32 ItemId);
@@ -137,6 +152,10 @@ struct SSXTRICKYREBUILD_API FSSXFeOptionsUI
 	float SnapBar[3][SSXFeOptions::MaxRows] = {};
 	int32 ArrowFlashFrame[2] = { -1000, -1000 };
 	int32 CtrlDiagram = -1;
+	/** Keybinds page: the bindings being edited (committed by DONE), the selected key column and key capture. */
+	SSXKeyBinds::FSet Binds;
+	int32 KeySlot = 0;
+	bool bKeyCapture = false;
 	bool bCreditsActive = false;
 	FSSXFeScrollText Credits;
 };
