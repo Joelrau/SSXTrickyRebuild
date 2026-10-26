@@ -7,10 +7,11 @@
 
 namespace SSXKeyBinds
 {
-	constexpr int32 NumButtons = 16;
+	/** The 14 buttons the game uses; L3 / R3 have no function (BTNMAP) and no keys. */
+	constexpr int32 NumButtons = 14;
 	constexpr int32 NumSlots = 2;
 
-	/** Rows in page order: UP DOWN LEFT RIGHT CROSS SQUARE CIRCLE TRIANGLE L1 R1 L2 R2 L3 R3 SELECT START. */
+	/** Rows in page order: UP DOWN LEFT RIGHT CROSS SQUARE CIRCLE TRIANGLE L1 R1 L2 R2 SELECT START. */
 	struct FButton { uint32 Bit; const TCHAR* Name; };
 	SSXTRICKYREBUILD_API const FButton& Button(int32 Row);
 
@@ -43,7 +44,7 @@ class SSXTRICKYREBUILD_API USSXKeyBindSettings : public UObject
 	GENERATED_BODY()
 
 public:
-	/** 32 key names, row-major (row 0 primary, row 0 alternate, row 1 ...); "None" = unbound. */
+	/** 28 key names, row-major (row 0 primary, row 0 alternate, row 1 ...); "None" = unbound. */
 	UPROPERTY(config)
 	TArray<FString> Keys;
 

@@ -11,10 +11,10 @@ namespace SSXFeOptions
 	/** Pages 0..4 are the original's; KeybindsPage is PC-only (user request, not in the original). */
 	constexpr int32 NumPages = 6;
 	constexpr int32 KeybindsPage = 5;
-	constexpr int32 MaxRows = 18;
-	/** Keybinds page: rows 0..15 are the SSXKeyBinds buttons (row id = button row), then RESET TO DEFAULTS and DONE. */
-	constexpr int32 KeyResetId = 16;
-	/** Keybinds page layout: first row y and row pitch (18 rows do not fit the original's centring). */
+	constexpr int32 MaxRows = 16;
+	/** Keybinds page: rows 0..13 are the SSXKeyBinds buttons (row id = button row), then RESET TO DEFAULTS and DONE. */
+	constexpr int32 KeyResetId = SSXKeyBinds::NumButtons;
+	/** Keybinds page layout: first row y and the key column width (16 rows do not fit the original's centring). */
 	constexpr float KeyTopY = 92.f;
 	constexpr float KeyColumnW = 150.f;
 	/** Row position of the row with this id on the page, or INDEX_NONE. */
