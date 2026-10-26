@@ -2,6 +2,7 @@
 #include "Framework/Application/SlateApplication.h"
 
 #include "Components/SkeletalMeshComponent.h"
+#include "Input/SSXKeyBinds.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "UObject/UObjectIterator.h"
 #include "SnowboarderPawn.h"
@@ -55,27 +56,40 @@ void ASSXPlayerController::ForwardPad()
 	// 0x1A8688
 	struct FMap { FKey Key; uint32 Bit; };
 	static const FMap Map[] = {
-		{ EKeys::Gamepad_Special_Right, PadStart }, { EKeys::Enter, PadStart }, { EKeys::Escape, PadStart },
+		{ EKeys::Gamepad_Special_Right, PadStart }, { EKeys::Escape, PadStart },
 		{ EKeys::Gamepad_Special_Left, PadSelect },
-		{ EKeys::Gamepad_FaceButton_Bottom, PadCross }, { EKeys::SpaceBar, PadCross },
-		{ EKeys::Gamepad_FaceButton_Top, PadTriangle }, { EKeys::BackSpace, PadTriangle },
-		{ EKeys::Gamepad_FaceButton_Right, PadCircle }, { EKeys::LeftControl, PadCircle },
-		{ EKeys::Gamepad_DPad_Up, PadUp }, { EKeys::Up, PadUp }, { EKeys::Gamepad_DPad_Down, PadDown }, { EKeys::Down, PadDown },
-		{ EKeys::Gamepad_DPad_Left, PadLeft }, { EKeys::Left, PadLeft }, { EKeys::Gamepad_DPad_Right, PadRight }, { EKeys::Right, PadRight },
+		{ EKeys::Gamepad_FaceButton_Bottom, PadCross }, { EKeys::Gamepad_FaceButton_Top, PadTriangle },
+		{ EKeys::Gamepad_FaceButton_Right, PadCircle },
+		{ EKeys::Gamepad_DPad_Up, PadUp }, { EKeys::Gamepad_DPad_Down, PadDown },
+		{ EKeys::Gamepad_DPad_Left, PadLeft }, { EKeys::Gamepad_DPad_Right, PadRight },
 	};
-	uint32 Bits = 0;
+	constexpr uint32 PressBits = PadStart | PadSelect | PadCross | PadTriangle | PadCircle | PadUp | PadDown | PadLeft | PadRight;
+	// keyboard: the KEYBINDS page
+	const SSXKeyBinds::FSet& Kb = SSXKeyBinds::Current();
+	uint32 Bits = 0, KeyHeld = 0;
 	for (const FMap& M : Map)
 	{
 		if (WasInputKeyJustPressed(M.Key)) Bits |= M.Bit;
 	}
+	for (int32 Row = 0; Row < SSXKeyBinds::NumButtons; ++Row)
+	{
+		const uint32 Bit = SSXKeyBinds::Button(Row).Bit;
+		for (const FKey& K : Kb.Keys[Row])
+		{
+			if (!K.IsValid()) continue;
+			if ((Bit & PressBits) && WasInputKeyJustPressed(K)) Bits |= Bit;
+			if (IsInputKeyDown(K)) KeyHeld |= Bit;
+		}
+	}
 	// 0x100000 / 0x200000 / 0x400000 / 0x800000
 	{
 		static const FMap HeldMap[] = {
-			{ EKeys::Gamepad_LeftShoulder, PadL1 }, { EKeys::Q, PadL1 }, { EKeys::Gamepad_RightShoulder, PadR1 }, { EKeys::E, PadR1 },
-			{ EKeys::Gamepad_LeftTrigger, PadL2 }, { EKeys::One, PadL2 }, { EKeys::Gamepad_RightTrigger, PadR2 }, { EKeys::Three, PadR2 },
-			{ EKeys::Gamepad_FaceButton_Left, PadSquare }, { EKeys::Tab, PadSquare },
+			{ EKeys::Gamepad_LeftShoulder, PadL1 }, { EKeys::Gamepad_RightShoulder, PadR1 },
+			{ EKeys::Gamepad_LeftTrigger, PadL2 }, { EKeys::Gamepad_RightTrigger, PadR2 },
+			{ EKeys::Gamepad_FaceButton_Left, PadSquare },
 		};
-		uint32 Held = 0;
+		constexpr uint32 HeldBits = PressBits | PadL1 | PadR1 | PadL2 | PadR2 | PadSquare;
+		uint32 Held = KeyHeld & HeldBits;
 		for (const FMap& M : Map) { if (IsInputKeyDown(M.Key)) Held |= M.Bit; }
 		for (const FMap& M : HeldMap) { if (IsInputKeyDown(M.Key)) Held |= M.Bit; }
 		const float LX = GetInputAnalogKeyState(EKeys::Gamepad_LeftX), LY = GetInputAnalogKeyState(EKeys::Gamepad_LeftY);

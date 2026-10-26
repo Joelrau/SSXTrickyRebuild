@@ -250,7 +250,9 @@ you). That's why they live in separate folders.
 collision (terrain patches, rails, prop instances); the track meshes have no Unreal collision. `ASSXRaceManager`
 runs races with AI racers; the front end, HUD and overlays follow the original's state machines. A gamepad goes
 through a virtual PS2 pad and the game's own button mapping (`BTNMAP0/1`, layout 1 by default); DualSense and
-DualShock 4 are read natively (`Input/SSXDualSense`). Keyboard bindings exist for testing.
+DualShock 4 are read natively (`Input/SSXDualSense`). The keyboard plays the same virtual pad: Options →
+KEYBINDS (PC only) sets a primary and an alternate key for each of the 16 PS2 buttons, used in races and menus and
+saved in `GameUserSettings.ini`; Esc, Delete, Backspace (restart) and I J K L (right stick) are fixed.
 
 **Where the data comes from.** Everything is read from your disc image. A few tables (surface physics, HUD layouts,
 sprite sheets, animation lookup tables, per-track presentation, rider relationships) are not stored as data on the

@@ -151,6 +151,9 @@ public:
 	bool IsAutoAdvance() const { return (ExitFlag & 3) == 0; }
 
 	void Key(int32 Pad, ESSXFeKey K);
+	/** KEYBINDS page key capture (PC only): the widget hands the next keyboard key over raw. */
+	bool WantsRawKey() const;
+	void RawKey(const FKey& Key);
 	void SetHeld(int32 Pad, uint32 HeldBits) { Held[FMath::Clamp(Pad, 0, 1)] = HeldBits; }
 	void Tick();
 	void Draw(FSSXFeDrawList& D) const;

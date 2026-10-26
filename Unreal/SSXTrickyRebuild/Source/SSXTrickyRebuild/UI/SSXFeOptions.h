@@ -2,15 +2,22 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Input/SSXKeyBinds.h"
 #include "UI/SSXFeTypes.h"
 
 namespace SSXFeOptions
 {
 	constexpr int32 DoneId = int32(0xABCD1234);
-	/** Pages 0..4 are the original's; VideoPage is the PC-only Video page (user request, not in the original). */
-	constexpr int32 NumPages = 6;
+	/** Pages 0..4 are the original's; VideoPage and KeybindsPage are PC-only (user request, not in the original). */
+	constexpr int32 NumPages = 7;
 	constexpr int32 VideoPage = 5;
-	constexpr int32 MaxRows = 9;
+	constexpr int32 KeybindsPage = 6;
+	constexpr int32 MaxRows = 18;
+	/** Keybinds page: rows 0..15 are the SSXKeyBinds buttons (row id = button row), then RESET TO DEFAULTS and DONE. */
+	constexpr int32 KeyResetId = 16;
+	/** Keybinds page layout: first row y and row pitch (18 rows do not fit the original's centring). */
+	constexpr float KeyTopY = 92.f;
+	constexpr float KeyColumnW = 150.f;
 	/** Video page row id of FRAME GENERATION (present only with the FSR plugin). */
 	constexpr int32 FrameGenerationId = 4;
 	/** Row position of the row with this id on the page, or INDEX_NONE. */
@@ -18,7 +25,7 @@ namespace SSXFeOptions
 
 	/** Row widget kinds: a cFE3DWTextEntry with a value list (cFE3DWList style 2, wrap 1) or a progress bar
 	 *  (cFE3DProgressBar), the DONE entry (label only), or a plain single-line text item (Save/Load). */
-	enum class EKind : uint8 { List, Bar, Done, Item };
+	enum class EKind : uint8 { List, Bar, Done, Item, Key };
 
 	// 0x3B40E0
 	struct FValue { int32 Id = 0; int32 Loc = -1; const TCHAR* Text = nullptr; };
@@ -152,6 +159,10 @@ struct SSXTRICKYREBUILD_API FSSXFeOptionsUI
 	float SnapBar[SSXFeOptions::NumPages][SSXFeOptions::MaxRows] = {};
 	int32 ArrowFlashFrame[2] = { -1000, -1000 };
 	int32 CtrlDiagram = -1;
+	/** Keybinds page: the bindings being edited (committed by DONE), the selected key column and key capture. */
+	SSXKeyBinds::FSet Binds;
+	int32 KeySlot = 0;
+	bool bKeyCapture = false;
 	bool bCreditsActive = false;
 	FSSXFeScrollText Credits;
 };

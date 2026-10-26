@@ -4,6 +4,8 @@
 #include "Misc/ScopeExit.h"
 #include "Engine/Texture2D.h"
 #include "UObject/Package.h"
+#include "Input/PadMapper.h"
+#include "Input/SSXKeyBinds.h"
 #include "UI/SSXFeDraw.h"
 #include "UI/SSXFeOptions.h"
 #include "UI/SSXFeProfile.h"
@@ -337,9 +339,11 @@ bool FSSXUIOptionsVideoTest::RunTest(const FString& Parameters)
 		FOptFe F;
 		F.Press(ESSXFeKey::Square);
 		const FSSXFeState* S = F.FE.Top();
-		if (!TestTrue(TEXT("Options top list: the original five + Video"), S && S->Items.Num() == 6)) return false;
+		if (!TestTrue(TEXT("Options top list: the original five + Video + Keybinds"), S && S->Items.Num() == 7)) return false;
 		TestEqual(TEXT("item 5 text"), S->Items[5].Text, FString(TEXT("VIDEO")));
 		TestEqual(TEXT("item 5 id"), S->Items[5].Id, VideoPage);
+		TestEqual(TEXT("item 6 text"), S->Items[6].Text, FString(TEXT("KEYBINDS")));
+		TestEqual(TEXT("item 6 id"), S->Items[6].Id, KeybindsPage);
 		for (int32 I = 0; I < 5; ++I) { TestEqual(FString::Printf(TEXT("original item %d help"), I), S->Items[I].HelpLoc, HelpLoc(-1, I)); }
 	}
 	{
@@ -391,6 +395,72 @@ bool FSSXUIOptionsVideoTest::RunTest(const FString& Parameters)
 		}
 		TestEqual(TEXT("DONE leaves the page"), F.FE.Top()->Page, -1);
 	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSSXUIOptionsKeybindsTest, "SSX.UI.OptionsKeybinds", OptTestFlags)
+bool FSSXUIOptionsKeybindsTest::RunTest(const FString& Parameters)
+{
+	using namespace SSXFeOptions;
+	using SSXKeyBinds::FSet;
+	const FSet Prev = SSXKeyBinds::Current();
+	ON_SCOPE_EXIT { SSXKeyBinds::SetCurrent(Prev); };
+	SSXKeyBinds::SetCurrent(SSXKeyBinds::Defaults());
+	// one key set for the race and the menus
+	TestEqual(TEXT("W = Up"), SSXKeyBinds::PadBits(EKeys::W), uint32(SSXPadButton::Up));
+	TestEqual(TEXT("Up arrow = Up (alternate)"), SSXKeyBinds::PadBits(EKeys::Up), uint32(SSXPadButton::Up));
+	TestEqual(TEXT("Space = Cross"), SSXKeyBinds::PadBits(EKeys::SpaceBar), uint32(SSXPadButton::Cross));
+	TestEqual(TEXT("F = Circle"), SSXKeyBinds::PadBits(EKeys::F), uint32(SSXPadButton::Circle));
+	TestEqual(TEXT("Enter = Start"), SSXKeyBinds::PadBits(EKeys::Enter), uint32(SSXPadButton::Start));
+	TestEqual(TEXT("P unbound"), SSXKeyBinds::PadBits(EKeys::P), 0u);
+	TestTrue(TEXT("Escape, Delete, BackSpace, I J K L and pad keys reserved"), SSXKeyBinds::IsReserved(EKeys::Escape)
+		&& SSXKeyBinds::IsReserved(EKeys::Delete) && SSXKeyBinds::IsReserved(EKeys::BackSpace) && SSXKeyBinds::IsReserved(EKeys::K)
+		&& SSXKeyBinds::IsReserved(EKeys::Gamepad_FaceButton_Bottom) && !SSXKeyBinds::IsReserved(EKeys::P));
+	{
+		FSet T = SSXKeyBinds::Defaults();
+		SSXKeyBinds::Assign(T, 4, 0, EKeys::W);   // CROSS primary = W: UP primary takes Space
+		TestTrue(TEXT("assigning a used key swaps"), T.Keys[4][0] == EKeys::W && T.Keys[0][0] == EKeys::SpaceBar);
+	}
+	if (!FOptAssets::Get().Ready()) { SSXTest::Skip(*this, TEXT("FE fonts / sprites / LOC not converted; page checks skipped")); return true; }
+	FOptFe F;
+	F.OpenPage(KeybindsPage);
+	const FSSXFeState* S = F.FE.Top();
+	if (!TestTrue(TEXT("Keybinds page open"), S && S->Page == KeybindsPage)) return false;
+	TestEqual(TEXT("16 buttons + RESET + DONE"), PageRows(KeybindsPage).Num(), 18);
+	F.Redraw();
+	TestNotNull(TEXT("title KEYBINDS"), F.Txt(TEXT("KEYBINDS")));
+	TestNotNull(TEXT("row TRIANGLE"), F.Txt(TEXT("TRIANGLE")));
+	TestNotNull(TEXT("value SPACE BAR"), F.Txt(SSXKeyBinds::KeyText(EKeys::SpaceBar)));
+	TestNotNull(TEXT("RESET TO DEFAULTS"), F.Txt(TEXT("RESET TO DEFAULTS")));
+	// CROSS (row 4), alternate column, capture P
+	for (int32 I = 0; I < 4; ++I) { F.Press(ESSXFeKey::Down); }
+	F.Press(ESSXFeKey::Right);
+	F.Press(ESSXFeKey::Cross);
+	TestTrue(TEXT("accept starts the capture"), F.FE.WantsRawKey());
+	F.Redraw();
+	TestNotNull(TEXT("PRESS A KEY"), F.Txt(TEXT("PRESS A KEY")));
+	F.FE.RawKey(EKeys::K);
+	TestTrue(TEXT("a reserved key keeps the capture"), F.FE.WantsRawKey());
+	F.FE.RawKey(EKeys::P);
+	TestFalse(TEXT("a key ends the capture"), F.FE.WantsRawKey());
+	TestTrue(TEXT("CROSS alternate = P (not applied before DONE)"), F.FE.Top()->Opt.Binds.Keys[4][1] == EKeys::P
+		&& SSXKeyBinds::PadBits(EKeys::P) == 0u);
+	F.Press(ESSXFeKey::Cross);
+	F.FE.RawKey(EKeys::Escape);
+	TestTrue(TEXT("Esc cancels, P stays"), !F.FE.WantsRawKey() && F.FE.Top()->Opt.Binds.Keys[4][1] == EKeys::P);
+	for (int32 I = 4; I < RowIndex(KeybindsPage, DoneId); ++I) { F.Press(ESSXFeKey::Down); }
+	F.FE.SoundHooks.Reset();
+	F.Press(ESSXFeKey::Cross);
+	TestEqual(TEXT("DONE applies: P = Cross"), SSXKeyBinds::PadBits(EKeys::P), uint32(SSXPadButton::Cross));
+	TestTrue(TEXT("DONE asks to save the keybinds"), F.HasHook(TEXT("saveKeys")));
+	TestEqual(TEXT("DONE leaves the page"), F.FE.Top()->Page, -1);
+	// RESET TO DEFAULTS, then back out: nothing applied
+	F.Press(ESSXFeKey::Cross);
+	F.Press(ESSXFeKey::Up);   // the page reopens on DONE
+	F.Press(ESSXFeKey::Cross);
+	TestTrue(TEXT("RESET puts the defaults on the page"), F.FE.Top()->Opt.Binds.Keys[4][1] == EKeys::Invalid);
+	F.Press(ESSXFeKey::Triangle);
+	TestEqual(TEXT("back keeps the applied keys"), SSXKeyBinds::PadBits(EKeys::P), uint32(SSXPadButton::Cross));
 	return true;
 }
 

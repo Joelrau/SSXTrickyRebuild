@@ -633,7 +633,7 @@ bool FSSXUIOptionsTest::RunTest(const FString& Parameters)
 	F.Key(ESSXFeKey::Square);
 	TestEqual(TEXT("Square -> Options"), F.Screen(), FString(TEXT("Options")));
 	TestEqual(TEXT("OPTIONS 3493"), F.FE.Top()->TitleLoc, 3493);
-	TestEqual(TEXT("top menu"), F.Locs(), TArray<int32>({ 3608, 176, 186, 204, 180, -1 }));   // + the PC-only Video item (text, no LOC)
+	TestEqual(TEXT("top menu"), F.Locs(), TArray<int32>({ 3608, 176, 186, 204, 180, -1, -1 }));   // + the PC-only Video and Keybinds items (text, no LOC)
 	F.Key(ESSXFeKey::Square);
 	TestEqual(TEXT("no Options on Options"), F.FE.Depth(), 2);
 	F.X();

@@ -3,6 +3,7 @@
 #include "Audio/SSXAudioSubsystem.h"
 #include "Audio/SSXGameAudio.h"
 #include "Audio/SSXWaveKeepAlive.h"
+#include "Input/SSXKeyBinds.h"
 #include "Components/AudioComponent.h"
 #include "Engine/Texture2D.h"
 #include "Kismet/GameplayStatics.h"
@@ -75,20 +76,22 @@ void USSXFeWidget::NativeDestruct()
 
 uint32 USSXFeWidget::PadBitForKey(const FKey& K)
 {
-	if (K == EKeys::Gamepad_FaceButton_Bottom || K == EKeys::SpaceBar) return PadCross;
-	if (K == EKeys::Gamepad_FaceButton_Right || K == EKeys::LeftControl) return PadCircle;
-	if (K == EKeys::Gamepad_FaceButton_Top || K == EKeys::BackSpace) return PadTriangle;
-	if (K == EKeys::Gamepad_FaceButton_Left || K == EKeys::Tab) return PadSquare;
-	if (K == EKeys::Gamepad_Special_Right || K == EKeys::Enter) return PadStart;
+	if (K == EKeys::Gamepad_FaceButton_Bottom) return PadCross;
+	if (K == EKeys::Gamepad_FaceButton_Right) return PadCircle;
+	if (K == EKeys::Gamepad_FaceButton_Top) return PadTriangle;
+	if (K == EKeys::Gamepad_FaceButton_Left) return PadSquare;
+	if (K == EKeys::Gamepad_Special_Right) return PadStart;
 	if (K == EKeys::Gamepad_Special_Left || K == EKeys::Escape) return PadSelect;
-	if (K == EKeys::Gamepad_LeftShoulder || K == EKeys::Q) return PadL1;
-	if (K == EKeys::Gamepad_RightShoulder || K == EKeys::E) return PadR1;
-	if (K == EKeys::Gamepad_LeftTrigger || K == EKeys::One) return PadL2;
-	if (K == EKeys::Gamepad_RightTrigger || K == EKeys::Three) return PadR2;
-	if (K == EKeys::Up || K == EKeys::Gamepad_DPad_Up || K == EKeys::Gamepad_LeftStick_Up) return PadUp;
-	if (K == EKeys::Down || K == EKeys::Gamepad_DPad_Down || K == EKeys::Gamepad_LeftStick_Down) return PadDown;
-	if (K == EKeys::Left || K == EKeys::Gamepad_DPad_Left || K == EKeys::Gamepad_LeftStick_Left) return PadLeft;
-	if (K == EKeys::Right || K == EKeys::Gamepad_DPad_Right || K == EKeys::Gamepad_LeftStick_Right) return PadRight;
+	if (K == EKeys::Gamepad_LeftShoulder) return PadL1;
+	if (K == EKeys::Gamepad_RightShoulder) return PadR1;
+	if (K == EKeys::Gamepad_LeftTrigger) return PadL2;
+	if (K == EKeys::Gamepad_RightTrigger) return PadR2;
+	if (K == EKeys::Gamepad_DPad_Up || K == EKeys::Gamepad_LeftStick_Up) return PadUp;
+	if (K == EKeys::Gamepad_DPad_Down || K == EKeys::Gamepad_LeftStick_Down) return PadDown;
+	if (K == EKeys::Gamepad_DPad_Left || K == EKeys::Gamepad_LeftStick_Left) return PadLeft;
+	if (K == EKeys::Gamepad_DPad_Right || K == EKeys::Gamepad_LeftStick_Right) return PadRight;
+	// keyboard: the KEYBINDS page (the menus take the 14 pad bits; L3 / R3 have none)
+	if (!K.IsGamepadKey()) return SSXKeyBinds::PadBits(K) & 0x3FFFu;
 	return 0;
 }
 
@@ -109,6 +112,14 @@ void USSXFeWidget::PressPad(int32 Pad, uint32 Bit)
 FReply USSXFeWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
 {
 	const FKey Key = InKeyEvent.GetKey();
+	if (Mode == EMode::FrontEnd && FE.WantsRawKey() && !Key.IsGamepadKey())
+	{
+		if (!InKeyEvent.IsRepeat())
+		{
+			FE.RawKey(Key);
+		}
+		return FReply::Handled();
+	}
 	const uint32 Bit = PadBitForKey(Key);
 	if (!Bit)
 	{
@@ -285,6 +296,10 @@ void USSXFeWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 		if (FE.SoundHooks.Contains(TEXT("saveVideo")))
 		{
 			USSXVideoSettings::Save();
+		}
+		if (FE.SoundHooks.Contains(TEXT("saveKeys")))
+		{
+			USSXKeyBindSettings::Save();
 		}
 		if (USSXAudioSubsystem* Audio = USSXAudioSubsystem::Get(this))
 		{
