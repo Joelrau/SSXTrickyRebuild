@@ -106,7 +106,7 @@ namespace
 			{ EKeys::Apostrophe, TEXT("quotation") }, { EKeys::Tilde, TEXT("tilde") }, { EKeys::LeftBracket, TEXT("brackets_l") },
 			{ EKeys::RightBracket, TEXT("brackets_r") }, { EKeys::NumLock, TEXT("numlock") },
 			{ EKeys::Zero, TEXT("0") }, { EKeys::One, TEXT("1") }, { EKeys::Two, TEXT("2") }, { EKeys::Three, TEXT("3") },
-			{ EKeys::Five, TEXT("5") }, { EKeys::Six, TEXT("6") }, { EKeys::Seven, TEXT("7") }, { EKeys::Eight, TEXT("8") },
+			{ EKeys::Four, TEXT("4") }, { EKeys::Five, TEXT("5") }, { EKeys::Six, TEXT("6") }, { EKeys::Seven, TEXT("7") }, { EKeys::Eight, TEXT("8") },
 			{ EKeys::Nine, TEXT("9") } };
 		if (const TCHAR* const* Name = Special.Find(K))
 		{
