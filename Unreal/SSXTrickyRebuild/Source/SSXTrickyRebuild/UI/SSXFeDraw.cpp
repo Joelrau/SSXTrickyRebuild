@@ -236,6 +236,7 @@ const FSSXBitmapFont* FSSXFeAssets::Font(SSXFe::EFont F) const
 void FSSXFeDrawList::Rect(float X, float Y, float W, float H, const FLinearColor& Color, int32 Layer)
 {
 	FSSXFeDrawCmd& C = Cmds.AddDefaulted_GetRef();
+	C.bHud = bHudLayer;
 	C.Kind = FSSXFeDrawCmd::EKind::Quad;
 	C.Layer = Layer;
 	C.Pos = FVector2f(X, Y);
@@ -261,6 +262,7 @@ void FSSXFeDrawList::PageSprite(FName Page, int32 Id, float X, float Y, float W,
 {
 	UTexture* const* T = Assets ? Assets->Pages.Find(Page) : nullptr;
 	FSSXFeDrawCmd& C = Cmds.AddDefaulted_GetRef();
+	C.bHud = bHudLayer;
 	C.Kind = FSSXFeDrawCmd::EKind::Image;
 	C.Layer = Layer;
 	C.Pos = FVector2f(X, Y);
@@ -291,7 +293,7 @@ namespace
 	TAutoConsoleVariable<int32> CVarUiWidescreen(TEXT("ssx.UI.Widescreen"), -1,
 		TEXT("UI with a 16:9 image (Options > Widescreen): 0 = the original's 640 x 480 frame stretched to the image width (as on ")
 		TEXT("a 16:9 TV), 1 = unstretched with the HUD anchored to the screen edges (deliberate difference), -1 = by look ")
-		TEXT("(Classic 0, Remastered 1)."));
+		TEXT("(Classic 0; Remastered: menus stretched, race HUD anchored)."));
 }
 
 void SSXFeWide::SetImageAspect(float Aspect)
@@ -308,10 +310,10 @@ float SSXFeWide::VisibleExtra(float ImageAspect, float WindowAspect)
 	return FMath::Max(0.f, FMath::Min(ImageAspect, WindowAspect) * SSXFe::ScreenH * 0.5f - SSXFe::ScreenW * 0.5f);
 }
 
-bool SSXFeWide::Anchored()
+bool SSXFeWide::Anchored(bool bHud)
 {
 	const int32 Mode = CVarUiWidescreen.GetValueOnAnyThread();
-	return Mode < 0 ? SSXRenderLook::Get() == ESSXRenderLook::Remastered : Mode != 0;
+	return Mode < 0 ? bHud && SSXRenderLook::Get() == ESSXRenderLook::Remastered : Mode != 0;
 }
 
 static float CurrentExtra()
@@ -324,14 +326,14 @@ static float CurrentExtra()
 	return Size.Y > 0 ? SSXFeWide::VisibleExtra(GImageAspect, float(Size.X) / float(Size.Y)) : 0.f;
 }
 
-float SSXFeWide::ExtraX()
+float SSXFeWide::ExtraX(bool bHud)
 {
-	return Anchored() ? CurrentExtra() : 0.f;
+	return Anchored(bHud) ? CurrentExtra() : 0.f;
 }
 
-float SSXFeWide::StretchX()
+float SSXFeWide::StretchX(bool bHud)
 {
-	return Anchored() ? 1.f : 1.f + 2.f * CurrentExtra() / SSXFe::ScreenW;
+	return Anchored(bHud) ? 1.f : 1.f + 2.f * CurrentExtra() / SSXFe::ScreenW;
 }
 
 float SSXFeWide::AnchorX(float X, float Extra)
@@ -391,6 +393,7 @@ bool FSSXFeDrawList::SpriteEx(int32 Id, float X, float Y, float W, float H, cons
 		return false;
 	}
 	FSSXFeDrawCmd& C = Cmds.AddDefaulted_GetRef();
+	C.bHud = bHudLayer;
 	C.Kind = FSSXFeDrawCmd::EKind::Quad;
 	C.Layer = Layer;
 	C.Pos = FVector2f(X, Y);
@@ -432,10 +435,10 @@ void FSSXFeDrawList::CornerUVs(const FVector2f& U0, const FVector2f& U1, bool bR
 	Out[3] = bRot90 ? FVector2f(U0.X, U0.Y) : FVector2f(U0.X, U1.Y);
 }
 
-bool FSSXFeDrawList::ClipToScreen(FVector2f& P0, FVector2f& P1, FVector2f Uv[4])
+bool FSSXFeDrawList::ClipToScreen(FVector2f& P0, FVector2f& P1, FVector2f Uv[4], bool bHud)
 {
 	// 0x1A9BB8 (widescreen: the visible width past the frame too)
-	const float E = SSXFeWide::ExtraX();
+	const float E = SSXFeWide::ExtraX(bHud);
 	const FVector2f A = P0, B = P1;
 	const FVector2f N0(FMath::Clamp(A.X, -E, SSXFe::ScreenW + E), FMath::Clamp(A.Y, 0.f, SSXFe::ScreenH));
 	const FVector2f N1(FMath::Clamp(B.X, -E, SSXFe::ScreenW + E), FMath::Clamp(B.Y, 0.f, SSXFe::ScreenH));
@@ -512,6 +515,7 @@ bool FSSXFeDrawList::SpriteTiled(int32 Id, float X, float Y, float W, float H, f
 		{
 			const float Fu = FMath::Min(1.f, RepU - I);
 			FSSXFeDrawCmd& C = Cmds.AddDefaulted_GetRef();
+			C.bHud = bHudLayer;
 			C.Kind = FSSXFeDrawCmd::EKind::Quad;
 			C.Layer = Layer;
 			C.Pos = FVector2f(X + I * Cw, Y + J * Ch);
@@ -533,6 +537,7 @@ void FSSXFeDrawList::Image(UObject* Resource, float X, float Y, float W, float H
 		return;
 	}
 	FSSXFeDrawCmd& C = Cmds.AddDefaulted_GetRef();
+	C.bHud = bHudLayer;
 	C.Kind = FSSXFeDrawCmd::EKind::Image;
 	C.Layer = Layer;
 	C.Pos = FVector2f(X, Y);
@@ -634,6 +639,7 @@ void FSSXFeDrawList::Glyphs(const FSSXBitmapFont& F, float X, float Y, float Sca
 		if (G->Size.X > 0.f && G->Size.Y > 0.f && F.Atlas)
 		{
 			FSSXFeDrawCmd& C = Cmds.AddDefaulted_GetRef();
+			C.bHud = bHudLayer;
 			C.Kind = FSSXFeDrawCmd::EKind::Glyphs;
 			C.Layer = Layer;
 			C.Pos = FVector2f(Pen + G->Offset.X * Sx, Top + G->Offset.Y * Sy);
@@ -786,8 +792,8 @@ int32 SSSXFeCanvas::OnPaint(const FPaintArgs& Args, const FGeometry& Geo, const 
 	int32 BatchLayer = 0;
 	int32 MaxLayerId = LayerId + 1;
 	const float Opacity = InWidgetStyle.GetColorAndOpacityTint().A;
-	const float Extra = SSXFeWide::ExtraX();
-	const float Stretch = SSXFeWide::StretchX();
+	const float ExtraLayout[2] = { SSXFeWide::ExtraX(false), SSXFeWide::ExtraX(true) };
+	const float StretchLayout[2] = { SSXFeWide::StretchX(false), SSXFeWide::StretchX(true) };
 	const float Mid = SSXFe::ScreenW * 0.5f;
 
 	auto Flush = [&]()
@@ -815,13 +821,15 @@ int32 SSSXFeCanvas::OnPaint(const FPaintArgs& Args, const FGeometry& Geo, const 
 		FVector2f Uv[4];
 		FSSXFeDrawList::CornerUVs(U0, U1, C.bRot90, Uv);
 		FVector2f Q0 = C.Pos, Q1 = C.Pos + C.Size;
+		const float Extra = ExtraLayout[C.bHud ? 1 : 0];
+		const float Stretch = StretchLayout[C.bHud ? 1 : 0];
 		if (Extra > 0.f && !C.Texture && C.Kind == FSSXFeDrawCmd::EKind::Quad && Q0.X <= 0.f && Q1.X >= SSXFe::ScreenW
 			&& Q0.Y <= 0.f && Q1.Y >= SSXFe::ScreenH)
 		{
 			Q0.X = -Extra;   // full-screen fades and dims cover the widescreen sides too
 			Q1.X = SSXFe::ScreenW + Extra;
 		}
-		if (!FSSXFeDrawList::ClipToScreen(Q0, Q1, Uv))
+		if (!FSSXFeDrawList::ClipToScreen(Q0, Q1, Uv, C.bHud))
 		{
 			continue;
 		}

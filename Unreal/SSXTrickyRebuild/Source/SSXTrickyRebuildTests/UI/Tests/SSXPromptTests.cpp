@@ -4,6 +4,7 @@
 #include "Misc/Paths.h"
 #include "UI/SSXFeDraw.h"
 #include "UI/SSXPrompts.h"
+#include "World/SSXRenderLook.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -100,6 +101,14 @@ bool FSSXUIWidescreenTest::RunTest(const FString&)
 	TestEqual(TEXT("16:9 image in a 21:9 window: limited by the image"), SSXFeWide::VisibleExtra(16.f / 9.f, 21.f / 9.f), 320.f * 4.f / 3.f - 320.f, 1e-3f);
 	TestEqual(TEXT("4:3 image: none"), SSXFeWide::VisibleExtra(4.f / 3.f, 16.f / 9.f), 0.f);
 	TestFalse(TEXT("Classic look: the original's stretched frame"), SSXFeWide::Anchored());
+	TestFalse(TEXT("Classic look: the HUD is stretched too"), SSXFeWide::Anchored(true));
+	{
+		const ESSXRenderLook Prev = SSXRenderLook::Get();
+		SSXRenderLook::Set(ESSXRenderLook::Remastered);
+		TestFalse(TEXT("Remastered look: the menus keep the stretched frame"), SSXFeWide::Anchored(false));
+		TestTrue(TEXT("Remastered look: the race HUD is anchored"), SSXFeWide::Anchored(true));
+		SSXRenderLook::Set(Prev);
+	}
 	SSXFeWide::SetImageAspect(4.f / 3.f);
 	TestEqual(TEXT("no stretch with a 4:3 image"), SSXFeWide::StretchX(), 1.f);
 	TestEqual(TEXT("4:3 image: no extra width"), SSXFeWide::ExtraX(), 0.f);

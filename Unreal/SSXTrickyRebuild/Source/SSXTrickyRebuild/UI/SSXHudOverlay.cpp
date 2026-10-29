@@ -422,7 +422,7 @@ FString FSSXHudOverlay::UberComboString(const SSXFeTrickBook::FEntry& E, TFuncti
 
 void FSSXHudOverlay::Spr(FSSXFeDrawList& D, int32 Id, float X, float Y, float Sx, float Sy, uint32 Flags, const FLinearColor& C) const
 {
-	X = SSXFeWide::AnchorX(X, SSXFeWide::ExtraX());
+	X = SSXFeWide::AnchorX(X, SSXFeWide::ExtraX(true));
 	const FSSXSpriteTable* T = SSXFeDrawHud::GetSheet();
 	const FSSXSprite* S = (D.Assets && D.Assets->HudSprites) ? D.Assets->HudSprites->Find(Id) : (T ? T->Find(Id) : nullptr);
 	if (!S) return;
@@ -440,7 +440,7 @@ void FSSXHudOverlay::Spr(FSSXFeDrawList& D, int32 Id, float X, float Y, float Sx
 
 void FSSXHudOverlay::DrawPlate(FSSXFeDrawList& D, float X, float Y, float S, float W, const FLinearColor& C) const
 {
-	X = SSXFeWide::AnchorX(X, SSXFeWide::ExtraX());
+	X = SSXFeWide::AnchorX(X, SSXFeWide::ExtraX(true));
 	const float H = D.FontHeight(EFont::Title, 1.f) * S + PlatePad * S;
 	const float Top = Y - PlateRaise * S;
 	const float Cw = PlateCapW + PlateCapK * H;
@@ -452,7 +452,7 @@ void FSSXHudOverlay::DrawPlate(FSSXFeDrawList& D, float X, float Y, float S, flo
 float FSSXHudOverlay::Txt(FSSXFeDrawList& D, bool bMenuFont, float X, float Y, float Scale, uint32 Flags, const FLinearColor& C, const FString& S) const
 {
 	// FUN_0019d3f0 / FUN_0019d568
-	X = SSXFeWide::AnchorX(X, SSXFeWide::ExtraX());
+	X = SSXFeWide::AnchorX(X, SSXFeWide::ExtraX(true));
 	const EFont F = bMenuFont ? EFont::Menu : EFont::Title;
 	const float H = D.FontHeight(F, Scale);
 	if (Flags & 0x40) Y -= H * 0.5f; else if (Flags & 4) Y -= H;
@@ -490,6 +490,7 @@ void FSSXHudOverlay::Draw(FSSXFeDrawList& D, const FSSXHudInput& In) const
 	if (IsHidden(In)) return;
 	if (In.LessonState >= 0 && In.LessonState != 5 && In.LessonState != 7 && In.LessonState != 8) return;
 	const FSSXPromptScope Prompts(D, In.LessonState >= 0 ? ESSXPromptContext::Original : ESSXPromptContext::Race);
+	const FSSXHudLayerScope HudLayer(D);
 	const uint32 Mask = MaskFor(In.HudDetail);
 	for (int32 I = 0; I < In.Players.Num() && I < MaxPlayers; ++I)
 	{

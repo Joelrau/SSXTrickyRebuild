@@ -91,12 +91,13 @@ namespace SSXFeWide
 	/** The visible width past each side of the 640 frame for an image and window aspect: min(image, window) x 240 - 320,
 	 *  never negative. */
 	SSXTRICKYREBUILD_API float VisibleExtra(float ImageAspect, float WindowAspect);
-	/** The anchored layout is in use (ssx.UI.Widescreen; by default the Remastered look). */
-	SSXTRICKYREBUILD_API bool Anchored();
+	/** The anchored layout is in use for the race HUD (bHud) or the menus (ssx.UI.Widescreen; by default the HUD in the
+	 *  Remastered look, the menus never). */
+	SSXTRICKYREBUILD_API bool Anchored(bool bHud = false);
 	/** Anchored layout: the visible width past each side of the frame; 0 otherwise. */
-	SSXTRICKYREBUILD_API float ExtraX();
+	SSXTRICKYREBUILD_API float ExtraX(bool bHud = false);
 	/** Stretched layout: the frame's horizontal stretch to the visible width (1 = none, or anchored). */
-	SSXTRICKYREBUILD_API float StretchX();
+	SSXTRICKYREBUILD_API float StretchX(bool bHud = false);
 	/** A HUD anchor point moved with its screen edge: the left third of the frame by -ExtraX(), the right third by +. */
 	SSXTRICKYREBUILD_API float AnchorX(float X, float Extra);
 }
@@ -120,6 +121,8 @@ struct SSXTRICKYREBUILD_API FSSXFeDrawCmd
 	/** Icon flag 0x10 (FUN_001FC178 -> FUN_0019BDF8): the texture is turned 90 degrees in the quad: top-left (u1, v0),
 	 *  top-right (u1, v1), bottom-right (u0, v1), bottom-left (u0, v0) (UV0 / UV1 as stored). */
 	bool bRot90 = false;
+	/** Drawn by the race HUD (SSXFeWide layout of the HUD, not the menus). */
+	bool bHud = false;
 };
 
 struct SSXTRICKYREBUILD_API FSSXFeTextRec
@@ -141,6 +144,8 @@ public:
 
 	/** The key map button prompts describe (SSXPrompts); FSSXPromptScope sets it for a block of draws. */
 	ESSXPromptContext PromptContext = ESSXPromptContext::Menu;
+	/** Commands added now belong to the race HUD (FSSXHudLayerScope). */
+	bool bHudLayer = false;
 
 	void Reset() { Cmds.Reset(); Texts.Reset(); TextRecs.Reset(); }
 
@@ -160,7 +165,7 @@ public:
 	static void CornerUVs(const FVector2f& U0, const FVector2f& U1, bool bRot90, FVector2f Out[4]);
 	/** The frame-buffer scissor: clips the quad P0..P1 (corner uvs TL, TR, BR, BL) to the 640 x 480 screen, re-sampling
 	 *  the uvs; false when nothing is left. */
-	static bool ClipToScreen(FVector2f& P0, FVector2f& P1, FVector2f Uv[4]);
+	static bool ClipToScreen(FVector2f& P0, FVector2f& P1, FVector2f Uv[4], bool bHud = false);
 	/** A runtime-bound FE sprite (records 124+ = {w 128, h 128, uv 0..1}, FUN_001F1580, bound by FUN_001F9660): the whole
 	 *  texture Assets->Pages[Page] in the rectangle. Recorded (SpriteId) even when the page is not loaded; drawn only when
 	 *  it is. Textured: the colour modulates (1.0 = the texel). */
@@ -208,6 +213,14 @@ private:
 	const FSSXFeDrawList* DrawList = nullptr;
 	bool bFillBlack = false;
 	mutable TMap<TWeakObjectPtr<UObject>, TSharedPtr<FSlateBrush>> Brushes;
+};
+
+struct FSSXHudLayerScope
+{
+	FSSXFeDrawList& D;
+	bool bOld;
+	explicit FSSXHudLayerScope(FSSXFeDrawList& InD) : D(InD), bOld(InD.bHudLayer) { D.bHudLayer = true; }
+	~FSSXHudLayerScope() { D.bHudLayer = bOld; }
 };
 
 struct FSSXPromptScope
