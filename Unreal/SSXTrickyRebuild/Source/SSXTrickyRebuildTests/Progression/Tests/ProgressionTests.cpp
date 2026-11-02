@@ -2,6 +2,7 @@
 
 #include "Dom/JsonObject.h"
 #include "Misc/AutomationTest.h"
+#include "Race/RaceTrackData.h"
 #include "TestSkip.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Parse.h"
@@ -286,6 +287,25 @@ bool FSSXProgressionRecordsTest::RunTest(const FString& Parameters)
 	Ev.Humans.Add({ 0, 4, 0, 20000, 0, TEXT("PLAYER1") });
 	SSXProg::EndEvent(E, Sess, Ev, false);
 	TestEqual(TEXT("new record is row 0, pending"), Sess.PendingRecords.Num() == 1 ? Sess.PendingRecords[0].Row : -1, 0);
+	{
+		// Alaska is game track 11 (data track 10, which has no thresholds): the event end works on the game track
+		TestEqual(TEXT("Alaska data track 10 = game track 11"), FRaceTrackData::GameTrackOf(10), 11);
+		TestEqual(TEXT("Alaska 500000 = gold"), SSXProg::ShowoffMedal(500000, 11), (int32)SSXProg::Gold);
+		TestEqual(TEXT("no thresholds on game track 10"), SSXProg::ShowoffMedal(500000, 10), (int32)SSXProg::NoMedal);
+		FSSXSaveData A = FSSXSaveData::NewSave();
+		FSSXProgressSession ASess;
+		FSSXEventResult AEv;
+		AEv.Mode = SSXProg::WCShowoff;
+		AEv.Venue = FRaceTrackData::GameTrackOf(10);
+		FSSXEventHuman H;
+		H.Player = 0;
+		H.Char = 4;
+		H.Score = 800145;
+		H.Name = TEXT("PLAYER1");
+		AEv.Humans.Add(H);
+		SSXProg::EndEvent(A, ASess, AEv, false);
+		TestEqual(TEXT("Alaska showoff: gold stored on track 11"), int32(A.Career[4].Tracks[11].ShowoffMedal), (int32)SSXProg::Gold);
+	}
 	TestEqual(TEXT("WC best time stored"), E.Career[4].BestTime[0], 20000);
 	TestEqual(TEXT("heat 0: no medal"), Sess.LastMedal, (int32)SSXProg::NoMedal);
 	// 0x164FC0, 0x111820

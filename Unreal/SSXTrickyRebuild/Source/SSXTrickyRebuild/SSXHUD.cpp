@@ -133,7 +133,7 @@ void ASSXHUD::BuildInput(FSSXHudInput& In) const
 		}
 	}
 	In.Mode = S ? int32(S->GetMode()) : 1;
-	In.Track = Race ? Race->GetTrackData().TrackId : 0;
+	In.Track = Race ? Race->GetTrackData().GameTrack : 0;
 	In.Phase = S ? int32(S->GetPhase()) : 4;
 	In.Clock = S && S->GetPhase() == ERacePhase::Race ? S->GetClock() : 0.0;
 	In.RacerCount = S ? S->NumRacers() : 1;

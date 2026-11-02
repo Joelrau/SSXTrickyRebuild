@@ -186,7 +186,7 @@ void ASSXRaceManager::RestartRace()
 		if (USSXAudioSubsystem* Audio = USSXAudioSubsystem::Get(this))
 		{
 			// FUN_00211B58
-			SSXGameAudio::OnRaceRestart(*Audio, UWorld::RemovePIEPrefix(GetWorld()->GetMapName()).ToLower(), TrackData.TrackId, int32(Session.GetMode()));
+			SSXGameAudio::OnRaceRestart(*Audio, UWorld::RemovePIEPrefix(GetWorld()->GetMapName()).ToLower(), TrackData.GameTrack, int32(Session.GetMode()));
 		}
 	}
 }
@@ -923,7 +923,7 @@ void ASSXRaceManager::GameStart()
 		{
 			Audio->ArcadeSfx = FE->Profile.Settings.ArcadeSfx;
 		}
-		SSXGameAudio::OnRaceSetup(*Audio, UWorld::RemovePIEPrefix(GetWorld()->GetMapName()).ToLower(), TrackData.TrackId, StartMode, bLoadedReplayRace);
+		SSXGameAudio::OnRaceSetup(*Audio, UWorld::RemovePIEPrefix(GetWorld()->GetMapName()).ToLower(), TrackData.GameTrack, StartMode, bLoadedReplayRace);
 		Audio->GetAnnouncer().HeatWord = StartHeatWord;
 		Audio->GetAnnouncer().PlayerCharacter = StartPlayerChar;
 		if (const USSXFrontEndSubsystem* FE = USSXFrontEndSubsystem::Get(this); FE && FE->bHasSelection && StartPlayerChar >= 0
