@@ -274,8 +274,8 @@ SSXRemaster::FFogSetup SSXRemaster::FogFor(double DrawDistance, float Scale, flo
 {
 	const float End = float(DrawDistance) * Scale;
 	FFogSetup F;
-	F.Start = End * 0.3f;
-	F.Density = Strength * 3.5f / FMath::Max(End - F.Start, 1.f) * 1000.f;   // opacity 1 - exp(-3.5) = 97 %; the component's unit is 1 / (1000 cm)
+	F.Start = End * 0.4f;
+	F.Density = Strength * 2.2f / FMath::Max(End - F.Start, 1.f) * 1000.f;   // opacity 1 - exp(-2.2) = 89 %; the component's unit is 1 / (1000 cm)
 	F.Cutoff = End * 1.02f;
 	return F;
 }

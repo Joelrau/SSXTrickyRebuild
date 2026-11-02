@@ -227,7 +227,7 @@ bool FSSXRenderFogTest::RunTest(const FString&)
 	const SSXRemaster::FFogSetup F = SSXRemaster::FogFor(Dist, Scale, 1.f);
 	const float End = Dist * Scale;
 	const float AtEnd = 1.f - FMath::Exp(-F.Density / 1000.f * (End - F.Start));
-	TestTrue(TEXT("almost opaque at the draw distance"), AtEnd > 0.95f);
+	TestTrue(TEXT("mostly opaque at the draw distance"), AtEnd > 0.85f && AtEnd < 0.95f);
 	TestTrue(TEXT("the fog starts well before it"), F.Start < End * 0.5f && F.Start > 0.f);
 	TestTrue(TEXT("the cutoff lies past the draw distance"), F.Cutoff > End);
 	TestEqual(TEXT("strength 0: no fog"), SSXRemaster::FogFor(Dist, Scale, 0.f).Density, 0.f);

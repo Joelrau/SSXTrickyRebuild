@@ -85,7 +85,7 @@ namespace SSXRemaster
 	SSXTRICKYREBUILD_API float DrawDistanceScale(int32 Quality);
 	/** x the original draw distance, for what lies well above the camera: hides the upper levels of a course. */
 	constexpr float DrawDistanceUp = 1.f;
-	/** Height fog for a draw distance (cm) x scale: starts at 30 %, almost opaque at the end; no fog past the cutoff. */
+	/** Height fog for a draw distance (cm) x scale: starts at 40 %, about 89 % at the end; no fog past the cutoff. */
 	struct FFogSetup { float Start = 0.f; float Density = 0.f; float Cutoff = 0.f; };
 	SSXTRICKYREBUILD_API FFogSetup FogFor(double DrawDistance, float Scale, float Strength);
 	constexpr double SkyDistance = 60000.0;
