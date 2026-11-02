@@ -272,7 +272,7 @@ TMap<int32, int32> SSXRemaster::TerrainSurfaceClasses(const FString& Stem)
 
 float SSXRemaster::DrawDistanceScale(int32 Quality)
 {
-	static const float Scale[] = { 1.25f, 1.5f, 2.f, 2.5f };   // Low .. Epic, x the original draw distance
+	static const float Scale[] = { 1.25f, 1.35f, 1.5f, 1.75f };   // Low .. Epic, x the original draw distance
 	return Scale[FMath::Clamp(Quality, 0, 3)];
 }
 
@@ -373,6 +373,7 @@ void USSXRemasterWorld::ApplyQuality()
 		if (UMaterialParameterCollection* Mpc = LoadObject<UMaterialParameterCollection>(nullptr, SSXRemaster::CollectionPath))
 		{
 			UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("DrawDistanceScale"), SSXRemaster::DrawDistanceScale(AppliedQuality));
+			UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("DrawDistanceUp"), SSXRemaster::DrawDistanceUp);
 		}
 	}
 	if (UExponentialHeightFogComponent* F = Fog.Get())

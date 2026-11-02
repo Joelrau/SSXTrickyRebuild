@@ -83,6 +83,8 @@ namespace SSXRemaster
 	SSXTRICKYREBUILD_API TMap<int32, int32> TerrainSurfaceClasses(const FString& Stem);
 	/** The Remastered draw distance as a multiple of the original's: Low 1.5, Medium 2, High 3, Epic 4. */
 	SSXTRICKYREBUILD_API float DrawDistanceScale(int32 Quality);
+	/** x the original draw distance, for what lies well above the camera: hides the upper levels of a course. */
+	constexpr float DrawDistanceUp = 0.5f;
 	constexpr double SkyDistance = 60000.0;
 	constexpr int32 TrailTexels = 2048;
 	constexpr double TrailSize = 8000.0;    // cm covered by the trail map
