@@ -64,13 +64,17 @@ public:
 struct SSXTRICKYREBUILD_API FSSXFeAssets
 {
 	TSharedPtr<FSSXBitmapFont> Title, Menu, Small;
+	/** Remastered look: high-resolution fonts (tools/make_remaster_fonts.py) in the same layout units; null if not built. */
+	TSharedPtr<FSSXBitmapFont> TitleHi, MenuHi, SmallHi;
 	const FSSXSpriteTable* FeSprites = nullptr;
 	/** HUD-sheet sprite records (hudgame / hudtrick): ids 0..0x89 {w, h, u0, v0, u1, v1}, built by 0x1F4440 from the overlay-manager ctor 0x1A6FB8 (exported to hud_sprites.json). In-race icons resolve here. */
 	const FSSXSpriteTable* HudSprites = nullptr;
 	TMap<FName, UTexture*> Pages;
 	UTexture* White = nullptr;
 
-	const FSSXBitmapFont* Font(SSXFe::EFont F) const;
+	/** The font to draw with. Remastered look: the high-resolution one, its X scale cancelling the frame's widescreen
+	 *  stretch of the layer (bHud: the race HUD) so the letters keep their shape. */
+	const FSSXBitmapFont* Font(SSXFe::EFont F, bool bHud = false) const;
 };
 
 /** HUD sheet (hudgame / hudtrick) registered by the in-race HUD; draw lists whose assets have no HudSprites resolve HUD ids and pages against it. Pointers must outlive their use. */

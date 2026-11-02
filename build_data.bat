@@ -74,6 +74,7 @@ for %%S in (export_sim_data export_rails export_instance_collision export_race_d
 if not defined DOREMASTER goto :refs
 echo === Remastered-look maps
 call :py tools\make_remaster_maps.py || goto :fail
+call :py tools\make_remaster_fonts.py || goto :fail
 
 :refs
 if not defined DOREFS goto :import

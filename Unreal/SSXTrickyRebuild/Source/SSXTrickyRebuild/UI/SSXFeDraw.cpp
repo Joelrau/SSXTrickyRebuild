@@ -223,14 +223,16 @@ bool FSSXSpriteTable::LoadJson(const FString& Path)
 	return Sprites.Num() > 0;
 }
 
-const FSSXBitmapFont* FSSXFeAssets::Font(SSXFe::EFont F) const
+const FSSXBitmapFont* FSSXFeAssets::Font(SSXFe::EFont F, bool bHud) const
 {
-	switch (F)
+	const TSharedPtr<FSSXBitmapFont>& Classic = F == SSXFe::EFont::Title ? Title : (F == SSXFe::EFont::Menu ? Menu : Small);
+	const TSharedPtr<FSSXBitmapFont>& Hi = F == SSXFe::EFont::Title ? TitleHi : (F == SSXFe::EFont::Menu ? MenuHi : SmallHi);
+	if (Hi.IsValid() && Classic.IsValid() && SSXRenderLook::Get() == ESSXRenderLook::Remastered)
 	{
-	case SSXFe::EFont::Title: return Title.Get();
-	case SSXFe::EFont::Menu: return Menu.Get();
-	default: return Small.Get();
+		Hi->ScaleX = Classic->ScaleX / SSXFeWide::StretchX(bHud);
+		return Hi.Get();
 	}
+	return Classic.Get();
 }
 
 void FSSXFeDrawList::Rect(float X, float Y, float W, float H, const FLinearColor& Color, int32 Layer)
@@ -548,7 +550,7 @@ void FSSXFeDrawList::Image(UObject* Resource, float X, float Y, float W, float H
 
 float FSSXFeDrawList::TextWidth(SSXFe::EFont Font, const FString& Str, float Scale) const
 {
-	const FSSXBitmapFont* F = Assets ? Assets->Font(Font) : nullptr;
+	const FSSXBitmapFont* F = Assets ? Assets->Font(Font, bHudLayer) : nullptr;
 	if (!F)
 	{
 		return 0.f;
@@ -565,13 +567,13 @@ float FSSXFeDrawList::TextWidth(SSXFe::EFont Font, const FString& Str, float Sca
 
 float FSSXFeDrawList::TextHeight(SSXFe::EFont Font, float Scale) const
 {
-	const FSSXBitmapFont* F = Assets ? Assets->Font(Font) : nullptr;
+	const FSSXBitmapFont* F = Assets ? Assets->Font(Font, bHudLayer) : nullptr;
 	return F ? F->Height(Scale) : 0.f;
 }
 
 float FSSXFeDrawList::TextInkWidth(SSXFe::EFont Font, const FString& Str, float Scale) const
 {
-	const FSSXBitmapFont* F = Assets ? Assets->Font(Font) : nullptr;
+	const FSSXBitmapFont* F = Assets ? Assets->Font(Font, bHudLayer) : nullptr;
 	if (!F)
 	{
 		return 0.f;
@@ -588,7 +590,7 @@ float FSSXFeDrawList::TextInkWidth(SSXFe::EFont Font, const FString& Str, float 
 
 float FSSXFeDrawList::TextBoxWidth(SSXFe::EFont Font, const FString& Str, float Scale) const
 {
-	const FSSXBitmapFont* F = Assets ? Assets->Font(Font) : nullptr;
+	const FSSXBitmapFont* F = Assets ? Assets->Font(Font, bHudLayer) : nullptr;
 	if (!F)
 	{
 		return 0.f;
@@ -605,13 +607,13 @@ float FSSXFeDrawList::TextBoxWidth(SSXFe::EFont Font, const FString& Str, float 
 
 float FSSXFeDrawList::FontHeight(SSXFe::EFont Font, float Scale) const
 {
-	const FSSXBitmapFont* F = Assets ? Assets->Font(Font) : nullptr;
+	const FSSXBitmapFont* F = Assets ? Assets->Font(Font, bHudLayer) : nullptr;
 	return F ? F->LineHeight * Scale : 0.f;
 }
 
 bool FSSXFeDrawList::GlyphInk(SSXFe::EFont Font, TCHAR Ch, float Scale, float& OutXoff, float& OutW) const
 {
-	const FSSXBitmapFont* F = Assets ? Assets->Font(Font) : nullptr;
+	const FSSXBitmapFont* F = Assets ? Assets->Font(Font, bHudLayer) : nullptr;
 	const FSSXBitmapGlyph* G = F ? F->Find(Ch) : nullptr;
 	OutXoff = OutW = 0.f;
 	if (!G)
@@ -657,7 +659,7 @@ FVector2f FSSXFeDrawList::Text(SSXFe::EFont Font, float X, float Y, float Scale,
 	ESSXAlign Align, bool bShadow, int32 Layer)
 {
 	Texts.Add(Str);
-	const FSSXBitmapFont* F = Assets ? Assets->Font(Font) : nullptr;
+	const FSSXBitmapFont* F = Assets ? Assets->Font(Font, bHudLayer) : nullptr;
 	if (!F || Str.IsEmpty())
 	{
 		return FVector2f::ZeroVector;
@@ -700,7 +702,7 @@ FVector2f FSSXFeDrawList::Text(SSXFe::EFont Font, float X, float Y, float Scale,
 float FSSXFeDrawList::TextBox(SSXFe::EFont Font, float X, float Y, float Width, float Scale, const FLinearColor& Color, const FString& Str,
 	ESSXAlign Align, bool bShadow, int32 Layer)
 {
-	const FSSXBitmapFont* F = Assets ? Assets->Font(Font) : nullptr;
+	const FSSXBitmapFont* F = Assets ? Assets->Font(Font, bHudLayer) : nullptr;
 	if (!F)
 	{
 		Texts.Add(Str);

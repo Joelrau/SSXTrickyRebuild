@@ -112,6 +112,21 @@ bool FSSXUIWidescreenTest::RunTest(const FString&)
 	SSXFeWide::SetImageAspect(4.f / 3.f);
 	TestEqual(TEXT("no stretch with a 4:3 image"), SSXFeWide::StretchX(), 1.f);
 	TestEqual(TEXT("4:3 image: no extra width"), SSXFeWide::ExtraX(), 0.f);
+	{
+		FSSXFeAssets A;
+		A.Menu = MakeShared<FSSXBitmapFont>();
+		A.Menu->ScaleX = 1.8f;
+		A.MenuHi = MakeShared<FSSXBitmapFont>();
+		const ESSXRenderLook Prev = SSXRenderLook::Get();
+		SSXRenderLook::Set(ESSXRenderLook::Classic);
+		TestTrue(TEXT("Classic look: the disc font"), A.Font(SSXFe::EFont::Menu) == A.Menu.Get());
+		SSXRenderLook::Set(ESSXRenderLook::Remastered);
+		TestTrue(TEXT("Remastered look: the high-resolution font"), A.Font(SSXFe::EFont::Menu) == A.MenuHi.Get());
+		TestEqual(TEXT("its X scale cancels the stretch (none with a 4:3 image)"), A.MenuHi->ScaleX, 1.8f);
+		A.MenuHi.Reset();
+		TestTrue(TEXT("Remastered look without the built fonts: the disc font"), A.Font(SSXFe::EFont::Menu) == A.Menu.Get());
+		SSXRenderLook::Set(Prev);
+	}
 	FVector2f P0(-50.f, 10.f), P1(30.f, 20.f);
 	FVector2f Uv[4] = { FVector2f(0, 0), FVector2f(1, 0), FVector2f(1, 1), FVector2f(0, 1) };
 	TestTrue(TEXT("4:3: clipped at the frame edge"), FSSXFeDrawList::ClipToScreen(P0, P1, Uv) && P0.X == 0.f);

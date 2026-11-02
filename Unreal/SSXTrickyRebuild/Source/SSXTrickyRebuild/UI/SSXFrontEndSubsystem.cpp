@@ -175,6 +175,23 @@ const FSSXFeAssets& USSXFrontEndSubsystem::Assets()
 	A.Menu = Font(TEXT("MENU"), SSXFe::MenuScaleX, SSXFe::MenuScaleY);
 	// TODO: the FE scale of SMLFONT is not written by cFE3D::vfunc_02;
 	A.Small = Font(TEXT("SMLFONT"), 1.f, 1.f);
+	auto HiFont = [this](const TCHAR* Name, const TSharedPtr<FSSXBitmapFont>& Classic) -> TSharedPtr<FSSXBitmapFont>
+	{
+		const FString Base = FPaths::Combine(SSXFrontEnd::FontDir(), TEXT("remaster"), Name);
+		TSharedPtr<FSSXBitmapFont> F = Classic.IsValid() && FPaths::FileExists(Base + TEXT(".json"))
+			? FSSXBitmapFont::Load(Base + TEXT(".json"), LoadPng(Base + TEXT(".png")), FPaths::Combine(SSXFrontEnd::SfnDir(), FString(Name) + TEXT(".SFN")))
+			: nullptr;
+		if (F.IsValid())
+		{
+			F->ScaleX = Classic->ScaleX;
+			F->ScaleY = Classic->ScaleY;
+			F->LineHeight = Classic->LineHeight;   // the layouts' line pitch
+		}
+		return F;
+	};
+	A.TitleHi = HiFont(TEXT("TITLE"), A.Title);
+	A.MenuHi = HiFont(TEXT("MENU"), A.Menu);
+	A.SmallHi = HiFont(TEXT("SMLFONT"), A.Small);
 
 	const FString SpriteJson = FPaths::Combine(SSXFrontEnd::FrontEndDir(), TEXT("fe_sprites.json"));
 	if (FeSprites.LoadJson(SpriteJson))

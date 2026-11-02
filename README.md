@@ -187,6 +187,9 @@ in the Classic look, which stays the default and renders exactly as before.
   colour, normal and detail-mask maps made from your disc's textures into `converted\remaster`) and imports them into
   `Content/RemasterData`. Both are game data and git-ignored. To redo only this step: `python tools\make_remaster_maps.py`,
   then the editor script `Scripts\import_remaster.py`. Without the maps the Remastered look still works, with flat detail.
+- **Fonts:** the same step runs `tools\make_remaster_fonts.py`: the disc's title font rebuilt at high resolution, and
+  Rajdhani SemiBold (`toolsonts`, SIL Open Font License) for menu and small text. The letters keep their shape in
+  stretched widescreen menus. Without these files the Remastered look uses the disc fonts.
 - **What changes:** terrain and props become lit materials (the original lightmaps and vertex light stay in as the
   tint and ambient light, so every track keeps its colours); a sun from the track's own strongest light, a sky light,
   the track's point / spot lights as real lights, height fog towards the track's clear colour; riders are lit (the
