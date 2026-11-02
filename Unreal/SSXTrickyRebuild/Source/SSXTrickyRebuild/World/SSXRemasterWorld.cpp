@@ -162,7 +162,7 @@ const SSXRemaster::FTrackTuning& SSXRemaster::TuningFor(const FString& Stem)
 		Make(TEXT("elysium"), 1.6f, 0.3f, 0.5f, 0.7f, 3.f, 15.f),
 		// Mesablanca's blue sky light cooled its warm sunset snow grey: less sky, more of the baked light, a warmer sun.
 		Make(TEXT("mesa"), 2.0f, 0.85f, 0.25f, 0.8f, 3.f, 15.f),
-		[&Make]() { FTrackTuning T = Make(TEXT("frontend"), 0.f, 0.6f, 0.05f, 1.0f, 3.f, 15.f); T.FogDensity = 0.f; T.Saturation = 1.f; T.Bloom = 0.3f; T.MaxLights = 0; T.RiderFill = 0.85f;
+		[&Make]() { FTrackTuning T = Make(TEXT("frontend"), 0.f, 0.6f, 0.05f, 1.0f, 3.f, 15.f); T.FogStrength = 0.f; T.Saturation = 1.f; T.Bloom = 0.3f; T.MaxLights = 0; T.RiderFill = 0.85f;
 			T.Emissive = 0.f; T.Sparkle = 0.f; return T; }(),   // the ice backdrop's bright texels are not lamps
 	};
 	static const FTrackTuning Default;
@@ -270,6 +270,16 @@ TMap<int32, int32> SSXRemaster::TerrainSurfaceClasses(const FString& Stem)
 	return Out;
 }
 
+SSXRemaster::FFogSetup SSXRemaster::FogFor(double DrawDistance, float Scale, float Strength)
+{
+	const float End = float(DrawDistance) * Scale;
+	FFogSetup F;
+	F.Start = End * 0.3f;
+	F.Density = Strength * 3.5f / FMath::Max(End - F.Start, 1.f) * 1000.f;   // opacity 1 - exp(-3.5) = 97 %; the component's unit is 1 / (1000 cm)
+	F.Cutoff = End * 1.02f;
+	return F;
+}
+
 float SSXRemaster::DrawDistanceScale(int32 Quality)
 {
 	static const float Scale[] = { 1.25f, 1.35f, 1.5f, 1.75f };   // Low .. Epic, x the original draw distance
@@ -359,6 +369,21 @@ void USSXRemasterWorld::Tick(float DeltaTime)
 	}
 }
 
+void USSXRemasterWorld::UpdateFog()
+{
+	UExponentialHeightFogComponent* C = Fog.Get();
+	if (!C) { return; }
+	const SSXRemaster::FFogSetup F = SSXRemaster::FogFor(FogDrawDistance, SSXRemaster::DrawDistanceScale(SSXRenderLook::GetQuality()), FogStrength);
+	C->SetStartDistance(F.Start);
+	C->SetFogDensity(F.Density);
+	C->SetFogCutoffDistance(F.Cutoff);
+	const double Grow = FMath::Max(1.0, F.Cutoff * 1.05 / FMath::Max(SkyNearest, 1.0));
+	for (const TPair<TWeakObjectPtr<AActor>, FVector>& Sky : SkyBaseScale)
+	{
+		if (AActor* A = Sky.Key.Get()) { A->SetActorScale3D(Sky.Value * Grow); }
+	}
+}
+
 void USSXRemasterWorld::ApplyQuality()
 {
 	AppliedQuality = SSXRenderLook::GetQuality();
@@ -376,10 +401,7 @@ void USSXRemasterWorld::ApplyQuality()
 			UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("DrawDistanceUp"), SSXRemaster::DrawDistanceUp);
 		}
 	}
-	if (UExponentialHeightFogComponent* F = Fog.Get())
-	{
-		F->SetStartDistance(float(FogStartBase * SSXRemaster::DrawDistanceScale(AppliedQuality)));
-	}
+	UpdateFog();
 	if (APostProcessVolume* V = Volume.Get())
 	{
 		// Motion blur only at Epic, and gentle.
@@ -1245,30 +1267,31 @@ void USSXRemasterWorld::Apply()
 	bAllLightShadows = T.bLightShadows;
 	ApplyQuality();
 
-	if (Track && T.FogDensity > 0.f)
+	if (Track && T.FogStrength > 0.f)
 	{
 		if (AExponentialHeightFog* F = W->SpawnActor<AExponentialHeightFog>(P))
 		{
 			UExponentialHeightFogComponent* C = F->GetComponent();
 			C->SetFogInscatteringColor(FLinearColor(Track->ClearColour()));
-			C->SetFogDensity(T.FogDensity);
 			C->SetFogHeightFalloff(0.0002f);
-			FogStartBase = Track->DrawDist1P * 0.35;
-			C->SetStartDistance(float(FogStartBase * SSXRemaster::DrawDistanceScale(SSXRenderLook::GetQuality())));
+			C->SetFogMaxOpacity(1.f);
 			Fog = C;
-			C->SetFogMaxOpacity(0.85f);
-			// No fog on the sky dome: cut it off before the dome's nearest point (some domes are low, wide caps whose
-			// top is far nearer than their horizon; the dome is centred on the camera at run time).
-			double Nearest = SSXRemaster::SkyDistance;
+			FogDrawDistance = Track->DrawDist1P;
+			FogStrength = T.FogStrength;
+			// The dome follows the camera and its low, wide cap is nearer than the draw distance: UpdateFog scales it out
+			// past the fog's cutoff, so the sky stays clear
+			SkyNearest = SSXRemaster::SkyDistance;
+			SkyBaseScale.Reset();
 			for (TActorIterator<AActor> It(W); It; ++It)
 			{
 				if (!It->ActorHasTag(USSXWorldPresentation::SkyTag)) { continue; }
+				SkyBaseScale.Add(*It, It->GetActorScale3D());
 				FVector Origin, Extent;
-				It->GetActorBounds(false, Origin, Extent);
+				It->GetActorBounds(false, Origin, Extent, true);
 				const FVector Lo = Origin - Extent - It->GetActorLocation(), Hi = Origin + Extent - It->GetActorLocation();
-				for (const double D : { Hi.Z, Hi.X, -Lo.X, Hi.Y, -Lo.Y }) { if (D > 100.0) { Nearest = FMath::Min(Nearest, D); } }
+				for (const double D : { Hi.Z, Hi.X, -Lo.X, Hi.Y, -Lo.Y }) { if (D > 100.0) { SkyNearest = FMath::Min(SkyNearest, D); } }
 			}
-			C->SetFogCutoffDistance(float(Nearest * 0.8));
+			UpdateFog();
 			C->SetVolumetricFog(true);
 			Spawned.Add(F);
 		}
@@ -1320,6 +1343,11 @@ void USSXRemasterWorld::Revert()
 		if (V.IsValid()) { V->bEnabled = true; }
 	}
 	DisabledVolumes.Reset();
+	for (const TPair<TWeakObjectPtr<AActor>, FVector>& Sky : SkyBaseScale)
+	{
+		if (AActor* A = Sky.Key.Get()) { A->SetActorScale3D(Sky.Value); }
+	}
+	SkyBaseScale.Reset();
 	for (AActor* A : Spawned)
 	{
 		if (IsValid(A)) { A->Destroy(); }

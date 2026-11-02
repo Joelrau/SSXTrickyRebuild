@@ -219,6 +219,21 @@ bool FSSXRenderFollowerAliveTest::RunTest(const FString&)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSSXRenderFogTest, "SSX.Render.Fog", RenderLookFlags)
+bool FSSXRenderFogTest::RunTest(const FString&)
+{
+	const float Dist = 30000.f;
+	const float Scale = SSXRemaster::DrawDistanceScale(3);
+	const SSXRemaster::FFogSetup F = SSXRemaster::FogFor(Dist, Scale, 1.f);
+	const float End = Dist * Scale;
+	const float AtEnd = 1.f - FMath::Exp(-F.Density / 1000.f * (End - F.Start));
+	TestTrue(TEXT("almost opaque at the draw distance"), AtEnd > 0.95f);
+	TestTrue(TEXT("the fog starts well before it"), F.Start < End * 0.5f && F.Start > 0.f);
+	TestTrue(TEXT("the cutoff lies past the draw distance"), F.Cutoff > End);
+	TestEqual(TEXT("strength 0: no fog"), SSXRemaster::FogFor(Dist, Scale, 0.f).Density, 0.f);
+	return true;
+}
+
 // The rider's outfit changed in the Remastered look: going back to Classic keeps the current outfit, not the first one.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSSXRenderRiderOutfitRevertTest, "SSX.Render.RiderOutfitRevert", RenderLookFlags)
 bool FSSXRenderRiderOutfitRevertTest::RunTest(const FString&)

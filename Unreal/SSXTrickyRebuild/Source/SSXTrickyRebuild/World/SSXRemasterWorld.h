@@ -44,7 +44,7 @@ namespace SSXRemaster
 		float Exposure = 1.0f;
 		float Saturation = 1.15f;
 		float Emissive = 3.0f;
-		float FogDensity = 0.02f;
+		float FogStrength = 1.f;        // 1 = almost opaque at the draw distance, 0 = no fog
 		float Bloom = 0.5f;             // bloom intensity, threshold 1 (highlights only)
 		float LightCandela = 15.f;      // track point / spot lights: candela per unit of the original colour
 		float RiderFill = 0.6f;         // share of the Classic rider shading kept under the new light (1 = all of it)
@@ -84,7 +84,10 @@ namespace SSXRemaster
 	/** The Remastered draw distance as a multiple of the original's: Low 1.5, Medium 2, High 3, Epic 4. */
 	SSXTRICKYREBUILD_API float DrawDistanceScale(int32 Quality);
 	/** x the original draw distance, for what lies well above the camera: hides the upper levels of a course. */
-	constexpr float DrawDistanceUp = 0.5f;
+	constexpr float DrawDistanceUp = 1.f;
+	/** Height fog for a draw distance (cm) x scale: starts at 30 %, almost opaque at the end; no fog past the cutoff. */
+	struct FFogSetup { float Start = 0.f; float Density = 0.f; float Cutoff = 0.f; };
+	SSXTRICKYREBUILD_API FFogSetup FogFor(double DrawDistance, float Scale, float Strength);
 	constexpr double SkyDistance = 60000.0;
 	constexpr int32 TrailTexels = 2048;
 	constexpr double TrailSize = 8000.0;    // cm covered by the trail map
@@ -179,7 +182,11 @@ private:
 	TWeakObjectPtr<APostProcessVolume> Volume;
 	TArray<TWeakObjectPtr<class ULocalLightComponent>> LocalLights;   // strongest first
 	TWeakObjectPtr<class UExponentialHeightFogComponent> Fog;
-	double FogStartBase = 0.0;   // fog start at draw distance scale 1, cm
+	double FogDrawDistance = 0.0;   // the original's draw distance, cm
+	float FogStrength = 1.f;
+	double SkyNearest = 0.0;   // nearest point of the sky dome at its map scale, cm
+	TMap<TWeakObjectPtr<AActor>, FVector> SkyBaseScale;
+	void UpdateFog();
 	struct FShadowFlags
 	{
 		TWeakObjectPtr<UPrimitiveComponent> Component;
