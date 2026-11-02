@@ -491,7 +491,7 @@ void FSSXRaceUIBridge::FinishEvent()
 	FSSXProfile& P = Sub->Profile;
 	FSSXEventResult R;
 	R.Mode = int32(S->GetMode());
-	R.Venue = Owner->GetTrackData().TrackId;
+	R.Venue = Owner->GetTrackData().GameTrack;
 	TArray<FRaceStanding> Rows;
 	S->GetStandings(Rows);
 	for (const FRaceStanding& Row : Rows)
@@ -691,7 +691,7 @@ void FSSXRaceUIBridge::PostRaceNarration(int32 Kind, int32 Arg)
 	}
 	FSSXAnnouncer& Ann = A->GetAnnouncer();
 	I.HeatWord = Ann.HeatWord;
-	I.ShowoffMedal0 = S->NumRacers() > 0 ? SSXProg::ShowoffMedal(int32(S->GetRacer(0).Score), Owner->GetTrackData().TrackId) : 3;
+	I.ShowoffMedal0 = S->NumRacers() > 0 ? SSXProg::ShowoffMedal(int32(S->GetRacer(0).Score), Owner->GetTrackData().GameTrack) : 3;
 	I.bReplayState = !bFirstChainOverlay && S->GetEndRace().GetState() >= SSXEndRace::ResultsShown;
 	bFirstChainOverlay = false;
 	FSSXSpeechSystem& Sp = A->GetSpeech();
