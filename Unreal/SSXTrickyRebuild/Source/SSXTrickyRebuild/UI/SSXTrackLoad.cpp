@@ -383,6 +383,9 @@ bool FSSXTrackLoadAssets::Load(const FSSXFeAssets& Fe, TFunctionRef<UTexture2D*(
 	Assets.Title = Rescaled(Fe.Title, 1.25f, 1.f);
 	Assets.Menu = Rescaled(Fe.Menu, 1.25f, 1.f);
 	Assets.Small = Rescaled(Fe.Title, Hf(0x3FA28F5C), Hf(0x3FAB851F));
+	Assets.TitleHi = Rescaled(Fe.TitleHi, 1.25f, 1.f);
+	Assets.MenuHi = Rescaled(Fe.MenuHi, 1.25f, 1.f);
+	Assets.SmallHi = Rescaled(Fe.TitleHi, Hf(0x3FA28F5C), Hf(0x3FAB851F));
 	Assets.White = Fe.White;
 	FString Text;
 	TSharedPtr<FJsonObject> Root;
