@@ -683,7 +683,10 @@ FVector2f FSSXFeDrawList::Text(SSXFe::EFont Font, float X, float Y, float Scale,
 			R.Color = Color;
 			R.bShadow = bShadow;
 		}
-		if (bShadow)
+		// the disc font's blur merges black text and its black shadow into one bold word; the sharp fonts would show both
+		const bool bSharpFont = F == Assets->TitleHi.Get() || F == Assets->MenuHi.Get() || F == Assets->SmallHi.Get();
+		const bool bDarkText = FMath::Max3(Color.R, Color.G, Color.B) < 0.1f;
+		if (bShadow && !(bSharpFont && bDarkText))
 		{
 			FLinearColor S = SSXFe::Black;
 			S.A = Color.A;   // FUN_0019d3f0

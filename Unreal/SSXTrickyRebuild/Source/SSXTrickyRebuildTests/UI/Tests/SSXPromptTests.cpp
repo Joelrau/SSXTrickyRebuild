@@ -123,6 +123,25 @@ bool FSSXUIWidescreenTest::RunTest(const FString&)
 		SSXRenderLook::Set(ESSXRenderLook::Remastered);
 		TestTrue(TEXT("Remastered look: the high-resolution font"), A.Font(SSXFe::EFont::Menu) == A.MenuHi.Get());
 		TestEqual(TEXT("its X scale cancels the stretch (none with a 4:3 image)"), A.MenuHi->ScaleX, 1.8f);
+		{
+			FSSXBitmapGlyph G;
+			G.Size = FVector2f(4.f, 4.f);
+			A.Menu->Atlas = A.MenuHi->Atlas = UTexture2D::CreateTransient(4, 4);
+			A.Menu->Glyphs.Add(TEXT('A'), G);
+			A.MenuHi->Glyphs.Add(TEXT('A'), G);
+			FSSXFeDrawList D(&A);
+			auto Quads = [&D](const FLinearColor& C)
+			{
+				D.Reset();
+				D.Text(SSXFe::EFont::Menu, 0.f, 0.f, 1.f, C, TEXT("A"), ESSXAlign::Left, true, 5);
+				return D.Cmds.Num();
+			};
+			TestEqual(TEXT("sharp font, white text: text + shadow"), Quads(FLinearColor::White), 2);
+			TestEqual(TEXT("sharp font, black text (DVD menu): no doubled shadow"), Quads(FLinearColor::Black), 1);
+			SSXRenderLook::Set(ESSXRenderLook::Classic);
+			TestEqual(TEXT("disc font, black text: as the original"), Quads(FLinearColor::Black), 2);
+			SSXRenderLook::Set(ESSXRenderLook::Remastered);
+		}
 		A.MenuHi.Reset();
 		TestTrue(TEXT("Remastered look without the built fonts: the disc font"), A.Font(SSXFe::EFont::Menu) == A.Menu.Get());
 		SSXRenderLook::Set(Prev);
