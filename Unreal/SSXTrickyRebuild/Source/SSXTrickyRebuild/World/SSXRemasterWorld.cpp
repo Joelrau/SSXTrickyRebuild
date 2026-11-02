@@ -1293,12 +1293,13 @@ void USSXRemasterWorld::Revert()
 	}
 	FrontEndSpots.Reset();
 	USSXWorldPresentation* Pres = GetWorld() ? GetWorld()->GetSubsystem<USSXWorldPresentation>() : nullptr;
-	for (int32 I = RiderSwaps.Num() - 1; I >= 0; --I)
+	for (const FSwap& S : RiderSwaps)
 	{
-		const FSwap& S = RiderSwaps[I];
 		UMeshComponent* C = S.Component.Get();
 		UMaterialInstanceDynamic* Classic = Cast<UMaterialInstanceDynamic>(S.Original.Get());
-		if (C && Classic && C->GetMaterial(S.Slot) != Classic) { C->SetMaterial(S.Slot, Classic); }
+		// Every outfit the rider wore has an entry: only the slot still showing this twin goes back to its Classic instance
+		const TWeakObjectPtr<UMaterialInstanceDynamic>* Twin = Classic ? RiderTwins.Find(Classic) : nullptr;
+		if (C && Twin && Twin->IsValid() && C->GetMaterial(S.Slot) == Twin->Get()) { C->SetMaterial(S.Slot, Classic); }
 		if (Pres && Classic) { Pres->SetDisplayedRiderMaterial(Classic, nullptr); }
 	}
 	RiderSwaps.Reset();

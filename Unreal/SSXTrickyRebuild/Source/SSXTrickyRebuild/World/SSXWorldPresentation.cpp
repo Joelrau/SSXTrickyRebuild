@@ -119,8 +119,7 @@ void USSXWorldPresentation::OnWorldBeginPlay(UWorld& InWorld)
 		UE_LOG(LogSSX, Warning, TEXT("[world] %s missing (run Scripts/make_world_materials.py)"), CollectionPath);
 	}
 
-	RiderMaterial = LoadObject<UMaterialInterface>(nullptr, RiderMaterialPath);
-	RiderMaskedMaterial = LoadObject<UMaterialInterface>(nullptr, RiderMaskedMaterialPath);
+	LoadRiderMaterials();
 	// FUN_0025EDF0
 	SetGlossSpecmap(SSXRiderGloss::SpecmapForTrackId(Id));
 
@@ -462,6 +461,12 @@ void USSXWorldPresentation::SetDisplayedRiderMaterial(UMaterialInstanceDynamic* 
 		DisplayedRider.Add(Classic, Displayed);
 		ClassicRider.Add(Displayed, Classic);
 	}
+}
+
+void USSXWorldPresentation::LoadRiderMaterials()
+{
+	RiderMaterial = LoadObject<UMaterialInterface>(nullptr, RiderMaterialPath);
+	RiderMaskedMaterial = LoadObject<UMaterialInterface>(nullptr, RiderMaskedMaterialPath);
 }
 
 bool USSXWorldPresentation::IsRiderMaterial(const UMaterialInterface* M) const

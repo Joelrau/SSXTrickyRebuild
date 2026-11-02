@@ -4,6 +4,8 @@
 #include "Engine/StaticMeshActor.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "UObject/UObjectGlobals.h"
+#include "UI/SSXFeRiderActor.h"
+#include "World/SSXWorldPresentation.h"
 #include "World/SSXRemasterWorld.h"
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
@@ -212,6 +214,50 @@ bool FSSXRenderFollowerAliveTest::RunTest(const FString&)
 		TestTrue(Case + TEXT(": Classic restores the instance"), C->GetMaterial(0) == Classic.Get());
 		A->Destroy();
 	}
+	GEngine->DestroyWorldContext(W);
+	W->DestroyWorld(false);
+	return true;
+}
+
+// The rider's outfit changed in the Remastered look: going back to Classic keeps the current outfit, not the first one.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSSXRenderRiderOutfitRevertTest, "SSX.Render.RiderOutfitRevert", RenderLookFlags)
+bool FSSXRenderRiderOutfitRevertTest::RunTest(const FString&)
+{
+	UMaterialInterface* Rider = LoadObject<UMaterialInterface>(nullptr, USSXWorldPresentation::RiderMaterialPath);
+	UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
+	if (!Rider || !Cube)
+	{
+		AddError(TEXT("M_SSXRiderLit or the engine cube missing"));
+		return false;
+	}
+	UWorld* W = UWorld::CreateWorld(EWorldType::Game, false, TEXT("SSXRiderOutfitRevert"));
+	FWorldContext& Ctx = GEngine->CreateNewWorldContext(EWorldType::Game);
+	Ctx.SetCurrentWorld(W);
+	USSXRemasterWorld* R = W->GetSubsystem<USSXRemasterWorld>();
+	W->GetSubsystem<USSXWorldPresentation>()->LoadRiderMaterials();
+	ASSXFeRiderActor* A = W->SpawnActor<ASSXFeRiderActor>();
+	UStaticMeshComponent* C = NewObject<UStaticMeshComponent>(A);
+	C->SetStaticMesh(Cube);
+	C->RegisterComponent();
+	USSXRemasterLibrary::SetRemasteredInWorld(W, true);
+	UMaterialInstanceDynamic* First = UMaterialInstanceDynamic::Create(Rider, A);
+	C->SetMaterial(0, First);
+	R->SwapRiders();
+	TestTrue(TEXT("first outfit: the slot shows a twin"), C->GetMaterial(0) != First);
+	UMaterialInstanceDynamic* Second = UMaterialInstanceDynamic::Create(Rider, A);
+	C->SetMaterial(0, Second);
+	R->SwapRiders();
+	UMaterialInterface* SecondTwin = C->GetMaterial(0);
+	TestTrue(TEXT("second outfit: the slot shows a twin"), SecondTwin != Second && SecondTwin != First);
+	USSXRemasterLibrary::SetRemasteredInWorld(W, false);
+	TestTrue(TEXT("back to Classic: the current outfit, not the first"), C->GetMaterial(0) == Second);
+	USSXRemasterLibrary::SetRemasteredInWorld(W, true);
+	UMaterialInstanceDynamic* Third = UMaterialInstanceDynamic::Create(Rider, A);
+	R->SwapRiders();
+	C->SetMaterial(0, Third);
+	USSXRemasterLibrary::SetRemasteredInWorld(W, false);
+	TestTrue(TEXT("an outfit set after the last swap stays"), C->GetMaterial(0) == Third);
+	A->Destroy();
 	GEngine->DestroyWorldContext(W);
 	W->DestroyWorld(false);
 	return true;

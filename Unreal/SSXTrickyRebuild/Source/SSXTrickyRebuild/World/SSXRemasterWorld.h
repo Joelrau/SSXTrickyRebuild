@@ -114,6 +114,8 @@ public:
 	/** A glass / water component (ApplySurfaceLook reads them from SimData; tests add them directly). */
 	void AddLookComponent(const UMeshComponent& C) { LookComponents.Add(&C); }
 	int32 NumSwapped() const { return Swaps.Num(); }
+	/** Riders' Classic instances -> the Remastered twins (every tick while applied; tests call it directly). */
+	void SwapRiders();
 
 private:
 	void SwapLevel(ULevel& Level);
@@ -131,7 +133,6 @@ private:
 	UMaterialInterface* RemasteredFor(UMaterialInterface* Classic);
 	void OnLevelAdded(ULevel* Level, UWorld* World);
 	/** Lit display twins for the riders' Classic instances (new ones appear with outfit changes: every tick). */
-	void SwapRiders();
 
 	struct FSwap
 	{

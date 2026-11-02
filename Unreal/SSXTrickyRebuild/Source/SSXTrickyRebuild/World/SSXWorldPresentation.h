@@ -92,6 +92,8 @@ public:
 	void SetDisplayedRiderMaterial(UMaterialInstanceDynamic* Classic, UMaterialInstanceDynamic* Displayed);
 	/** M is a rider instance this subsystem drives (parent M_SSXRiderLit(_Masked) or a chrome rider material). */
 	bool IsRiderMaterial(const UMaterialInterface* M) const;
+	/** Loads the rider parents (at world begin play; tests call it directly). */
+	void LoadRiderMaterials();
 private:
 	void UpdateSky();
 	void SpawnClearShell(UWorld& InWorld);
