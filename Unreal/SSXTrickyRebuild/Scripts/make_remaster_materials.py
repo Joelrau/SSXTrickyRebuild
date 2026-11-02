@@ -163,8 +163,12 @@ SKY_SHADE = f"float3 c = {DEC.format(x='saturate(' + ENC.format(x='Tex') + ' * F
 CLEAR_SHADE = f"float3 c = {DEC.format(x='saturate(C.rgb)')};" + CLOUDS
 PROP_SOFT_SHADE = f"return {DEC.format(x='saturate(' + ENC.format(x='Tex') + ' * VC.rgb * (255.0 / 128.0))')};"
 PROP_CORE = "return As >= 128.0 ? 1.0 : 0.0;"
-# The original's draw distance x MPC_SSXRemaster.DrawDistanceScale (the Remastered quality preset).
-DRAW_CLIP = "return (Depth <= DrawDistance * Scale ? 1.0 : 0.0) * Alpha;"
+# The original's draw distance x MPC_SSXRemaster.DrawDistanceScale (the Remastered quality preset). Above the camera
+# (from about 3 to 15 degrees up) the scale falls to DrawDistanceUp, so the upper levels of a course stay hidden.
+DRAW_CLIP = """
+float Up = saturate((Rel.z / max(Depth, 1.0) - 0.05) / 0.2);
+return (Depth <= DrawDistance * lerp(Scale, min(UpScale, Scale), Up) ? 1.0 : 0.0) * Alpha;
+"""
 # 0x318080: the Classic rider light rig, ambient + sum max(0, N . D_i) C_i in PS2 units (1.0 = 0x80).
 RIDER_LIGHT = """
 float3 v = Ambient + saturate(dot(N, normalize(D0))) * C0 + saturate(dot(N, normalize(D1))) * C1
@@ -448,13 +452,21 @@ def surface(m, rm, base, baked, uv=None, trails=False):
     connect_prop(ao, "", unreal.MaterialProperty.MP_AMBIENT_OCCLUSION)
 
 
+def camera_relative(m, x, y):
+    rel = expr(m, unreal.MaterialExpressionWorldPosition, x, y)
+    rel.set_editor_property("world_position_shader_offset", unreal.WorldPositionIncludedOffsets.WPT_CAMERA_RELATIVE_NO_OFFSETS)
+    return rel
+
+
 def clip(m, mpc, alpha):
     """Opacity mask: the alpha test, cut at the draw distance from the camera. Not in shadow passes (there the pixel
     depth is the distance from the light), so far and high geometry keeps casting shadows."""
     depth = expr(m, unreal.MaterialExpressionPixelDepth, -700, 800)
     c = custom(m, -300, 850, DRAW_CLIP, F1,
                [("Depth", (depth, "")), ("DrawDistance", (coll(m, mpc, "DrawDistance", -700, 900), "")),
-                ("Scale", (coll(m, rm, "DrawDistanceScale", -700, 960), "")), ("Alpha", alpha)],
+                ("Scale", (coll(m, rm, "DrawDistanceScale", -700, 960), "")),
+                ("UpScale", (coll(m, rm, "DrawDistanceUp", -700, 1020), "")),
+                ("Rel", (camera_relative(m, -700, 1080), "")), ("Alpha", alpha)],
                "DrawClip")
     sw = expr(m, unreal.MaterialExpressionShadowReplace, -100, 850)
     connect(c, "", sw, "Default")
@@ -477,7 +489,7 @@ old = {str(p.get_editor_property("parameter_name")): p for p in rm.get_editor_pr
 scalars = []
 for n, v in (("BakedWeight", 0.6), ("BakedAmbient", 0.55), ("AlbedoScale", 0.9), ("BaseRoughness", 0.62), ("Clouds", 0.0),
              ("Exposure", 1.0), ("Saturation", 1.15), ("Emissive", 3.0), ("RiderFill", 0.6), ("RiderRim", 0.35),
-             ("ParticleSoftness", 40.0), ("SpriteGlow", 0.35), ("DrawDistanceScale", 3.0), ("Sparkle", 3.0),
+             ("ParticleSoftness", 40.0), ("SpriteGlow", 0.35), ("DrawDistanceScale", 3.0), ("DrawDistanceUp", 1.0), ("Sparkle", 3.0),
              ("TrailX", 0.0), ("TrailY", 0.0), ("TrailSize", 1.0e9), ("WorldTime", 0.0)):
     p = old.get(n) or unreal.CollectionScalarParameter()
     p.set_editor_property("parameter_name", n)
@@ -777,7 +789,9 @@ for name, glass in (("M_RmProp_Translucent", False), ("M_RmPropGlass", True)):
                  "GlassOpacity")
   op = custom(m, -300, 550, DRAW_CLIP, F1,
               [("Depth", (depth, "")), ("DrawDistance", (coll(m, mpc, "DrawDistance", -700, 600), "")),
-               ("Scale", (coll(m, rm, "DrawDistanceScale", -700, 660), "")), ("Alpha", (vis, ""))],
+               ("Scale", (coll(m, rm, "DrawDistanceScale", -700, 660), "")),
+               ("UpScale", (coll(m, rm, "DrawDistanceUp", -700, 720), "")),
+               ("Rel", (camera_relative(m, -700, 780), "")), ("Alpha", (vis, ""))],
               "DrawClip")
   connect_prop(op, "", unreal.MaterialProperty.MP_OPACITY)
   finish(m)
