@@ -137,6 +137,7 @@ bool FSSXUIWidescreenTest::RunTest(const FString&)
 				return D.Cmds.Num();
 			};
 			TestEqual(TEXT("sharp font, white text: text + shadow"), Quads(FLinearColor::White), 2);
+			TestEqual(TEXT("sharp font: closer shadow"), D.Cmds[0].Pos.Y - D.Cmds[1].Pos.Y, SSXFe::SharpShadowOffset);
 			TestEqual(TEXT("sharp font, black text (DVD menu): no doubled shadow"), Quads(FLinearColor::Black), 1);
 			SSXRenderLook::Set(ESSXRenderLook::Classic);
 			TestEqual(TEXT("disc font, black text: as the original"), Quads(FLinearColor::Black), 2);

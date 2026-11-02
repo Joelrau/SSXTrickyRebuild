@@ -690,7 +690,9 @@ FVector2f FSSXFeDrawList::Text(SSXFe::EFont Font, float X, float Y, float Scale,
 		{
 			FLinearColor S = SSXFe::Black;
 			S.A = Color.A;   // FUN_0019d3f0
-			Glyphs(*F, Lx + SSXFe::ShadowOffset, Ly + SSXFe::ShadowOffset, Scale, S, Lines[I], Layer - 1);
+			const float Oy = bSharpFont ? SSXFe::SharpShadowOffset * Scale : SSXFe::ShadowOffset;
+			const float Ox = bSharpFont ? Oy / SSXFeWide::StretchX(bHudLayer) : SSXFe::ShadowOffset;   // equal once the frame is stretched
+			Glyphs(*F, Lx + Ox, Ly + Oy, Scale, S, Lines[I], Layer - 1);
 		}
 		Glyphs(*F, Lx, Ly, Scale, Color, Lines[I], Layer);
 	}
