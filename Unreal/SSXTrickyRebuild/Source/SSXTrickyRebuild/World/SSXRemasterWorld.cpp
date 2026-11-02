@@ -282,7 +282,7 @@ SSXRemaster::FFogSetup SSXRemaster::FogFor(double DrawDistance, float Scale, flo
 
 float SSXRemaster::DrawDistanceScale(int32 Quality)
 {
-	static const float Scale[] = { 1.25f, 1.35f, 1.5f, 1.75f };   // Low .. Epic, x the original draw distance
+	static const float Scale[] = { 1.f, 1.1f, 1.2f, 1.35f };   // Low .. Epic, x the original draw distance
 	return Scale[FMath::Clamp(Quality, 0, 3)];
 }
 
