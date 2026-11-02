@@ -395,6 +395,19 @@ bool FSSXUIOptionsVideoTest::RunTest(const FString& Parameters)
 		}
 		TestEqual(TEXT("DONE leaves the page"), F.FE.Top()->Page, -1);
 	}
+	if (const int32 Fg = RowIndex(VideoPage, FrameGenerationId); Fg != INDEX_NONE)
+	{
+		const bool bPrev = SSXRenderLook::GetFrameGeneration();
+		ON_SCOPE_EXIT { SSXRenderLook::SetFrameGeneration(bPrev); };
+		SSXRenderLook::SetFrameGeneration(false);
+		FOptFe F;
+		F.OpenPage(VideoPage);
+		for (int32 I = 0; I < Fg; ++I) { F.Press(ESSXFeKey::Down); }
+		F.Press(ESSXFeKey::Right);
+		TestTrue(TEXT("frame generation applies on change"), SSXRenderLook::GetFrameGeneration());
+		F.Press(ESSXFeKey::Triangle);
+		TestFalse(TEXT("Back restores frame generation"), SSXRenderLook::GetFrameGeneration());
+	}
 	return true;
 }
 

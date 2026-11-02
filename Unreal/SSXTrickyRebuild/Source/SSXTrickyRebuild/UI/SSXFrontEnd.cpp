@@ -2195,6 +2195,7 @@ void FSSXFrontEnd::OptionsApplyList(FSSXFeState& S, int32 Row)
 	{
 		if (Rows[Row].Id == 0) { SSXRenderLook::Set(ESSXRenderLook(S.Opt.List[P][Row])); }
 		if (Rows[Row].Id == 1) { SSXRenderLook::SetQuality(S.Opt.List[P][Row]); }
+		if (Rows[Row].Id == FrameGenerationId) { SSXRenderLook::SetFrameGeneration(S.Opt.List[P][Row] != 0); }
 		return;
 	}
 	if (!Rows.IsValidIndex(Row) || !Profile)
