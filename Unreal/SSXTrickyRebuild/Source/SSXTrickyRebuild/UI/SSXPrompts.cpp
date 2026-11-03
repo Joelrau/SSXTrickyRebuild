@@ -11,6 +11,7 @@
 #include "Misc/Paths.h"
 #include "UI/SSXFeDraw.h"
 #include "UObject/StrongObjectPtr.h"
+#include "World/SSXRenderLook.h"
 
 namespace
 {
@@ -245,7 +246,7 @@ ESSXPromptDevice SSXPrompts::Device()
 FString SSXPrompts::ImageFor(int32 Id, bool bHud, ESSXPromptContext Ctx, ESSXPromptDevice Dev)
 {
 	const EButton B = ButtonOf(Id, bHud);
-	if (B == EButton::None || Ctx == ESSXPromptContext::Original || Dev == ESSXPromptDevice::PS2)
+	if (B == EButton::None || Ctx == ESSXPromptContext::Original || Dev == ESSXPromptDevice::PS2 || SSXRenderLook::IsClassicOnly())
 	{
 		return FString();
 	}

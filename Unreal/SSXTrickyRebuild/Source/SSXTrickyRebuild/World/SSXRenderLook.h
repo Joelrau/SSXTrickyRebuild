@@ -18,6 +18,13 @@ namespace SSXRenderLook
 {
 	constexpr ESSXRenderLook Default = ESSXRenderLook::Classic;
 
+	/** No remaster feature exists: the SSXTrickyClassic target (package.bat Classic), or -classiconly outside Shipping.
+	 *  The look stays Classic, and the VIDEO page, device prompts, fonts and every other PC addition of the look are off. */
+	SSXTRICKYREBUILD_API bool IsClassicOnly();
+#if !UE_BUILD_SHIPPING
+	SSXTRICKYREBUILD_API void SetClassicOnlyForTest(bool bClassicOnly);
+#endif
+
 	/** ssx.Render.Look: 0 Classic, anything above 0 Remastered. */
 	SSXTRICKYREBUILD_API ESSXRenderLook Get();
 	/** Set ssx.Render.Look; OnChanged fires when the look changes. */

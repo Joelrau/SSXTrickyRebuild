@@ -140,7 +140,8 @@ void USSXParticleWorld::OnWorldBeginPlay(UWorld& InWorld)
 	}
 	LensFanMaterial = LoadObject<UMaterialInterface>(nullptr, LensFanMaterialPath);
 	if (LensFanMaterial) { BaseMaterials.Add(LensFanMaterial); }
-	if (UMaterialInterface* RmSprite = LoadObject<UMaterialInterface>(nullptr, RmLensSpriteMaterialPath))
+	const bool bRmLens = !SSXRenderLook::IsClassicOnly();
+	if (UMaterialInterface* RmSprite = bRmLens ? LoadObject<UMaterialInterface>(nullptr, RmLensSpriteMaterialPath) : nullptr)
 	{
 		if (LensSpriteMid)
 		{
@@ -149,7 +150,7 @@ void USSXParticleWorld::OnWorldBeginPlay(UWorld& InWorld)
 		}
 		BaseMaterials.Add(RmSprite);
 	}
-	RmLensFanMaterial = LoadObject<UMaterialInterface>(nullptr, RmLensFanMaterialPath);
+	RmLensFanMaterial = bRmLens ? LoadObject<UMaterialInterface>(nullptr, RmLensFanMaterialPath) : nullptr;
 	if (RmLensFanMaterial) { BaseMaterials.Add(RmLensFanMaterial); }
 	if (!LensSpriteMid || !LensFanMaterial)
 	{

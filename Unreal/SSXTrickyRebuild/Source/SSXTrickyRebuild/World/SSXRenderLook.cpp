@@ -5,8 +5,20 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SSXRenderLook)
 
+#ifndef SSX_CLASSIC_ONLY
+#define SSX_CLASSIC_ONLY 0
+#endif
+
 namespace
 {
+#if !UE_BUILD_SHIPPING
+	bool& ClassicOnlyFlag()
+	{
+		static bool bClassicOnly = FParse::Param(FCommandLine::Get(), TEXT("classiconly"));
+		return bClassicOnly;
+	}
+#endif
+
 	ESSXRenderLook FromInt(int32 V) { return V > 0 ? ESSXRenderLook::Remastered : ESSXRenderLook::Classic; }
 
 	ESSXRenderLook GApplied = SSXRenderLook::Default;
@@ -14,7 +26,7 @@ namespace
 
 	void OnLookCvar(IConsoleVariable* Var)
 	{
-		const ESSXRenderLook Look = FromInt(Var->GetInt());
+		const ESSXRenderLook Look = SSXRenderLook::Get();
 		if (Look == GApplied) { return; }
 		GApplied = Look;
 		SSXRenderLook::ApplyCvars(SSXRenderLook::RemasteredCvars(), Look);
@@ -43,9 +55,27 @@ namespace
 
 namespace SSXRenderLook
 {
-	ESSXRenderLook Get() { return FromInt(CVarLook.GetValueOnGameThread()); }
+	bool IsClassicOnly()
+	{
+#if SSX_CLASSIC_ONLY
+		return true;
+#elif !UE_BUILD_SHIPPING
+		return ClassicOnlyFlag();
+#else
+		return false;
+#endif
+	}
 
-	void Set(ESSXRenderLook Look) { CVarLook->Set(int32(Look), ECVF_SetByCode); }
+#if !UE_BUILD_SHIPPING
+	void SetClassicOnlyForTest(bool bClassicOnly) { ClassicOnlyFlag() = bClassicOnly; }
+#endif
+
+	ESSXRenderLook Get() { return IsClassicOnly() ? ESSXRenderLook::Classic : FromInt(CVarLook.GetValueOnGameThread()); }
+
+	void Set(ESSXRenderLook Look)
+	{
+		if (!IsClassicOnly()) { CVarLook->Set(int32(Look), ECVF_SetByCode); }
+	}
 
 	FOnChanged& OnChanged()
 	{
@@ -116,7 +146,7 @@ namespace SSXRenderLook
 		IConsoleVariable* FrameGenerationCvar() { return IConsoleManager::Get().FindConsoleVariable(TEXT("r.FidelityFX.FI.Enabled")); }
 	}
 
-	bool FrameGenerationAvailable() { return FrameGenerationCvar() != nullptr; }
+	bool FrameGenerationAvailable() { return !IsClassicOnly() && FrameGenerationCvar() != nullptr; }
 
 	FString FrameGenerationName()
 	{
@@ -155,7 +185,7 @@ void USSXVideoSettings::Save()
 void USSXRenderLookSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
-	if (GIsAutomationTesting)
+	if (GIsAutomationTesting || SSXRenderLook::IsClassicOnly())
 	{
 		return;   // tests run the Classic default unless they set the look themselves, whatever the user saved
 	}

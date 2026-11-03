@@ -332,6 +332,7 @@ TArray<int32> SSXRemaster::StrongestLocalLights(TConstArrayView<FSSXLight> Light
 
 bool USSXRemasterWorld::ShouldCreateSubsystem(UObject* Outer) const
 {
+	if (SSXRenderLook::IsClassicOnly()) { return false; }
 	const UWorld* W = Cast<UWorld>(Outer);
 	return W && (W->WorldType == EWorldType::Game || W->WorldType == EWorldType::PIE || W->WorldType == EWorldType::Editor);
 }

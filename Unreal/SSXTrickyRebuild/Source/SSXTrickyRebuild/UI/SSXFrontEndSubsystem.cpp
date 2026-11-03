@@ -19,6 +19,7 @@
 #include "Misc/Parse.h"
 #include "Misc/Paths.h"
 #include "SSXTrickyRebuild.h"
+#include "World/SSXRenderLook.h"
 
 USSXFrontEndSubsystem* USSXFrontEndSubsystem::Get(const UObject* WorldContext)
 {
@@ -189,9 +190,12 @@ const FSSXFeAssets& USSXFrontEndSubsystem::Assets()
 		}
 		return F;
 	};
-	A.TitleHi = HiFont(TEXT("TITLE"), A.Title);
-	A.MenuHi = HiFont(TEXT("MENU"), A.Menu);
-	A.SmallHi = HiFont(TEXT("SMLFONT"), A.Small);
+	if (!SSXRenderLook::IsClassicOnly())
+	{
+		A.TitleHi = HiFont(TEXT("TITLE"), A.Title);
+		A.MenuHi = HiFont(TEXT("MENU"), A.Menu);
+		A.SmallHi = HiFont(TEXT("SMLFONT"), A.Small);
+	}
 
 	const FString SpriteJson = FPaths::Combine(SSXFrontEnd::FrontEndDir(), TEXT("fe_sprites.json"));
 	if (FeSprites.LoadJson(SpriteJson))

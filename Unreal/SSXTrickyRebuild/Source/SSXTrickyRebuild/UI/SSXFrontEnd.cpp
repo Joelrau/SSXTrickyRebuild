@@ -492,10 +492,13 @@ FSSXFeState FSSXFrontEnd::Make(ESSXFeScreen Screen, int32 Player) const
 		Item(3, 204);
 		Item(4, 180);
 		{
-			FSSXFeItem Video;   // PC-only Video page (user request)
-			Video.Id = SSXFeOptions::VideoPage;
-			Video.Text = SSXFeOptions::PageTitleText(SSXFeOptions::VideoPage);
-			S.Items.Add(Video);
+			if (!SSXRenderLook::IsClassicOnly())
+			{
+				FSSXFeItem Video;   // PC-only Video page (user request)
+				Video.Id = SSXFeOptions::VideoPage;
+				Video.Text = SSXFeOptions::PageTitleText(SSXFeOptions::VideoPage);
+				S.Items.Add(Video);
+			}
 			FSSXFeItem Keys;   // PC-only Keybinds page (user request)
 			Keys.Id = SSXFeOptions::KeybindsPage;
 			Keys.Text = SSXFeOptions::PageTitleText(SSXFeOptions::KeybindsPage);

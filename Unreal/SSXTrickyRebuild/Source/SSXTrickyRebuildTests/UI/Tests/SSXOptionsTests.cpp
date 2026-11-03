@@ -11,6 +11,7 @@
 #include "UI/SSXFeProfile.h"
 #include "UI/SSXFrontEnd.h"
 #include "UI/SSXFrontEndData.h"
+#include "UI/SSXPrompts.h"
 #include "World/SSXRenderLook.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -759,6 +760,30 @@ bool FSSXUIUserNameTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("max 9 characters"), F.FE.Top()->Name, FString(TEXT("MMMMMMMMM")));
 	F.Press(ESSXFeKey::Triangle);
 	TestEqual(TEXT("Back reloads the stored name"), F.Profile.Slot[0].UserName, FString(TEXT("PLAYER1")));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSSXOptionsClassicOnlyTest, "SSX.UI.ClassicOnly", OptTestFlags)
+bool FSSXOptionsClassicOnlyTest::RunTest(const FString&)
+{
+	const ESSXRenderLook Prev = SSXRenderLook::Get();
+	ON_SCOPE_EXIT { SSXRenderLook::SetClassicOnlyForTest(false); SSXRenderLook::Set(Prev); };
+	SSXRenderLook::Set(ESSXRenderLook::Remastered);
+	SSXRenderLook::SetClassicOnlyForTest(true);
+	TestTrue(TEXT("the look reads Classic"), SSXRenderLook::Get() == ESSXRenderLook::Classic);
+	SSXRenderLook::Set(ESSXRenderLook::Remastered);
+	TestTrue(TEXT("the look cannot be changed"), SSXRenderLook::Get() == ESSXRenderLook::Classic);
+	TestFalse(TEXT("no frame generation"), SSXRenderLook::FrameGenerationAvailable());
+	TestEqual(TEXT("the UI frame is not stretched"), SSXFeWide::StretchX(false), 1.f);
+	TestEqual(TEXT("the HUD is not anchored"), SSXFeWide::ExtraX(true), 0.f);
+	TestTrue(TEXT("no device prompts"), SSXPrompts::ImageFor(0x62, true, ESSXPromptContext::Race, ESSXPromptDevice::Keyboard).IsEmpty());
+	{
+		FOptFe F;
+		F.Press(ESSXFeKey::Square);
+		const FSSXFeState* S = F.FE.Top();
+		if (!TestTrue(TEXT("Options top list: the original five + Keybinds"), S && S->Items.Num() == 6)) return false;
+		TestEqual(TEXT("the last item is Keybinds"), S->Items[5].Id, SSXFeOptions::KeybindsPage);
+	}
 	return true;
 }
 

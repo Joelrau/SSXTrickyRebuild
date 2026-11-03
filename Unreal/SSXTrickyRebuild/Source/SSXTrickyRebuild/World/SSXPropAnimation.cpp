@@ -26,6 +26,7 @@
 #include "Sim/WipeOut/TumbleBody.h"
 #include "UI/SSXFrontEndData.h"
 #include "World/SSXWorldPresentation.h"
+#include "World/SSXRenderLook.h"
 
 using namespace SSXPropNodes;
 
@@ -1098,7 +1099,7 @@ void USSXPropAnimation::ApplyGems()
 	}
 	// The original's crystal spin (AnimObject rz, 270 deg/s, notes showoff_crystals.md) runs only while the gem's .ltg
 	// cell is active (the 3 x 3 cells around a rider); without a controller the picture turns at the same rate.
-	const bool bSpin = CVarGemSpinAlways.GetValueOnGameThread() != 0;
+	const bool bSpin = CVarGemSpinAlways.GetValueOnGameThread() != 0 && !SSXRenderLook::IsClassicOnly();
 	// 0x17F078: the AnimObject controllers (node group 3) hold while the world frame is held
 	const ASSXRaceManager* Race = ASSXRaceManager::Find(this);
 	if (!GetWorld()->IsPaused() && !(Race && Race->IsWorldHeld())) { GemSpinClock += GetWorld()->GetDeltaSeconds(); }
