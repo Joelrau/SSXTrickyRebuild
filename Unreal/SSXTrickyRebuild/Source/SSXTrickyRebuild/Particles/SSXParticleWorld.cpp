@@ -829,7 +829,8 @@ void USSXParticleWorld::Render()
 	TArray<FSSXSpriteBatch> Batches;
 	FBatcher Bt{ Batches };
 	const bool bOn = CVarParticles.GetValueOnGameThread() != 0;
-	auto Burst = [&](const FParticleBurst& B)
+	const bool bDenseSpray = SSXRenderLook::Get() == ESSXRenderLook::Remastered;
+	auto Burst = [&](const FParticleBurst& B, bool bDense = false)
 	{
 		FSSXSpriteBatch* Out = Bt.For(SpriteMaterial(B.Texture, B.BlendMode));
 		if (!Out)
@@ -839,6 +840,19 @@ void USSXParticleWorld::Render()
 		Scratch.Reset();
 		B.Evaluate(Scratch);
 		for (const FSprite& S : Scratch) { PushSprite(*Out, S.Pos, S.HalfSize, GsColor(S.Rgba)); }
+		if (bDense)
+		{
+			for (int32 I = 0; I < Scratch.Num(); ++I)
+			{
+				const FSprite& S = Scratch[I];
+				FVector4 Rgba(S.Rgba);
+				Rgba.W *= SprayCompanionAlpha;
+				for (int32 K = 0; K < SprayCompanions; ++K)
+				{
+					PushSprite(*Out, S.Pos + SprayCompanionOffset(uint32(I), K) * S.HalfSize, S.HalfSize * SprayCompanionSize, GsColor(Rgba));
+				}
+			}
+		}
 	};
 	if (bOn)
 	{
@@ -878,6 +892,12 @@ void USSXParticleWorld::Render()
 					const FVector4f UV(C.FlipU ? 1.f : 0.f, C.FlipV ? 1.f : 0.f, C.FlipU ? 0.f : 1.f, C.FlipV ? 0.f : 1.f);
 					// 0x12F178
 					PushSprite(*Out, S.Pos, S.Size, GsColor(FVector4(C.Rgb.X * 128.0, C.Rgb.Y * 128.0, C.Rgb.Z * 128.0, S.Alpha * 128.0)), UV);
+					for (int32 K = 0; bDenseSpray && K < SprayCompanions; ++K)
+					{
+						const uint32 Seed = uint32(FMath::FloorToInt64(C.Pos.X + C.Pos.Y * 3.0));
+						PushSprite(*Out, S.Pos + SprayCompanionOffset(Seed, K) * S.Size, S.Size * SprayCompanionSize,
+							GsColor(FVector4(C.Rgb.X * 128.0, C.Rgb.Y * 128.0, C.Rgb.Z * 128.0, S.Alpha * 128.0 * SprayCompanionAlpha)), UV);
+					}
 				}
 			}
 			if (R.Curtain.Num() > 0)
@@ -889,7 +909,7 @@ void USSXParticleWorld::Render()
 					for (const TArray<FFxVertex>& S : Strips) { Strip(*Out, S); }
 				}
 			}
-			for (const FParticleBurst& B : R.Spray.GetBursts()) { Burst(B); }
+			for (const FParticleBurst& B : R.Spray.GetBursts()) { Burst(B, bDenseSpray); }
 			const FSplashFx& Sp = R.Puffs.GetSplash();
 			if (Sp.Num() > 0)
 			{

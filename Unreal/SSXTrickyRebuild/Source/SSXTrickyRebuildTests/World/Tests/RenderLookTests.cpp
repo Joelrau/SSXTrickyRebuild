@@ -6,6 +6,7 @@
 #include "UObject/UObjectGlobals.h"
 #include "UI/SSXFeRiderActor.h"
 #include "World/SSXWorldPresentation.h"
+#include "Particles/SSXRiderFx.h"
 #include "World/SSXRemasterWorld.h"
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
@@ -227,6 +228,20 @@ bool FSSXRenderRiderMapsTest::RunTest(const FString&)
 		const UMaterialInterface* M = LoadObject<UMaterialInterface>(nullptr, *FString::Printf(TEXT("/Game/Remastered/%s.%s"), Name, Name));
 		UTexture* Tex = nullptr;
 		TestTrue(FString::Printf(TEXT("%s reads the detail masks"), Name), M && M->GetTextureParameterValue(FHashedMaterialParameterInfo(TEXT("RmMasks")), Tex));
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSSXRenderSprayCompanionTest, "SSX.Render.SprayCompanion", RenderLookFlags)
+bool FSSXRenderSprayCompanionTest::RunTest(const FString&)
+{
+	using namespace SSXParticles;
+	for (uint32 Seed = 0; Seed < 200; ++Seed)
+	{
+		const FVector A = SprayCompanionOffset(Seed, 0), B = SprayCompanionOffset(Seed, 1);
+		TestTrue(TEXT("stays near its sprite"), A.Size() <= 1.0 && B.Size() <= 1.0);
+		TestTrue(TEXT("companions of a sprite differ"), !A.Equals(B, 0.01));
+		TestTrue(TEXT("the same seed gives the same offset"), A == SprayCompanionOffset(Seed, 0));
 	}
 	return true;
 }

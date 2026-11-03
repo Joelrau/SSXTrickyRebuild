@@ -95,10 +95,19 @@ float e = 1.0 / 2048.0;
 float h = saturate(Trails.SampleLevel(TrailsSampler, uv, 0).r);
 float hx = Trails.SampleLevel(TrailsSampler, uv + float2(e, 0.0), 0).r - Trails.SampleLevel(TrailsSampler, uv - float2(e, 0.0), 0).r;
 float hy = Trails.SampleLevel(TrailsSampler, uv + float2(0.0, e), 0).r - Trails.SampleLevel(TrailsSampler, uv - float2(0.0, e), 0).r;
-return float4(normalize(N + float3(hx, hy, 0.0) * 1.5), h);
+return float4(normalize(N + float3(hx, hy, 0.0) * 2.5), h);
 """
-TRAIL_SHADE = "return C * (1.0 - 0.2 * T.a);"
-TRAIL_AO = "return A * (1.0 - 0.35 * T.a);"
+TRAIL_SHADE = "return C * (1.0 - 0.28 * T.a);"
+TRAIL_AO = "return A * (1.0 - 0.45 * T.a);"
+# Wind ripples on snow near the camera: warped sines, no texture, so nothing tiles or repeats visibly.
+SNOW_RIPPLE = """
+float fade = saturate(1.0 - Depth / 4000.0);
+if ((Surface > 0.5 && Surface < 1.5) || Surface > 2.5 || fade <= 0.0) return N;
+float2 p = WP.xy / 37.0;
+p += 0.6 * sin(p.yx * 1.7);
+float2 d = cos(p * float2(3.1, 2.7)) + 0.6 * cos(p.yx * float2(7.3, 8.9) + 1.3) + 0.35 * cos(p * float2(17.1, 19.3) + 2.1);
+return normalize(N + float3(d, 0.0) * 0.05 * fade);
+"""
 STAMP = "float r = length(UV - 0.5) * 2.0; return saturate(1.0 - r * r) * Strength;"
 SHIFT = "float2 uv = UV + Offset; return (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) ? 0.0 : Prev.SampleLevel(PrevSampler, uv, 0).r;"
 # Snow sparkle: sparse view-dependent glints on bright, desaturated texels (mask G), lit by the baked light.
@@ -401,11 +410,15 @@ def surface(m, rm, base, baked, uv=None, trails=False):
                        transform_source_type=unreal.MaterialVectorCoordTransformSource.TRANSFORMSOURCE_TANGENT,
                        transform_type=unreal.MaterialVectorCoordTransform.TRANSFORM_WORLD)
         connect(snorm, "", world_n, "")
+        ripple = custom(m, -500, 300, SNOW_RIPPLE, F3,
+                        [("N", (world_n, "")), ("WP", (expr(m, unreal.MaterialExpressionWorldPosition, -800, 240), "")),
+                         ("Depth", (expr(m, unreal.MaterialExpressionPixelDepth, -800, 180), "")),
+                         ("Surface", (surf, ""))], "RmSnowRipple")
         tmap = expr(m, unreal.MaterialExpressionTextureObjectParameter, -900, 950, parameter_name="RmTrails")
         tmap.set_editor_property("texture", unreal.load_asset("/Engine/EngineResources/Black"))
         tmap.set_editor_property("sampler_type", unreal.MaterialSamplerType.SAMPLERTYPE_LINEAR_GRAYSCALE)
         trail = custom(m, -400, 400, TRAIL, unreal.CustomMaterialOutputType.CMOT_FLOAT4,
-                       [("N", (world_n, "")), ("WP", (expr(m, unreal.MaterialExpressionWorldPosition, -700, 1000), "")),
+                       [("N", (ripple, "")), ("WP", (expr(m, unreal.MaterialExpressionWorldPosition, -700, 1000), "")),
                         ("Trails", (tmap, "")), ("Surface", (surf, "")),
                         ("TX", (coll(m, rm, "TrailX", -700, 1060), "")), ("TY", (coll(m, rm, "TrailY", -700, 1120), "")),
                         ("TS", (coll(m, rm, "TrailSize", -700, 1180), ""))], "RmTrail")

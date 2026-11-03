@@ -290,6 +290,12 @@ namespace SSXParticles
 		PrevPoint = Point;
 	}
 
+	FVector SprayCompanionOffset(uint32 Seed, int32 K)
+	{
+		const double A = FMath::Frac(double(Seed) * 0.6180339887 + double(K + 1) * 0.3819660113) * UE_DOUBLE_TWO_PI;
+		return FVector(FMath::Cos(A), FMath::Sin(A), 0.5 * FMath::Sin(A * 1.7)) * 0.8;
+	}
+
 	bool CarveCloudSprite(const FCarveCloud& C, FCloudSprite& Out)
 	{
 		if (C.Age > CarveCloudLife)

@@ -106,6 +106,12 @@ namespace SSXParticles
 	struct FCloudSprite { FVector Pos; double Size = 0.0; double Alpha = 0.0; int32 Texture = 24; };
 	SSXTRICKYREBUILD_API bool CarveCloudSprite(const FCarveCloud& C, FCloudSprite& Out);
 
+	// Remastered look: extra sprites around each snow spray sprite. Drawn only, nothing here touches the effect state.
+	constexpr int32 SprayCompanions = 2;
+	constexpr double SprayCompanionSize = 0.7, SprayCompanionAlpha = 0.5;
+	/** Offset of companion K in units of the sprite's half size; fixed for a Seed, so a sprite's companions do not jump. */
+	SSXTRICKYREBUILD_API FVector SprayCompanionOffset(uint32 Seed, int32 K);
+
 	class SSXTRICKYREBUILD_API FCarveClouds
 	{
 	public:
