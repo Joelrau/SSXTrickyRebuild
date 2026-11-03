@@ -767,7 +767,9 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSSXOptionsClassicOnlyTest, "SSX.UI.ClassicOnly
 bool FSSXOptionsClassicOnlyTest::RunTest(const FString&)
 {
 	const ESSXRenderLook Prev = SSXRenderLook::Get();
-	ON_SCOPE_EXIT { SSXRenderLook::SetClassicOnlyForTest(false); SSXRenderLook::Set(Prev); };
+	const bool bPrevOnly = SSXRenderLook::IsClassicOnly();
+	ON_SCOPE_EXIT { SSXRenderLook::SetClassicOnlyForTest(bPrevOnly); SSXRenderLook::Set(Prev); };
+	SSXRenderLook::SetClassicOnlyForTest(false);
 	SSXRenderLook::Set(ESSXRenderLook::Remastered);
 	SSXRenderLook::SetClassicOnlyForTest(true);
 	TestTrue(TEXT("the look reads Classic"), SSXRenderLook::Get() == ESSXRenderLook::Classic);

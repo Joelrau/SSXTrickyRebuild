@@ -10,6 +10,5 @@ public class SSXTrickyClassicTarget : TargetRules
 		IncludeOrderVersion = EngineIncludeOrderVersion.Unreal5_8;
 		ExtraModuleNames.Add("SSXTrickyRebuild");
 		ProjectDefinitions.Add("SSX_CLASSIC_ONLY=1");
-		DisablePlugins.Add("FSR");
 	}
 }

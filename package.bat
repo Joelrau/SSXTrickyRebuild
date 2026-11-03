@@ -13,8 +13,8 @@ call "%~dp0tools\find_ue.bat" || exit /b 1
 
 set "CONFIG=Shipping"
 set "TARGET=SSXTricky"
-set "COOKOPTS="
 set "CFG=%~dp0Unreal\SSXTrickyRebuild\Config"
+set "UPROJECT=%~dp0Unreal\SSXTrickyRebuild\SSXTrickyRebuild.uproject"
 set "KEEP=%~dp0Unreal\SSXTrickyRebuild\Intermediate\ClassicConfig"
 set "OUT=%~dp0Packaged"
 rem Shipping stages no .pdb: UAT copies debug files unless -nodebuginfo (IncludeDebugFiles in DefaultGame.ini only
@@ -28,7 +28,6 @@ if /i "%~1"=="Development" (
 if /i "%~1"=="Classic" (
     set "TARGET=SSXTrickyClassic"
     set "OUT=%~dp0Packaged-Classic"
-    set "COOKOPTS=-AdditionalCookerOptions=-DisablePlugins=FSR"
 )
 
 rem A Classic package that was cut short left its settings in the config files.
@@ -37,17 +36,20 @@ if /i "%~1"=="Classic" (
     if not exist "%KEEP%" mkdir "%KEEP%"
     copy /y "%CFG%\DefaultEngine.ini" "%KEEP%\DefaultEngine.ini" >nul
     copy /y "%CFG%\DefaultGame.ini" "%KEEP%\DefaultGame.ini" >nul
+    copy /y "%UPROJECT%" "%KEEP%\SSXTrickyRebuild.uproject" >nul
     type "%~dp0tools\classic_only\DefaultEngine.append.ini" >> "%CFG%\DefaultEngine.ini"
     type "%~dp0tools\classic_only\DefaultGame.append.ini" >> "%CFG%\DefaultGame.ini"
+    rem A target cannot disable a plugin with an installed engine: the FSR plugin goes off in the project file.
+    powershell -NoProfile -Command "$t = [IO.File]::ReadAllText($env:UPROJECT) -replace '(\"Name\": \"FSR\",\s*\"Enabled\": )true', '$1false'; [IO.File]::WriteAllText($env:UPROJECT, $t)"
 )
 
 rem UBT keeps the expanded RuntimeDependencies wildcards in this cache, which would skip new data files.
 del /q "%~dp0Unreal\SSXTrickyRebuild\Intermediate\Build\Win64\x64\%TARGET%\%CONFIG%\Makefile.bin" 2>nul
 
 call "%UE_ROOT%\Engine\Build\BatchFiles\RunUAT.bat" BuildCookRun ^
-    -project="%~dp0Unreal\SSXTrickyRebuild\SSXTrickyRebuild.uproject" ^
+    -project="%UPROJECT%" ^
     -platform=Win64 -clientconfig=%CONFIG% -target=%TARGET% ^
-    -build -cook -stage -pak -stagingdirectory="%OUT%" %DEBUGINFO% %COOKOPTS% ^
+    -build -cook -stage -pak -stagingdirectory="%OUT%" %DEBUGINFO% ^
     -unattended -utf8output
 set "RESULT=%errorlevel%"
 call :RestoreConfig
@@ -62,4 +64,5 @@ exit /b 0
 :RestoreConfig
 if exist "%KEEP%\DefaultEngine.ini" move /y "%KEEP%\DefaultEngine.ini" "%CFG%\DefaultEngine.ini" >nul
 if exist "%KEEP%\DefaultGame.ini" move /y "%KEEP%\DefaultGame.ini" "%CFG%\DefaultGame.ini" >nul
+if exist "%KEEP%\SSXTrickyRebuild.uproject" move /y "%KEEP%\SSXTrickyRebuild.uproject" "%UPROJECT%" >nul
 exit /b 0

@@ -40,7 +40,7 @@ public class SSXTrickyRebuild : ModuleRules
 			string[] RepoData = {
 				"converted/audio/...",              // manifest, pathfinder music, speech, crowd, INF configs
 				"converted/frontend/*.json",        // FE tables, sprites, cameras, strings, progression
-				bClassicOnly ? "converted/frontend/fonts/*" : "converted/frontend/fonts/...",
+				"converted/frontend/fonts/...",
 				"converted/frontend/loading/...",
 				"converted/frontend/video/*.m2ts",  // FMV (Media Framework) + its separate audio track
 				"converted/frontend/video/*.wav",
@@ -60,7 +60,20 @@ public class SSXTrickyRebuild : ModuleRules
 			foreach (string Rel in RepoData)
 			{
 				string SourceDir = Path.Combine(Repo, Path.GetDirectoryName(Rel.Replace("/...", "/x")));
-				if (Directory.Exists(SourceDir) && !(bClassicOnly && Rel.StartsWith("converted/remaster/")))
+				if (bClassicOnly && (Rel == "converted/frontend/*.json" || Rel == "converted/frontend/fonts/..."))
+				{
+					// One by one: these wildcards reach into fonts/remaster, the high-resolution fonts.
+					string Pattern = Rel.EndsWith("*.json") ? "*.json" : "*";
+					foreach (string File in Directory.Exists(SourceDir) ? Directory.GetFiles(SourceDir, Pattern, SearchOption.AllDirectories) : new string[0])
+					{
+						string Under = File.Substring(Repo.Length + 1).Replace(Path.DirectorySeparatorChar, '/');
+						if (!Under.StartsWith("converted/frontend/fonts/remaster/"))
+						{
+							RuntimeDependencies.Add("$(ProjectDir)/GameData/" + Under, File, StagedFileType.NonUFS);
+						}
+					}
+				}
+				else if (Directory.Exists(SourceDir) && !(bClassicOnly && Rel.StartsWith("converted/remaster/")))
 				{
 					RuntimeDependencies.Add("$(ProjectDir)/GameData/" + Rel, Path.Combine(Repo, Rel), StagedFileType.NonUFS);
 				}
