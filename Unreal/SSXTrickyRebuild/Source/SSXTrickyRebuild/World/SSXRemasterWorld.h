@@ -85,6 +85,10 @@ namespace SSXRemaster
 	SSXTRICKYREBUILD_API float DrawDistanceScale(int32 Quality);
 	/** x the original draw distance, for what lies well above the camera: hides the upper levels of a course. */
 	constexpr float DrawDistanceUp = 1.f;
+	/** Share of the draw distance that fades out at its far end (DRAW_FADE in Scripts/make_remaster_materials.py). */
+	constexpr float DrawFadeWidth = 0.12f;
+	/** Where spline lines (opaque, they cannot fade) end: the middle of the world's fade. */
+	SSXTRICKYREBUILD_API float LineFarDistance(float DrawDistance, int32 Quality);
 	/** Height fog for a draw distance (cm) x scale: starts at 40 %, about 89 % at the end; no fog past the cutoff. */
 	struct FFogSetup { float Start = 0.f; float Density = 0.f; float Cutoff = 0.f; };
 	SSXTRICKYREBUILD_API FFogSetup FogFor(double DrawDistance, float Scale, float Strength);

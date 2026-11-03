@@ -286,6 +286,11 @@ float SSXRemaster::DrawDistanceScale(int32 Quality)
 	return Scale[FMath::Clamp(Quality, 0, 3)];
 }
 
+float SSXRemaster::LineFarDistance(float DrawDistance, int32 Quality)
+{
+	return DrawDistance * DrawDistanceScale(Quality) * (1.f - DrawFadeWidth * 0.5f);
+}
+
 float SSXRemaster::LightRadius(int32 FalloffKind)
 {
 	switch (FalloffKind)

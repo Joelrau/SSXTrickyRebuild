@@ -165,10 +165,17 @@ PROP_SOFT_SHADE = f"return {DEC.format(x='saturate(' + ENC.format(x='Tex') + ' *
 PROP_CORE = "return As >= 128.0 ? 1.0 : 0.0;"
 # The original's draw distance x MPC_SSXRemaster.DrawDistanceScale (the Remastered quality preset). Above the camera
 # (from about 3 to 15 degrees up) the scale falls to DrawDistanceUp, so the upper levels of a course stay hidden.
-DRAW_CLIP = """
+# The last 12 % fades out (SSXRemaster::DrawFadeWidth): dithered where the material is masked, TSR resolves the dither.
+DRAW_FADE = """
 float Up = saturate((Rel.z / max(Depth, 1.0) - 0.05) / 0.2);
-return (Depth <= DrawDistance * lerp(Scale, min(UpScale, Scale), Up) ? 1.0 : 0.0) * Alpha;
+float Limit = DrawDistance * lerp(Scale, min(UpScale, Scale), Up);
+float Fade = saturate((Limit - Depth) / (Limit * 0.12));
 """
+DRAW_CLIP = DRAW_FADE + """
+float n = frac(52.9829189 * frac(dot(Parameters.SvPosition.xy + 5.588238 * float(View.StateFrameIndexMod8), float2(0.06711056, 0.00583715))));
+return (Fade > n ? 1.0 : 0.0) * Alpha;
+"""
+DRAW_SOFT = DRAW_FADE + "return Fade * Alpha;"
 # 0x318080: the Classic rider light rig, ambient + sum max(0, N . D_i) C_i in PS2 units (1.0 = 0x80).
 RIDER_LIGHT = """
 float3 v = Ambient + saturate(dot(N, normalize(D0))) * C0 + saturate(dot(N, normalize(D1))) * C1
@@ -788,7 +795,7 @@ for name, glass in (("M_RmProp_Translucent", False), ("M_RmPropGlass", True)):
   if glass:
     vis = custom(m, -450, 450, GLASS_OPACITY, F1, [("A", (vis, "")), ("F", (expr(m, unreal.MaterialExpressionFresnel, -650, 380), ""))],
                  "GlassOpacity")
-  op = custom(m, -300, 550, DRAW_CLIP, F1,
+  op = custom(m, -300, 550, DRAW_SOFT, F1,
               [("Depth", (depth, "")), ("DrawDistance", (coll(m, mpc, "DrawDistance", -700, 600), "")),
                ("Scale", (coll(m, rm, "DrawDistanceScale", -700, 660), "")),
                ("UpScale", (coll(m, rm, "DrawDistanceUp", -700, 720), "")),

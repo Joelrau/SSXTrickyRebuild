@@ -231,6 +231,8 @@ bool FSSXRenderFogTest::RunTest(const FString&)
 	TestTrue(TEXT("the fog starts well before it"), F.Start < End * 0.5f && F.Start > 0.f);
 	TestTrue(TEXT("the radial cutoff clears the draw distance at the screen corners"), F.Cutoff >= End * 2.f);
 	TestEqual(TEXT("strength 0: no fog"), SSXRemaster::FogFor(Dist, Scale, 0.f).Density, 0.f);
+	const float Line = SSXRemaster::LineFarDistance(float(Dist), 3);
+	TestTrue(TEXT("spline lines end inside the world's fade"), Line > End * (1.f - SSXRemaster::DrawFadeWidth) && Line < End);
 	return true;
 }
 
