@@ -21,6 +21,9 @@ if /i "%~1"=="Development" (
     set "DEBUGINFO="
 )
 
+rem UBT keeps the expanded RuntimeDependencies wildcards in this cache, which would skip new data files.
+del /q "%~dp0Unreal\SSXTrickyRebuild\Intermediate\Build\Win64\x64\SSXTricky\%CONFIG%\Makefile.bin" 2>nul
+
 call "%UE_ROOT%\Engine\Build\BatchFiles\RunUAT.bat" BuildCookRun ^
     -project="%~dp0Unreal\SSXTrickyRebuild\SSXTrickyRebuild.uproject" ^
     -platform=Win64 -clientconfig=%CONFIG% -target=SSXTricky ^
