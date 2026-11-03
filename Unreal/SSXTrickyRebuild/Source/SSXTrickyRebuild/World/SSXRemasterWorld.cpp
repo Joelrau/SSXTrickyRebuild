@@ -295,11 +295,9 @@ SSXRemaster::FSpeedFx SSXRemaster::SpeedFxFor(double Speed, int32 Quality)
 {
 	const float T = float(FMath::Clamp((Speed - 1400.0) / (FRiderSim::SpeedTiers[3] - 1400.0), 0.0, 1.0));
 	FSpeedFx F;
-	if (Quality > 0)
-	{
-		F.MotionBlur = (Quality >= 3 ? 0.25f : 0.1f) + 0.2f * T;
-		F.MotionBlurMax = 2.f + 2.f * T;
-	}
+	// Motion blur only at Epic, and gentle: stronger blur streaks the snow and shows the blur's screen tiles.
+	F.MotionBlur = Quality >= 3 ? 0.25f : 0.f;
+	F.MotionBlurMax = 2.f;
 	F.Vignette = 0.3f * T * T;
 	return F;
 }
