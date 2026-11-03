@@ -291,6 +291,19 @@ float SSXRemaster::LineFarDistance(float DrawDistance, int32 Quality)
 	return DrawDistance * DrawDistanceScale(Quality) * (1.f - DrawFadeWidth * 0.5f);
 }
 
+SSXRemaster::FSpeedFx SSXRemaster::SpeedFxFor(double Speed, int32 Quality)
+{
+	const float T = float(FMath::Clamp((Speed - 1400.0) / (FRiderSim::SpeedTiers[3] - 1400.0), 0.0, 1.0));
+	FSpeedFx F;
+	if (Quality > 0)
+	{
+		F.MotionBlur = (Quality >= 3 ? 0.25f : 0.1f) + 0.2f * T;
+		F.MotionBlurMax = 2.f + 2.f * T;
+	}
+	F.Vignette = 0.3f * T * T;
+	return F;
+}
+
 float SSXRemaster::LightRadius(int32 FalloffKind)
 {
 	switch (FalloffKind)
@@ -368,6 +381,7 @@ void USSXRemasterWorld::Tick(float DeltaTime)
 		SyncTerrainShadows();
 		UpdateFrontEndSpots();
 		UpdateDepthOfField();
+		UpdateSpeedFx(DeltaTime);
 		UpdateTrails();
 		SwapRiders();
 		if (AppliedQuality != SSXRenderLook::GetQuality()) { ApplyQuality(); }
@@ -407,14 +421,6 @@ void USSXRemasterWorld::ApplyQuality()
 		}
 	}
 	UpdateFog();
-	if (APostProcessVolume* V = Volume.Get())
-	{
-		// Motion blur only at Epic, and gentle.
-		V->Settings.bOverride_MotionBlurAmount = true;
-		V->Settings.MotionBlurAmount = AppliedQuality >= 3 ? 0.25f : 0.f;
-		V->Settings.bOverride_MotionBlurMax = true;
-		V->Settings.MotionBlurMax = 2.f;
-	}
 	const int32 Shadowed = bAllLightShadows ? LocalLights.Num() : SSXRemaster::ShadowedLights(AppliedQuality, LocalLights.Num());
 	for (int32 I = 0; I < LocalLights.Num(); ++I)
 	{
@@ -528,6 +534,27 @@ void USSXRemasterWorld::UpdateDepthOfField()
 	S.DepthOfFieldFocalDistance = Focus;
 	S.DepthOfFieldFstop = bFrontEnd ? 2.8f : 4.f;
 	S.DepthOfFieldSensorWidth = 24.576f;
+}
+
+void USSXRemasterWorld::UpdateSpeedFx(float DeltaTime)
+{
+	UWorld* W = GetWorld();
+	APostProcessVolume* V = Volume.Get();
+	const APlayerController* PC = W ? W->GetFirstPlayerController() : nullptr;
+	if (!V) { return; }
+	const ASnowboarderPawn* Pawn = PC ? Cast<ASnowboarderPawn>(PC->GetPawn()) : nullptr;
+	const FRiderSim* Sim = Pawn ? Pawn->GetSim() : nullptr;
+	const float Target = Sim && ASSXRaceManager::Find(W) ? float(Sim->State.Velocity.Size()) : 0.f;
+	SmoothedSpeed = FMath::FInterpTo(SmoothedSpeed, Target, DeltaTime, 3.f);
+	const SSXRemaster::FSpeedFx F = SSXRemaster::SpeedFxFor(SmoothedSpeed, AppliedQuality);
+	V->Settings.bOverride_MotionBlurAmount = true;
+	V->Settings.MotionBlurAmount = F.MotionBlur;
+	V->Settings.bOverride_MotionBlurMax = true;
+	V->Settings.MotionBlurMax = F.MotionBlurMax;
+	if (UMaterialParameterCollection* Mpc = LoadObject<UMaterialParameterCollection>(nullptr, SSXRemaster::CollectionPath))
+	{
+		UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("SpeedFx"), F.Vignette);
+	}
 }
 
 void USSXRemasterWorld::UpdateFrontEndSpots()

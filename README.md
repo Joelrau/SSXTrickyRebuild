@@ -197,7 +197,7 @@ in the Classic look, which stays the default and renders exactly as before.
   projected one; snow spray and other additive / alpha sprites fade softly into the snow and the spray is lit;
   highlights (lamps, neon, sun glints) bloom. Surfaces follow the sim's surface types (glossy ice, rough powder,
   sparkling snow), riders and particles use the upscaled textures, riders carve grooves into the snow, and the front
-  end and replays get depth of field (Epic adds gentle motion blur). Night and indoor tracks have
+  end and replays get depth of field (motion blur and a subtle vignette grow with speed; no motion blur on Low). Night and indoor tracks have
   their own tuning (`SSXRemaster::TuningFor`).
 - **Materials:** `Scripts\make_remaster_materials.py` creates `Content/Remastered` (no game data; committed).
 - **Checking it without running the game:** `Scripts\capture_look.py <Map> <out dir>` renders the map offscreen in

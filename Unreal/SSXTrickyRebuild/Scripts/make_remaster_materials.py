@@ -245,12 +245,13 @@ SPRITE_ALPHA_GLOW = "return C * Glow;"   # lit spray keeps a share of its own br
 PP_SCENE = f"""
 float3 s = max(Scene.rgb / View.PreExposure, 0.0);
 float3 b = max(Bloom.rgb / View.PreExposure, 0.0);
-if (SM.r < 0.001) return saturate((s + {ENC.format(x='saturate(b)')} * 0.5) * Brightness);   // unlit: Classic + a share of the glow
+float vig = 1.0 - SpeedFx * saturate((length(UV - 0.5) * 1.414 - 0.45) / 0.55);   // darker edges at speed
+if (SM.r < 0.001) return saturate((s + {ENC.format(x='saturate(b)')} * 0.5) * Brightness) * vig;   // unlit: Classic + a share of the glow
 float3 c = (s + b) * Exposure;
 c = max(lerp(dot(c, float3(0.2126, 0.7152, 0.0722)).xxx, c, Saturation), 0.0);
 float k = 0.8;
 c = c < k ? c : k + (1.0 - k) * (1.0 - exp(-(c - k) / (1.0 - k)));
-return saturate({ENC.format(x='c')} * Brightness);
+return saturate({ENC.format(x='c')} * Brightness) * vig;
 """
 
 # As make_world_materials.CROWD_UV: crowd slot UV1.x picks one of 16 frame indices (CrowdFrames0..3), a 4x4 atlas cell.
@@ -509,7 +510,7 @@ old = {str(p.get_editor_property("parameter_name")): p for p in rm.get_editor_pr
 scalars = []
 for n, v in (("BakedWeight", 0.6), ("BakedAmbient", 0.55), ("AlbedoScale", 0.9), ("BaseRoughness", 0.62), ("Clouds", 0.0),
              ("Exposure", 1.0), ("Saturation", 1.15), ("Emissive", 3.0), ("RiderFill", 0.6), ("RiderRim", 0.35),
-             ("ParticleSoftness", 40.0), ("SpriteGlow", 0.35), ("DrawDistanceScale", 3.0), ("DrawDistanceUp", 1.0), ("Sparkle", 3.0),
+             ("ParticleSoftness", 40.0), ("SpriteGlow", 0.35), ("DrawDistanceScale", 3.0), ("DrawDistanceUp", 1.0), ("Sparkle", 3.0), ("SpeedFx", 0.0),
              ("TrailX", 0.0), ("TrailY", 0.0), ("TrailSize", 1.0e9), ("WorldTime", 0.0)):
     p = old.get(n) or unreal.CollectionScalarParameter()
     p.set_editor_property("parameter_name", n)
@@ -865,7 +866,9 @@ enc = custom(pp, -350, 0, PP_SCENE, F3,
              [("Scene", (scene, "Color")), ("Bloom", (bloom, "Color")), ("SM", (sm, "Color")),
               ("Brightness", (coll(pp, mpc, "Brightness", -700, 400), "")),
               ("Exposure", (coll(pp, rm, "Exposure", -700, 500), "")),
-              ("Saturation", (coll(pp, rm, "Saturation", -700, 600), ""))], "RmScene")
+              ("Saturation", (coll(pp, rm, "Saturation", -700, 600), "")),
+              ("SpeedFx", (coll(pp, rm, "SpeedFx", -700, 700), "")),
+              ("UV", (expr(pp, unreal.MaterialExpressionScreenPosition, -700, 800), "ViewportUV"))], "RmScene")
 connect_prop(enc, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
 finish(pp)
 

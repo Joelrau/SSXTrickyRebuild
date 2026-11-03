@@ -246,6 +246,18 @@ bool FSSXRenderSprayCompanionTest::RunTest(const FString&)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSSXRenderSpeedFxTest, "SSX.Render.SpeedFx", RenderLookFlags)
+bool FSSXRenderSpeedFxTest::RunTest(const FString&)
+{
+	const SSXRemaster::FSpeedFx Slow = SSXRemaster::SpeedFxFor(0.0, 3), Fast = SSXRemaster::SpeedFxFor(5000.0, 3);
+	TestEqual(TEXT("standing still: no vignette"), Slow.Vignette, 0.f);
+	TestEqual(TEXT("standing still: Epic keeps its gentle blur"), Slow.MotionBlur, 0.25f);
+	TestTrue(TEXT("speed adds blur, within reason"), Fast.MotionBlur > Slow.MotionBlur && Fast.MotionBlur <= 0.5f);
+	TestTrue(TEXT("speed adds a subtle vignette"), Fast.Vignette > 0.f && Fast.Vignette <= 0.3f);
+	TestEqual(TEXT("Low has no motion blur at any speed"), SSXRemaster::SpeedFxFor(5000.0, 0).MotionBlur, 0.f);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSSXRenderFogTest, "SSX.Render.Fog", RenderLookFlags)
 bool FSSXRenderFogTest::RunTest(const FString&)
 {

@@ -89,6 +89,15 @@ namespace SSXRemaster
 	constexpr float DrawFadeWidth = 0.12f;
 	/** Where spline lines (opaque, they cannot fade) end: the middle of the world's fade. */
 	SSXTRICKYREBUILD_API float LineFarDistance(float DrawDistance, int32 Quality);
+
+	/** Camera effects that grow with the rider's speed (cm/s); render only. */
+	struct FSpeedFx
+	{
+		float MotionBlur = 0.f;
+		float MotionBlurMax = 0.f;
+		float Vignette = 0.f;
+	};
+	SSXTRICKYREBUILD_API FSpeedFx SpeedFxFor(double Speed, int32 Quality);
 	/** Height fog for a draw distance (cm) x scale: starts at 40 %, about 89 % at the end; no fog past the cutoff. */
 	struct FFogSetup { float Start = 0.f; float Density = 0.f; float Cutoff = 0.f; };
 	SSXTRICKYREBUILD_API FFogSetup FogFor(double DrawDistance, float Scale, float Strength);
@@ -161,6 +170,7 @@ private:
 	void UpdateFrontEndSpots();
 	/** Depth of field on the rider nearest the view centre in the front end and replays (never while racing). */
 	void UpdateDepthOfField();
+	void UpdateSpeedFx(float DeltaTime);
 	/** Snow trails: grounded riders' boards stamp the trail map around the camera, which follows the camera. */
 	void UpdateTrails();
 	void SetTrailParams();
@@ -218,6 +228,7 @@ private:
 	TMap<int32, int32> SurfaceClasses;   // terrain texture index -> SSXRemaster::SurfaceClass   // the hidden full-detail terrain meshes, made to cast the sun's shadow
 	bool bAllLightShadows = false;
 	int32 AppliedQuality = -1;
+	float SmoothedSpeed = 0.f;
 	double WorldTime = 0.0;   // MPC WorldTime: seconds of unheld world time (the sky materials' cloud drift)
 	void ApplyQuality();
 	bool bApplied = false;
