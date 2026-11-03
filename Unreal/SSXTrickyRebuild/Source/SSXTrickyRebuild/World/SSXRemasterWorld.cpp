@@ -275,8 +275,8 @@ SSXRemaster::FFogSetup SSXRemaster::FogFor(double DrawDistance, float Scale, flo
 	const float End = float(DrawDistance) * Scale;
 	FFogSetup F;
 	F.Start = End * 0.4f;
-	F.Density = Strength * 2.2f / FMath::Max(End - F.Start, 1.f) * 1000.f;   // opacity 1 - exp(-2.2) = 89 %; the component's unit is 1 / (1000 cm)
-	F.Cutoff = End * 1.02f;
+	F.Density = Strength * 0.7f / FMath::Max(End - F.Start, 1.f) * 1000.f;   // opacity 1 - exp(-0.7) = 50 %; the component's unit is 1 / (1000 cm)
+	F.Cutoff = End * 2.f;   // radial, the draw clip is view depth: must clear the screen corners
 	return F;
 }
 
