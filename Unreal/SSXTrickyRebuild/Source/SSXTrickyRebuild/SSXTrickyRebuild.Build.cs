@@ -31,12 +31,16 @@ public class SSXTrickyRebuild : ModuleRules
 			{
 				RuntimeDependencies.Add("$(ProjectDir)/SimData/" + Rel, StagedFileType.NonUFS);
 			}
+			bool bClassicOnly = Target.Name == "SSXTrickyClassic";
 			// Button prompt images (UI/SSXPrompts.h), committed: CC0, not game data.
-			RuntimeDependencies.Add("$(ProjectDir)/Prompts/...", StagedFileType.NonUFS);
+			if (!bClassicOnly)
+			{
+				RuntimeDependencies.Add("$(ProjectDir)/Prompts/...", StagedFileType.NonUFS);
+			}
 			string[] RepoData = {
 				"converted/audio/...",              // manifest, pathfinder music, speech, crowd, INF configs
 				"converted/frontend/*.json",        // FE tables, sprites, cameras, strings, progression
-				"converted/frontend/fonts/...",
+				bClassicOnly ? "converted/frontend/fonts/*" : "converted/frontend/fonts/...",
 				"converted/frontend/loading/...",
 				"converted/frontend/video/*.m2ts",  // FMV (Media Framework) + its separate audio track
 				"converted/frontend/video/*.wav",
@@ -56,7 +60,7 @@ public class SSXTrickyRebuild : ModuleRules
 			foreach (string Rel in RepoData)
 			{
 				string SourceDir = Path.Combine(Repo, Path.GetDirectoryName(Rel.Replace("/...", "/x")));
-				if (Directory.Exists(SourceDir))
+				if (Directory.Exists(SourceDir) && !(bClassicOnly && Rel.StartsWith("converted/remaster/")))
 				{
 					RuntimeDependencies.Add("$(ProjectDir)/GameData/" + Rel, Path.Combine(Repo, Rel), StagedFileType.NonUFS);
 				}
