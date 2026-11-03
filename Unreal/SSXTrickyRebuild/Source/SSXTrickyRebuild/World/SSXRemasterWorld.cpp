@@ -1220,6 +1220,7 @@ void USSXRemasterWorld::Apply()
 		UDirectionalLightComponent* C = CastChecked<UDirectionalLightComponent>(D->GetLightComponent());
 		C->SetMobility(EComponentMobility::Movable);
 		C->SetIntensity(T.SunLux);
+		C->ContactShadowLength = 0.03f;   // fine detail the shadow map misses: board on snow, folds in the outfits
 		C->SetLightColor(SunColour);
 		C->SetCastShadows(true);
 		// the spawn rotation does not reach the light (it kept pitch -81 on every track)

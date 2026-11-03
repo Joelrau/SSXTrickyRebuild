@@ -219,6 +219,18 @@ bool FSSXRenderFollowerAliveTest::RunTest(const FString&)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSSXRenderRiderMapsTest, "SSX.Render.RiderMaps", RenderLookFlags)
+bool FSSXRenderRiderMapsTest::RunTest(const FString&)
+{
+	for (const TCHAR* Name : { TEXT("M_RmRider"), TEXT("M_RmRider_Masked"), TEXT("M_RmRiderChrome"), TEXT("M_RmRiderChrome_Masked") })
+	{
+		const UMaterialInterface* M = LoadObject<UMaterialInterface>(nullptr, *FString::Printf(TEXT("/Game/Remastered/%s.%s"), Name, Name));
+		UTexture* Tex = nullptr;
+		TestTrue(FString::Printf(TEXT("%s reads the detail masks"), Name), M && M->GetTextureParameterValue(FHashedMaterialParameterInfo(TEXT("RmMasks")), Tex));
+	}
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSSXRenderFogTest, "SSX.Render.Fog", RenderLookFlags)
 bool FSSXRenderFogTest::RunTest(const FString&)
 {

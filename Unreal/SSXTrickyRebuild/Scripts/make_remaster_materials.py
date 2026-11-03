@@ -189,7 +189,7 @@ return {DEC.format(x='t')} * AlbedoScale;
 # The Classic rider colour (texture x light rig, display space, clamped) as linear light x RiderFill: at 1 a rider with
 # no other light looks exactly as in Classic; sun, lamps and Lumen add to it. Plus a rim in the strongest rig light's colour.
 RIDER_FILL = f"""
-float3 c = saturate({ENC.format(x='Tex')} * V);
+float3 c = saturate({ENC.format(x='Tex')} * V) * lerp(1.0, M.a, 0.7);   // the fill is emissive: AO alone would not touch it
 float3 g = saturate({ENC.format(x='G')} * V);
 c = Chrome > 0.5 ? saturate(c + (g - c) * (33.0 / 128.0)) : saturate(c + g * Fix);   // Classic chrome / gloss pass
 // Rim tint: the strongest rig light's hue, scaled (not clipped: Pipedream's 3.2 / 2.4 / 0.3 lamp clipped to pure yellow)
@@ -199,7 +199,7 @@ rc = lerp(dot(rc, float3(0.2126, 0.7152, 0.0722)).xxx, rc, 0.35);
 float3 rim = {DEC.format(x='saturate(rc * 0.5)')} * pow(1.0 - saturate(dot(N, normalize(Dir))), 3.0);   // Dir: pixel to camera
 return {DEC.format(x='c')} * RiderFill + rim * RiderRim;
 """
-RIDER_ROUGH = "return clamp(0.65 - Fix * 0.5, 0.2, 1.0);"
+RIDER_ROUGH = "return clamp(0.65 - Fix * 0.5 + (M.r - 0.5) * 0.6, 0.2, 1.0);"
 # 0x318080: the Classic rider gloss / chrome sphere-map coordinates from the world normal and the view axes.
 CHROME_UV = "return float2(N.x * R.x - N.y * U.x + N.z * F.x, -N.x * R.y + N.y * U.y - N.z * F.y);"
 GLOSS_UV = "return saturate(float2(N.x * R.x - N.y * U.x + N.z * F.x, -N.x * R.y + N.y * U.y - N.z * F.y));"
@@ -588,6 +588,11 @@ for name, masked, chrome in (("M_RmRider", False, False), ("M_RmRider_Masked", T
     # Upscaled outfit / normal / detail maps from tools/make_remaster_maps.py (flat and neutral without them).
     rnormal = tex_param(m, "RmNormal", -1000, 350, "normal")
     connect_prop(rnormal, "RGB", unreal.MaterialProperty.MP_NORMAL)
+    rmasks = tex_param(m, "RmMasks", -1000, 450, "masks")
+    connect_prop(rmasks, "A", unreal.MaterialProperty.MP_AMBIENT_OCCLUSION)
+    rmasks4 = expr(m, unreal.MaterialExpressionAppendVector, -800, 450)
+    connect(rmasks, "RGB", rmasks4, "A")
+    connect(rmasks, "A", rmasks4, "B")
     view_dir = expr(m, unreal.MaterialExpressionCameraVectorWS, -800, 400)
     gaxes = []
     for k, axis in enumerate(((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))):
@@ -608,7 +613,7 @@ for name, masked, chrome in (("M_RmRider", False, False), ("M_RmRider_Masked", T
     gfix = expr(m, unreal.MaterialExpressionScalarParameter, -950, 750, parameter_name="GlossFix", default_value=0.0)
     fill = custom(m, -400, 0, RIDER_FILL, F3,
                   [("Tex", (tex, "")), ("V", (interp, "PS")), ("C2", (vec["Light2Colour"], "RGB")),
-                   ("G", (gtex, "RGB")), ("Fix", (gfix, "")),
+                   ("G", (gtex, "RGB")), ("Fix", (gfix, "")), ("M", (rmasks4, "")),
                    ("Chrome", (expr(m, unreal.MaterialExpressionConstant, -800, 620, r=1.0 if chrome else 0.0), "")),
                    ("N", (expr(m, unreal.MaterialExpressionPixelNormalWS, -800, 330), "")), ("Dir", (view_dir, "")),
                    ("RiderFill", (coll(m, rm, "RiderFill", -800, 480), "")),
@@ -618,7 +623,7 @@ for name, masked, chrome in (("M_RmRider", False, False), ("M_RmRider_Masked", T
         connect_prop(expr(m, unreal.MaterialExpressionConstant, -400, 200, r=0.85), "", unreal.MaterialProperty.MP_METALLIC)
         connect_prop(expr(m, unreal.MaterialExpressionConstant, -400, 280, r=0.18), "", unreal.MaterialProperty.MP_ROUGHNESS)
     else:
-        connect_prop(custom(m, -400, 250, RIDER_ROUGH, F1, [("Fix", (gfix, ""))], "RmRiderRoughness"), "",
+        connect_prop(custom(m, -400, 250, RIDER_ROUGH, F1, [("Fix", (gfix, "")), ("M", (rmasks4, ""))], "RmRiderRoughness"), "",
                      unreal.MaterialProperty.MP_ROUGHNESS)
     axes = []
     for k, axis in enumerate(((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))):
