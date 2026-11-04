@@ -118,6 +118,7 @@ void USSXPropAnimation::ApplyMovies()
 						{
 							Mid->SetTextureParameterValue(MovieBaseTexParam, MovieTexture);
 							Slots.Add({ Mid, INDEX_NONE, Own });
+							SSXRemaster::SetGlow(*Comp, 0.8f);   // Remastered look: a screen gives off its own light
 						}
 					}
 				}
