@@ -38,6 +38,7 @@ namespace SSXRemaster
 	{
 		const TCHAR* Stem = nullptr;
 		float SunLux = 2.0f;
+		const TCHAR* LightShaftMaterials = nullptr;   // prefix of the map's light-shaft cards, drawn as soft light (M_RmLightShaft)
 		float SunElevation = 0.f;       // degrees; 0 = the track's own direction, raised to ssx.Render.SunMinElevation
 		FLinearColor SunTint = FLinearColor::Transparent;   // A > 0: replaces the sun colour
 		FLinearColor FogTint = FLinearColor::Transparent;   // A > 0: replaces the fog colour (else the track's clear colour)

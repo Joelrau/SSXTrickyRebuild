@@ -271,6 +271,9 @@ bool FSSXRenderTrackTuningTest::RunTest(const FString&)
 		Suns.Add(T.SunLux);
 	}
 	TestEqual(TEXT("each its own sun"), Suns.Num(), 4);
+	TestEqual(TEXT("Alaska's light-shaft cards"), FString(SSXRemaster::TuningFor(TEXT("alaska")).LightShaftMaterials), FString(TEXT("tex_168_")));
+	TestNull(TEXT("no light-shaft cards elsewhere"), SSXRemaster::TuningFor(TEXT("aloha")).LightShaftMaterials);
+	TestNotNull(TEXT("the light-shaft material exists"), LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Remastered/M_RmLightShaft.M_RmLightShaft")));
 	TestTrue(TEXT("Alaska's sun is low, Aloha's high"),
 		SSXRemaster::TuningFor(TEXT("alaska")).SunElevation < 30.f && SSXRemaster::TuningFor(TEXT("aloha")).SunElevation > 50.f);
 	TestEqual(TEXT("other tracks keep their own sun direction"), SSXRemaster::TuningFor(TEXT("gari")).SunElevation, 0.f);

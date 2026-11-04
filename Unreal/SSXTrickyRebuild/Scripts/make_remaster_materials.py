@@ -108,6 +108,14 @@ p += 0.6 * sin(p.yx * 1.7);
 float2 d = cos(p * float2(3.1, 2.7)) + 0.6 * cos(p.yx * float2(7.3, 8.9) + 1.3) + 0.35 * cos(p * float2(17.1, 19.3) + 2.1);
 return normalize(N + float3(d, 0.0) * 0.05 * fade);
 """
+# The map's light-shaft cards: the streaks of their texture as soft added light, gone edge-on, near the camera and at walls.
+LIGHT_SHAFT = """
+float streak = saturate(dot(Tex.rgb, float3(0.2126, 0.7152, 0.0722)) * 5.0);
+float along = pow(saturate(Tex.a), 1.5);
+float facing = saturate(abs(dot(normalize(N), normalize(V))) * 2.0);
+float nearby = saturate((Depth - 150.0) / 800.0);
+return float3(1.0, 0.9, 0.75) * 0.6 * streak * along * facing * nearby * Soft;
+"""
 STAMP = "float r = length(UV - 0.5) * 2.0; return saturate(1.0 - r * r) * Strength;"
 SHIFT = "float2 uv = UV + Offset; return (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) ? 0.0 : Prev.SampleLevel(PrevSampler, uv, 0).r;"
 # Snow sparkle: sparse view-dependent glints on bright, desaturated texels (mask G), lit by the baked light.
@@ -822,6 +830,23 @@ for name, glass in (("M_RmProp_Translucent", False), ("M_RmPropGlass", True)):
               "DrawClip")
   connect_prop(op, "", unreal.MaterialProperty.MP_OPACITY)
   finish(m)
+
+m = recreate("M_RmLightShaft", unreal.Material, unreal.MaterialFactoryNew())
+m.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_UNLIT)
+m.set_editor_property("blend_mode", unreal.BlendMode.BLEND_ADDITIVE)
+m.set_editor_property("two_sided", True)
+shaft_tex = tex_param(m, "BaseTex", -900, 0)
+shaft_tex4 = expr(m, unreal.MaterialExpressionAppendVector, -700, 0)
+connect(shaft_tex, "RGB", shaft_tex4, "A")
+connect(shaft_tex, "A", shaft_tex4, "B")
+shaft_soft = expr(m, unreal.MaterialExpressionDepthFade, -700, 300)
+connect(expr(m, unreal.MaterialExpressionConstant, -900, 350, r=300.0), "", shaft_soft, "FadeDistance")
+connect_prop(custom(m, -400, 0, LIGHT_SHAFT, F3,
+                    [("Tex", (shaft_tex4, "")), ("N", (expr(m, unreal.MaterialExpressionVertexNormalWS, -700, 100), "")),
+                     ("V", (expr(m, unreal.MaterialExpressionCameraVectorWS, -700, 180), "")),
+                     ("Depth", (expr(m, unreal.MaterialExpressionPixelDepth, -700, 240), "")), ("Soft", (shaft_soft, ""))],
+                    "RmLightShaft"), "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+finish(m)
 
 m = recreate("M_RmTrailStamp", unreal.Material, unreal.MaterialFactoryNew())
 m.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_UNLIT)

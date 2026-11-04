@@ -170,7 +170,7 @@ const SSXRemaster::FTrackTuning& SSXRemaster::TuningFor(const FString& Stem)
 		// Untracked: hard high-altitude light, a pale sun and plenty of glints on the powder.
 		[&Make]() { FTrackTuning T = Make(TEXT("untrack"), 2.4f, 0.4f, 0.65f, 0.5f, 3.f, 15.f); T.Saturation = 1.05f; T.Clouds = 0.4f; T.Sparkle = 4.f; return T; }(),
 		// Alaska: a low golden sun with long shadows, blue shade and cold blue haze.
-		[&Make]() { FTrackTuning T = Make(TEXT("alaska"), 4.f, 0.5f, 0.6f, 0.3f, 3.f, 15.f); T.SunElevation = 20.f; T.SunTint = FLinearColor(1.f, 0.7f, 0.48f);
+		[&Make]() { FTrackTuning T = Make(TEXT("alaska"), 4.f, 0.5f, 0.6f, 0.3f, 3.f, 15.f); T.LightShaftMaterials = TEXT("tex_168_"); T.SunElevation = 20.f; T.SunTint = FLinearColor(1.f, 0.7f, 0.48f);
 			T.FogTint = FLinearColor(0.42f, 0.58f, 0.85f); T.Saturation = 1.1f; T.Bloom = 0.5f; T.Clouds = 0.3f; T.Sparkle = 3.5f; return T; }(),
 		[&Make]() { FTrackTuning T = Make(TEXT("frontend"), 0.f, 0.6f, 0.05f, 1.0f, 3.f, 15.f); T.FogStrength = 0.f; T.Saturation = 1.f; T.Bloom = 0.3f; T.MaxLights = 0; T.RiderFill = 0.85f;
 			T.Emissive = 0.f; T.Sparkle = 0.f; return T; }(),   // the ice backdrop's bright texels are not lamps
@@ -683,6 +683,12 @@ void USSXRemasterWorld::OnLevelAdded(ULevel* Level, UWorld* World)
 	if (bApplied && Level && World == GetWorld()) { SwapLevel(*Level); }
 }
 
+static bool IsLightShaft(const UMaterialInterface* M, const UWorld* W)
+{
+	const TCHAR* Prefix = M && W ? SSXRemaster::TuningFor(UWorld::RemovePIEPrefix(W->GetMapName()).ToLower()).LightShaftMaterials : nullptr;
+	return Prefix && M->GetName().StartsWith(Prefix);
+}
+
 UMaterialInterface* USSXRemasterWorld::RemasteredParentOf(UMaterialInterface* Classic)
 {
 	const UMaterial* Root = RootOf(Classic);
@@ -871,7 +877,7 @@ void USSXRemasterWorld::ApplyTranslucentProps()
 				for (int32 S = 0; S < C->GetNumMaterials(); ++S)
 				{
 					UMaterialInterface* M = C->GetMaterial(S);
-					T->SetMaterial(S, M && IsTranslucentBlendMode(M->GetBlendMode()) ? Hole : M);
+					T->SetMaterial(S, M && (IsTranslucentBlendMode(M->GetBlendMode()) || IsLightShaft(M, GetWorld())) ? Hole : M);
 				}
 				T->RegisterComponent();
 				P.Twin = T;
@@ -1016,7 +1022,15 @@ UMaterialInterface* USSXRemasterWorld::RemasteredFor(UMaterialInterface* Classic
 {
 	if (TObjectPtr<UMaterialInterface>* Found = Remastered.Find(Classic)) { return *Found; }
 	UMaterialInterface* Result = nullptr;
-	if (UMaterialInterface* Parent = RemasteredParentOf(Classic))
+	UMaterialInterface* Shaft = IsLightShaft(Classic, GetWorld()) ? LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Remastered/M_RmLightShaft.M_RmLightShaft")) : nullptr;
+	if (Shaft)
+	{
+		UMaterialInstanceDynamic* Mid = UMaterialInstanceDynamic::Create(Shaft, this);
+		UTexture* Base = nullptr;
+		if (Classic->GetTextureParameterValue(FHashedMaterialParameterInfo(TEXT("BaseTex")), Base) && Base) { ApplyDerivedMaps(*Mid, Base); }
+		Result = Mid;
+	}
+	else if (UMaterialInterface* Parent = RemasteredParentOf(Classic))
 	{
 		UMaterialInstanceDynamic* Mid = UMaterialInstanceDynamic::Create(Parent, this);
 		TArray<const UMaterialInstance*> Chain;
