@@ -185,7 +185,7 @@ const SSXRemaster::FTrackTuning& SSXRemaster::TuningFor(const FString& Stem)
 		[&Make]() { FTrackTuning T = Make(TEXT("untrack"), 3.f, 0.4f, 0.75f, 0.35f, 3.f, 15.f); T.SunElevation = 42.f; T.SunTint = FLinearColor(0.92f, 0.96f, 1.f);
 			T.FogTint = FLinearColor(0.75f, 0.85f, 1.f); T.Saturation = 1.f; T.Clouds = 0.4f; T.Sparkle = 4.f; return T; }(),
 		// Alaska: a low golden sun with long shadows, blue shade and the blue-grey haze of its sky art.
-		[&Make]() { FTrackTuning T = Make(TEXT("alaska"), 4.f, 0.5f, 0.6f, 0.3f, 3.f, 15.f); T.LightShaftMaterials = TEXT("tex_168_"); T.bNoShadowCache = true; T.SunElevation = 20.f; T.SunTint = FLinearColor(1.f, 0.7f, 0.48f);
+		[&Make]() { FTrackTuning T = Make(TEXT("alaska"), 4.f, 0.5f, 0.6f, 0.3f, 3.f, 15.f); T.IceTextures = TEXT("031 032 033 034 035 036 089 177"); T.LightShaftMaterials = TEXT("tex_168_"); T.bNoShadowCache = true; T.SunElevation = 20.f; T.SunTint = FLinearColor(1.f, 0.7f, 0.48f);
 			T.FogTint = FLinearColor(0.3f, 0.4f, 0.55f); T.Saturation = 1.1f; T.Bloom = 0.5f; T.Clouds = 0.3f; T.Sparkle = 3.5f; return T; }(),
 		[&Make]() { FTrackTuning T = Make(TEXT("frontend"), 0.f, 0.6f, 0.05f, 1.0f, 3.f, 15.f); T.FogStrength = 0.f; T.Saturation = 1.f; T.Bloom = 0.3f; T.MaxLights = 0; T.RiderFill = 0.85f;
 			T.Emissive = 0.f; T.Sparkle = 0.f; return T; }(),   // the ice backdrop's bright texels are not lamps
@@ -704,6 +704,13 @@ static bool IsLightShaft(const UMaterialInterface* M, const UWorld* W)
 	return Prefix && M->GetName().StartsWith(Prefix);
 }
 
+static bool IsSeeThroughIce(const UMaterialInterface* M, const UWorld* W)
+{
+	const TCHAR* List = M && W ? SSXRemaster::TuningFor(UWorld::RemovePIEPrefix(W->GetMapName()).ToLower()).IceTextures : nullptr;
+	const FString Name = M ? M->GetName() : FString();
+	return List && Name.StartsWith(TEXT("tex_")) && FCString::Strstr(List, *Name.Mid(4, 3));
+}
+
 UMaterialInterface* USSXRemasterWorld::RemasteredParentOf(UMaterialInterface* Classic)
 {
 	const UMaterial* Root = RootOf(Classic);
@@ -862,10 +869,12 @@ void USSXRemasterWorld::ApplyTranslucentProps()
 	for (UStaticMeshComponent* C : Found)
 	{
 		int32 Translucent = 0;
+		bool bIce = false;
 		for (int32 S = 0; S < C->GetNumMaterials(); ++S)
 		{
 			const UMaterialInterface* M = C->GetMaterial(S);
 			Translucent += M && IsTranslucentBlendMode(M->GetBlendMode()) ? 1 : 0;
+			bIce |= IsSeeThroughIce(ClassicMaterial(*C, S), GetWorld());
 		}
 		if (Translucent == 0) { continue; }
 		FTranslucentProp& P = TranslucentProps.Add_GetRef({ C, nullptr, C->bDisallowNanite != 0, C->CastShadow != 0 });
@@ -874,7 +883,7 @@ void USSXRemasterWorld::ApplyTranslucentProps()
 		{
 			C->SetCastShadow(false);
 			AActor* Owner = C->GetOwner();
-			if (Hole && Owner && Translucent < C->GetNumMaterials())
+			if (Hole && Owner && (Translucent < C->GetNumMaterials() || bIce))
 			{
 				UStaticMeshComponent* T = NewObject<UStaticMeshComponent>(Owner, NAME_None, RF_Transient);
 				T->SetMobility(C->Mobility);
@@ -892,6 +901,12 @@ void USSXRemasterWorld::ApplyTranslucentProps()
 				for (int32 S = 0; S < C->GetNumMaterials(); ++S)
 				{
 					UMaterialInterface* M = C->GetMaterial(S);
+					if (IsSeeThroughIce(ClassicMaterial(*C, S), GetWorld()))
+					{
+						// The ice stays a solid caster, without the Classic core's per-texel holes.
+						T->SetMaterial(S, LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Remastered/M_RmTerrainOpaque.M_RmTerrainOpaque")));
+						continue;
+					}
 					T->SetMaterial(S, M && (IsTranslucentBlendMode(M->GetBlendMode()) || IsLightShaft(M, GetWorld())) ? Hole : M);
 				}
 				T->RegisterComponent();
@@ -1037,7 +1052,8 @@ UMaterialInterface* USSXRemasterWorld::RemasteredFor(UMaterialInterface* Classic
 {
 	if (TObjectPtr<UMaterialInterface>* Found = Remastered.Find(Classic)) { return *Found; }
 	UMaterialInterface* Result = nullptr;
-	UMaterialInterface* Shaft = IsLightShaft(Classic, GetWorld()) ? LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Remastered/M_RmLightShaft.M_RmLightShaft")) : nullptr;
+	UMaterialInterface* Shaft = IsLightShaft(Classic, GetWorld()) ? LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Remastered/M_RmLightShaft.M_RmLightShaft"))
+		: (IsSeeThroughIce(Classic, GetWorld()) ? LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Remastered/M_RmIce.M_RmIce")) : nullptr);
 	if (Shaft)
 	{
 		UMaterialInstanceDynamic* Mid = UMaterialInstanceDynamic::Create(Shaft, this);

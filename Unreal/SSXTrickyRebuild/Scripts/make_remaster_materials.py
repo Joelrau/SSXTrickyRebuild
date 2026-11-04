@@ -803,7 +803,8 @@ connect_prop(custom(m, -400, 0, CLEAR_SHADE, F3, [("C", (coll(m, mpc, "ClearColo
              unreal.MaterialProperty.MP_EMISSIVE_COLOR)
 finish(m)
 
-for name, glass in (("M_RmProp_Translucent", False), ("M_RmPropGlass", True)):
+for name, glass in (("M_RmProp_Translucent", False), ("M_RmPropGlass", True), ("M_RmIce", True)):
+  ice = name == "M_RmIce"   # Alaska's ice: lit like the glass, evenly see-through (USSXRemasterWorld::RemasteredFor)
   m = recreate(name, unreal.Material, unreal.MaterialFactoryNew())
   if glass:
     # The soft layers of glass and water props (SimData/<track>.surfacelook.txt): lit, a mirror finish, Lumen's
@@ -834,18 +835,21 @@ for name, glass in (("M_RmProp_Translucent", False), ("M_RmPropGlass", True)):
   if glass:
     tint = expr(m, unreal.MaterialExpressionMultiply, -200, -60)
     connect(shade, "", tint, "A")
-    connect(expr(m, unreal.MaterialExpressionConstant, -400, -100, r=0.6), "", tint, "B")
+    connect(expr(m, unreal.MaterialExpressionConstant, -400, -100, r=0.7 if ice else 0.6), "", tint, "B")
     connect_prop(tint, "", unreal.MaterialProperty.MP_BASE_COLOR)
     glow = expr(m, unreal.MaterialExpressionMultiply, -200, 40)
     connect(shade, "", glow, "A")
-    connect(expr(m, unreal.MaterialExpressionConstant, -400, 60, r=0.25), "", glow, "B")
+    connect(expr(m, unreal.MaterialExpressionConstant, -400, 60, r=0.3 if ice else 0.25), "", glow, "B")
     connect_prop(glow, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
-    connect_prop(expr(m, unreal.MaterialExpressionConstant, -400, 140, r=0.03), "", unreal.MaterialProperty.MP_ROUGHNESS)
-    connect_prop(expr(m, unreal.MaterialExpressionConstant, -400, 200, r=1.0), "", unreal.MaterialProperty.MP_SPECULAR)
+    connect_prop(expr(m, unreal.MaterialExpressionConstant, -400, 140, r=0.12 if ice else 0.03), "", unreal.MaterialProperty.MP_ROUGHNESS)
+    connect_prop(expr(m, unreal.MaterialExpressionConstant, -400, 200, r=0.7 if ice else 1.0), "", unreal.MaterialProperty.MP_SPECULAR)
   else:
     connect_prop(shade, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
   gs_a = custom(m, -1000, 400, PROP_GS_ALPHA, F1, [("A", (base, "A")), ("VA", (vc, "A"))], "PropGsAlpha")
-  alpha = custom(m, -800, 400, PROP_BLEND.replace("CORE_AS", CORE_AS), F1, [("As", (gs_a, "")), ("Tex", (base, "RGB")), ("VC", (vc, ""))], "PropBlend")
+  if ice:
+    alpha = expr(m, unreal.MaterialExpressionConstant, -800, 400, r=0.85)
+  else:
+    alpha = custom(m, -800, 400, PROP_BLEND.replace("CORE_AS", CORE_AS), F1, [("As", (gs_a, "")), ("Tex", (base, "RGB")), ("VC", (vc, ""))], "PropBlend")
   depth = expr(m, unreal.MaterialExpressionPixelDepth, -700, 500)
   cd = expr(m, unreal.MaterialExpressionSceneTexture, -1000, 650, scene_texture_id=unreal.SceneTextureId.PPI_CUSTOM_DEPTH)
   front = custom(m, -800, 650, SOFT_DEPTH, F1, [("PD", (depth, "")), ("CD", (cd, "Color"))], "SoftDepth")

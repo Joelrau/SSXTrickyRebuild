@@ -38,6 +38,7 @@ namespace SSXRemaster
 	{
 		const TCHAR* Stem = nullptr;
 		float SunLux = 2.0f;
+		const TCHAR* IceTextures = nullptr;   // texture indices drawn as lit see-through ice (M_RmIce), not the core / soft split
 		const TCHAR* LightShaftMaterials = nullptr;   // prefix of the map's light-shaft cards, drawn as soft light (M_RmLightShaft)
 		float SunElevation = 0.f;       // degrees; 0 = the track's own direction, raised to ssx.Render.SunMinElevation
 		FLinearColor SunTint = FLinearColor::Transparent;   // A > 0: replaces the sun colour

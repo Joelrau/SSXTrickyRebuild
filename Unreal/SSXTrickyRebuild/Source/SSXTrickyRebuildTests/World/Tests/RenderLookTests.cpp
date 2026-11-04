@@ -271,6 +271,9 @@ bool FSSXRenderTrackTuningTest::RunTest(const FString&)
 		Suns.Add(T.SunLux);
 	}
 	TestEqual(TEXT("each its own sun"), Suns.Num(), 4);
+	TestNotNull(TEXT("Alaska has see-through ice"), SSXRemaster::TuningFor(TEXT("alaska")).IceTextures);
+	TestNull(TEXT("no see-through ice elsewhere"), SSXRemaster::TuningFor(TEXT("gari")).IceTextures);
+	TestNotNull(TEXT("the ice material exists"), LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Remastered/M_RmIce.M_RmIce")));
 	TestTrue(TEXT("Alaska and Aloha redraw their shadow pages"), SSXRemaster::TuningFor(TEXT("alaska")).bNoShadowCache && SSXRemaster::TuningFor(TEXT("aloha")).bNoShadowCache);
 	TestFalse(TEXT("other tracks keep the shadow cache"), SSXRemaster::TuningFor(TEXT("gari")).bNoShadowCache);
 	{
