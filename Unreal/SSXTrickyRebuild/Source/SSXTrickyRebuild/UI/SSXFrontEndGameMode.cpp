@@ -184,7 +184,7 @@ void ASSXFrontEndPlayerController::TickRiders(float DeltaSeconds)
 			{
 				if (Audio && FE.bAnimEventSounds)
 				{
-					Audio->PlayRiderSpeech(Ring.SpeechVariant, V);
+					Audio->PlayRiderSpeech(Ring.SpeechVariant, V, Riders[Slot]->GetRootComponent());
 				}
 			}
 		}

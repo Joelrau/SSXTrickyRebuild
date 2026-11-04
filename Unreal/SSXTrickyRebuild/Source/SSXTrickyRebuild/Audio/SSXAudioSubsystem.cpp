@@ -994,7 +994,7 @@ FString USSXAudioSubsystem::PlayRaceUISound(SSXUISound::ERace Kind)
 	return Sid;
 }
 
-FString USSXAudioSubsystem::PlayRiderSpeech(int32 Variant, int32 Value)
+FString USSXAudioSubsystem::PlayRiderSpeech(int32 Variant, int32 Value, USceneComponent* Rider)
 {
 	// TODO: ).
 	if (Value < 0 || Value >= 0x80)
@@ -1003,7 +1003,17 @@ FString USSXAudioSubsystem::PlayRiderSpeech(int32 Variant, int32 Value)
 	}
 	const FString Sid = FString::Printf(TEXT("speech/feselect%d/%02d"), Variant, Value);
 	UISoundLog.Add(Sid);
-	PlayOneShot(Sid, GetMasterGain() * CharSpeechVolume * Level(AudioInf, TEXT("FELEVELSCALING"), TEXT("CHARSPCHLEVEL"), 1.f), TEXT("fe"), true);
+	const float Gain = GetMasterGain() * CharSpeechVolume * Level(AudioInf, TEXT("FELEVELSCALING"), TEXT("CHARSPCHLEVEL"), 1.f);
+	if (!Rider)
+	{
+		PlayOneShot(Sid, Gain, TEXT("fe"), true);
+		return Sid;
+	}
+	const FVector Pos = Rider->GetComponentLocation();
+	if (UAudioComponent* C = PlayGameSound(TEXT("fe"), Sid, Gain, &Pos, 30.0, 1.f, true))
+	{
+		C->AttachToComponent(Rider, FAttachmentTransformRules::KeepWorldTransform);
+	}
 	return Sid;
 }
 

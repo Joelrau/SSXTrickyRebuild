@@ -317,8 +317,8 @@ public:
 	FString PlayFeWhoosh(bool bEnter);
 	FString PlayFeStinger(int32 Sound);
 	FString PlayRaceUISound(SSXUISound::ERace Kind);
-	/** FE rider reaction line: sound Value of speech/charfe/feselect<Variant>.bnk, level class 3. TODO: played 2D; the game plays it at the rider's position. */
-	FString PlayRiderSpeech(int32 Variant, int32 Value);
+	/** FE rider reaction line: sound Value of speech/charfe/feselect<Variant>.bnk, level class 3, 3D at the rider (+0x140, the voice follows it) with the 30 m falloff and cull (DAT_00343998). */
+	FString PlayRiderSpeech(int32 Variant, int32 Value, USceneComponent* Rider = nullptr);
 	TArray<FString> UISoundLog;
 	UFUNCTION(BlueprintCallable, Category = "SSX|Audio") UAudioComponent* PlaySound2D(const FString& Id, float Volume = 1.f, float Pitch = 1.f);
 	USoundBase* LoadSound(const FString& Id);
