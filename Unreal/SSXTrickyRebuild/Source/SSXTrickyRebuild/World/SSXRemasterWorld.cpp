@@ -1278,6 +1278,15 @@ void USSXRemasterWorld::Apply()
 		SunDir = FVector(Flat.X * FMath::Cos(R), Flat.Y * FMath::Cos(R), -FMath::Sin(R));
 	}
 	if (T.SunTint.A > 0.f) { SunColour = T.SunTint; }
+	if (UMaterialParameterCollection* Mpc = LoadObject<UMaterialParameterCollection>(nullptr, SSXRemaster::CollectionPath))
+	{
+		UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("SunX"), float(-SunDir.X));
+		UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("SunY"), float(-SunDir.Y));
+		UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("SunZ"), float(-SunDir.Z));
+		UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("SunR"), SunColour.R);
+		UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("SunG"), SunColour.G);
+		UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("SunB"), SunColour.B);
+	}
 	if (ADirectionalLight* D = T.SunLux > 0.f ? W->SpawnActor<ADirectionalLight>(FVector::ZeroVector, SunDir.Rotation(), P) : nullptr)
 	{
 		UDirectionalLightComponent* C = CastChecked<UDirectionalLightComponent>(D->GetLightComponent());

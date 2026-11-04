@@ -72,7 +72,7 @@ if (Surface > 3.5) return 0.03;   // glass / water: a mirror
 float snow = clamp(BaseRough + (M.r - 0.5) - M.g * 0.25, 0.05, 1.0);
 if (Surface > 2.5) return 0.2;
 if (Surface > 1.5) return saturate(snow + 0.1);
-if (Surface > 0.5) return clamp(0.08 + (M.r - 0.5) * 0.2, 0.03, 0.3);
+if (Surface > 0.5) return clamp(0.1 + (M.r - 0.5) * 0.2 + 0.05 * sin(WP.x / 140.0 + 1.7 * sin(WP.y / 190.0)), 0.03, 0.3);   // polished and duller patches
 return snow;
 """
 SPEC = """
@@ -99,10 +99,24 @@ return float4(normalize(N + float3(hx, hy, 0.0) * 2.5), h);
 """
 TRAIL_SHADE = "return C * (1.0 - 0.28 * T.a);"
 TRAIL_AO = "return A * (1.0 - 0.45 * T.a);"
-# Wind ripples on snow near the camera: warped sines, no texture, so nothing tiles or repeats visibly.
+# Wind ripples on snow near the camera: warped sines, no texture, so nothing tiles or repeats visibly. Ice: broad swells
+# that bend its reflections. Slush: small moving ripples.
 SNOW_RIPPLE = """
+if (Surface > 0.5 && Surface < 1.5)
+{
+    float2 s = WP.xy / 240.0;
+    s += 0.8 * sin(s.yx * 1.3);
+    return normalize(N + float3(cos(s.x * 1.9) + 0.5 * cos(s.y * 3.7 + 1.1), cos(s.y * 2.3) + 0.5 * cos(s.x * 4.1 + 2.3), 0.0) * 0.03);
+}
+if (Surface > 2.5)
+{
+    float wf = saturate(1.0 - Depth / 3000.0);
+    float2 w = WP.xy / 28.0;
+    w += 0.5 * sin(w.yx * 1.3 + T * 0.4);
+    return normalize(N + float3(cos(w.x * 2.1 + T * 1.3) + 0.5 * cos(w.y * 4.3 - T * 1.7), cos(w.y * 2.5 - T * 1.1) + 0.5 * cos(w.x * 3.9 + T * 1.9), 0.0) * 0.05 * wf);
+}
 float fade = saturate(1.0 - Depth / 4000.0);
-if ((Surface > 0.5 && Surface < 1.5) || Surface > 2.5 || fade <= 0.0) return N;
+if (fade <= 0.0) return N;
 float2 p = WP.xy / 37.0;
 p += 0.6 * sin(p.yx * 1.7);
 float2 d = cos(p * float2(3.1, 2.7)) + 0.6 * cos(p.yx * float2(7.3, 8.9) + 1.3) + 0.35 * cos(p * float2(17.1, 19.3) + 2.1);
@@ -156,24 +170,37 @@ CLOUDS = """
 if (Clouds <= 0.0) return c;
 float3 d = normalize(WP - Cam);
 float up = saturate((d.z - 0.04) * 4.0);
-float2 q = d.xy / max(d.z + 0.12, 0.12) * 0.9 + T * float2(0.006, 0.0025);
-float n = 0.0, a = 0.5;
-for (int i = 0; i < 5; ++i)
+float3 sun = float3(SunX, SunY, SunZ);
+float3 tint = float3(SunR, SunG, SunB);
+// Density at the pixel (n) and a step towards the sun (ns): less density towards the sun = a lit cloud edge.
+float n = 0.0, ns = 0.0;
+for (int j = 0; j < 2; ++j)
 {
-    float2 f = frac(q), k = floor(q);
-    f = f * f * (3.0 - 2.0 * f);
-    float h00 = frac(sin(dot(k, float2(127.1, 311.7))) * 43758.5453);
-    float h10 = frac(sin(dot(k + float2(1, 0), float2(127.1, 311.7))) * 43758.5453);
-    float h01 = frac(sin(dot(k + float2(0, 1), float2(127.1, 311.7))) * 43758.5453);
-    float h11 = frac(sin(dot(k + float2(1, 1), float2(127.1, 311.7))) * 43758.5453);
-    n += a * lerp(lerp(h00, h10, f.x), lerp(h01, h11, f.x), f.y);
-    q = q * 2.03 + 17.0;
-    a *= 0.5;
+    float2 q = (d.xy + (j == 1 ? sun.xy * 0.05 : float2(0.0, 0.0))) / max(d.z + 0.12, 0.12) * 0.7 + T * float2(0.006, 0.0025);
+    float v = 0.0, a = 0.5;
+    for (int i = 0; i < 5; ++i)
+    {
+        float2 f = frac(q), k = floor(q);
+        f = f * f * (3.0 - 2.0 * f);
+        float h00 = frac(sin(dot(k, float2(127.1, 311.7))) * 43758.5453);
+        float h10 = frac(sin(dot(k + float2(1, 0), float2(127.1, 311.7))) * 43758.5453);
+        float h01 = frac(sin(dot(k + float2(0, 1), float2(127.1, 311.7))) * 43758.5453);
+        float h11 = frac(sin(dot(k + float2(1, 1), float2(127.1, 311.7))) * 43758.5453);
+        v += a * lerp(lerp(h00, h10, f.x), lerp(h01, h11, f.x), f.y);
+        q = q * 2.03 + 17.0;
+        a *= 0.5;
+    }
+    if (j == 0) { n = v; } else { ns = v; }
 }
 float blue = saturate((c.b - max(c.r, c.g)) * 6.0);
-float cl = smoothstep(0.5, 0.82, n) * up * blue * Clouds;
+float toSun = saturate(dot(d, sun));
+// The sun and its glow, on open sky only: painted mountains and sunsets stay as drawn.
+float3 sky = c + tint * blue * (pow(toSun, 900.0) * 3.0 + pow(toSun, 24.0) * 0.22);
+float cl = smoothstep(0.46, 0.78, n) * up * blue * Clouds;
 float l = dot(c, float3(0.2126, 0.7152, 0.0722));
-return lerp(c, float3(1.0, 1.0, 1.0) * max(l * 2.2, 0.45), cl);
+float lit = saturate(0.55 + (n - ns) * 3.0);
+float3 cloud = lerp(float3(1.0, 1.0, 1.0), tint, 0.35) * max(l * 2.2, 0.5) * lerp(0.6, 1.15, lit);
+return lerp(sky, cloud, cl);
 """
 SKY_SHADE = f"float3 c = {DEC.format(x='saturate(' + ENC.format(x='Tex') + ' * Factor)')};" + CLOUDS
 # The clear-colour shell fills the open top of the sky dome: the same clouds, so they do not stop at the dome's rim.
@@ -422,6 +449,7 @@ def surface(m, rm, base, baked, uv=None, trails=False):
         ripple = custom(m, -500, 300, SNOW_RIPPLE, F3,
                         [("N", (world_n, "")), ("WP", (expr(m, unreal.MaterialExpressionWorldPosition, -800, 240), "")),
                          ("Depth", (expr(m, unreal.MaterialExpressionPixelDepth, -800, 180), "")),
+                         ("T", (coll(m, rm, "WorldTime", -800, 120), "")),
                          ("Surface", (surf, ""))], "RmSnowRipple")
         tmap = expr(m, unreal.MaterialExpressionTextureObjectParameter, -900, 950, parameter_name="RmTrails")
         tmap.set_editor_property("texture", unreal.load_asset("/Engine/EngineResources/Black"))
@@ -468,7 +496,8 @@ def surface(m, rm, base, baked, uv=None, trails=False):
         connect(lit, "", emis, "B")
         connect_prop(emis, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
     rough = custom(m, -400, 100, ROUGH, F1,
-                   [("M", (masks4, "")), ("BaseRough", (coll(m, rm, "BaseRoughness", -700, 100), "")), ("Surface", (surf, ""))],
+                   [("M", (masks4, "")), ("BaseRough", (coll(m, rm, "BaseRoughness", -700, 100), "")), ("Surface", (surf, "")),
+                    ("WP", (expr(m, unreal.MaterialExpressionWorldPosition, -700, 40), ""))],
                    "RmRoughness")
     connect_prop(rough, "", unreal.MaterialProperty.MP_ROUGHNESS)
     connect_prop(custom(m, -400, 200, SPEC, F1, [("M", (masks4, "")), ("Surface", (surf, ""))], "RmSpecular"), "",
@@ -519,7 +548,8 @@ scalars = []
 for n, v in (("BakedWeight", 0.6), ("BakedAmbient", 0.55), ("AlbedoScale", 0.9), ("BaseRoughness", 0.62), ("Clouds", 0.0),
              ("Exposure", 1.0), ("Saturation", 1.15), ("Emissive", 3.0), ("RiderFill", 0.6), ("RiderRim", 0.35),
              ("ParticleSoftness", 40.0), ("SpriteGlow", 0.35), ("DrawDistanceScale", 3.0), ("DrawDistanceUp", 1.0), ("Sparkle", 3.0), ("SpeedFx", 0.0),
-             ("TrailX", 0.0), ("TrailY", 0.0), ("TrailSize", 1.0e9), ("WorldTime", 0.0)):
+             ("TrailX", 0.0), ("TrailY", 0.0), ("TrailSize", 1.0e9), ("WorldTime", 0.0),
+             ("SunX", 0.0), ("SunY", 0.0), ("SunZ", 1.0), ("SunR", 1.0), ("SunG", 1.0), ("SunB", 1.0)):
     p = old.get(n) or unreal.CollectionScalarParameter()
     p.set_editor_property("parameter_name", n)
     p.set_editor_property("default_value", v)
@@ -757,7 +787,7 @@ connect_prop(custom(m, -400, 0, SKY_SHADE, F3, [("Tex", (sky, "RGB")), ("Factor"
                                                  ("WP", (expr(m, unreal.MaterialExpressionWorldPosition, -750, 200), "")),
                                                  ("Cam", (expr(m, unreal.MaterialExpressionCameraPositionWS, -750, 280), "")),
                                                  ("T", (coll(m, rm, "WorldTime", -750, 360), "")),
-                                                 ("Clouds", (coll(m, rm, "Clouds", -750, 440), ""))],
+                                                 ("Clouds", (coll(m, rm, "Clouds", -750, 440), ""))] + [(k, (coll(m, rm, k, -750, 520 + 60 * i), "")) for i, k in enumerate(("SunX", "SunY", "SunZ", "SunR", "SunG", "SunB"))],
                     "RmSkyShade"), "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
 finish(m)
 
@@ -766,7 +796,7 @@ connect_prop(custom(m, -400, 0, CLEAR_SHADE, F3, [("C", (coll(m, mpc, "ClearColo
                                                    ("WP", (expr(m, unreal.MaterialExpressionWorldPosition, -750, 200), "")),
                                                    ("Cam", (expr(m, unreal.MaterialExpressionCameraPositionWS, -750, 280), "")),
                                                    ("T", (coll(m, rm, "WorldTime", -750, 360), "")),
-                                                   ("Clouds", (coll(m, rm, "Clouds", -750, 440), ""))], "RmClearColour"), "",
+                                                   ("Clouds", (coll(m, rm, "Clouds", -750, 440), ""))] + [(k, (coll(m, rm, k, -750, 520 + 60 * i), "")) for i, k in enumerate(("SunX", "SunY", "SunZ", "SunR", "SunG", "SunB"))], "RmClearColour"), "",
              unreal.MaterialProperty.MP_EMISSIVE_COLOR)
 finish(m)
 
