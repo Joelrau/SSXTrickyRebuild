@@ -15,6 +15,7 @@ SLUS-20326.iso
 # Packaged game (contains data converted from the disc; never committed)
 Packaged/
 Packaged-Dev/
+Packaged-Classic/
 
 # Per-PC settings (UE_ROOT, SSX_ISO); see local_settings.example.bat
 local_settings.bat

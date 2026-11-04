@@ -16,6 +16,7 @@ set "TARGET=SSXTricky"
 set "CFG=%~dp0Unreal\SSXTrickyRebuild\Config"
 set "UPROJECT=%~dp0Unreal\SSXTrickyRebuild\SSXTrickyRebuild.uproject"
 set "KEEP=%~dp0Unreal\SSXTrickyRebuild\Intermediate\ClassicConfig"
+set "RECEIPT=%~dp0Unreal\SSXTrickyRebuild\Binaries\Win64\SSXTrickyRebuildEditor.target"
 set "OUT=%~dp0Packaged"
 rem Shipping stages no .pdb: UAT copies debug files unless -nodebuginfo (IncludeDebugFiles in DefaultGame.ini only
 rem applies to the editor's Package Project menu).
@@ -31,7 +32,15 @@ if /i "%~1"=="Classic" (
 )
 
 rem A Classic package that was cut short left its settings in the config files.
-call :RestoreConfig
+call :RestoreConfig || exit /b 1
+rem The cooker mounts the plugins listed in the editor's receipt: with no FSR there, the game crashes at launch on its missing shaders.
+if /i not "%~1"=="Classic" (
+    findstr /c:"FSR" "%RECEIPT%" >nul 2>nul || call :RebuildEditor
+    findstr /c:"FSR" "%RECEIPT%" >nul 2>nul || (
+        echo The editor build has no FSR plugin: close the editor and run package.bat again.
+        exit /b 1
+    )
+)
 if /i "%~1"=="Classic" (
     if not exist "%KEEP%" mkdir "%KEEP%"
     copy /y "%CFG%\DefaultEngine.ini" "%KEEP%\DefaultEngine.ini" >nul
@@ -53,6 +62,7 @@ call "%UE_ROOT%\Engine\Build\BatchFiles\RunUAT.bat" BuildCookRun ^
     -unattended -utf8output
 set "RESULT=%errorlevel%"
 call :RestoreConfig
+if errorlevel 1 echo The editor was not rebuilt with its normal plugins: the next package.bat will try again.
 if not "%RESULT%"=="0" (
     echo Packaging failed.
     exit /b 1
@@ -64,5 +74,11 @@ exit /b 0
 :RestoreConfig
 if exist "%KEEP%\DefaultEngine.ini" move /y "%KEEP%\DefaultEngine.ini" "%CFG%\DefaultEngine.ini" >nul
 if exist "%KEEP%\DefaultGame.ini" move /y "%KEEP%\DefaultGame.ini" "%CFG%\DefaultGame.ini" >nul
-if exist "%KEEP%\SSXTrickyRebuild.uproject" move /y "%KEEP%\SSXTrickyRebuild.uproject" "%UPROJECT%" >nul
-exit /b 0
+if not exist "%KEEP%\SSXTrickyRebuild.uproject" exit /b 0
+move /y "%KEEP%\SSXTrickyRebuild.uproject" "%UPROJECT%" >nul
+
+:RebuildEditor
+rem The Classic package built the editor without FSR. The project file needs a new date: UBT misses a restored one.
+powershell -NoProfile -Command "(Get-Item $env:UPROJECT).LastWriteTime = Get-Date"
+call "%UE_ROOT%\Engine\Build\BatchFiles\Build.bat" SSXTrickyRebuildEditor Win64 Development -Project="%UPROJECT%" -WaitMutex
+exit /b %errorlevel%
