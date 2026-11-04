@@ -57,6 +57,7 @@ namespace SSXRemaster
 		float Clouds = 0.6f;            // drifting cloud wisps over the open blue sky of the dome (0 = none)
 		float Sparkle = 3.0f;           // snow glints on the terrain
 		int32 MaxLights = 48;
+		bool bNoShadowCache = false;    // stale cached sun shadow pages show as blocks on these tracks: redrawn every frame
 		bool bLightShadows = false;     // every point / spot light casts shadows at every quality (the front end: few lights)
 	};
 	SSXTRICKYREBUILD_API const FTrackTuning& TuningFor(const FString& Stem);
@@ -216,6 +217,7 @@ private:
 		TWeakObjectPtr<UStaticMeshComponent> Twin;   // past Nanite's section limit: /Game/TerrainShadow/<mesh>_Shadow casts
 	};
 	TArray<FShadowFlags> TerrainShadows;
+	int32 ShadowCacheBefore = INDEX_NONE;   // r.Shadow.Virtual.Cache to restore; INDEX_NONE = not changed
 	/** A terrain casts only while its actor is shown: the hidden Showoff terrain (SSXShowOffDraw) casts no shadow in a race. */
 	void SyncTerrainShadows();
 	/** Nanite props with a translucent slot (Nanite draws opaque / masked only) draw non-Nanite without a shadow; a hidden

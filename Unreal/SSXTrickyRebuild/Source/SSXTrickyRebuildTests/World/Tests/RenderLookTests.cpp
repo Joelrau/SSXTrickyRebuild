@@ -271,6 +271,8 @@ bool FSSXRenderTrackTuningTest::RunTest(const FString&)
 		Suns.Add(T.SunLux);
 	}
 	TestEqual(TEXT("each its own sun"), Suns.Num(), 4);
+	TestTrue(TEXT("Alaska and Aloha redraw their shadow pages"), SSXRemaster::TuningFor(TEXT("alaska")).bNoShadowCache && SSXRemaster::TuningFor(TEXT("aloha")).bNoShadowCache);
+	TestFalse(TEXT("other tracks keep the shadow cache"), SSXRemaster::TuningFor(TEXT("gari")).bNoShadowCache);
 	{
 		const FVector Light = FVector(0.5, 0.0, -FMath::Sqrt(0.75)), ToSun = FVector(0.0, 0.9, 0.1).GetSafeNormal();
 		const FVector Faced = SSXRemaster::SunLightFacing(Light, ToSun);
