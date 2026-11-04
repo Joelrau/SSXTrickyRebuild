@@ -150,6 +150,7 @@ float2 texel = clamp(l * 8.0, 0.5, 7.5);
 return Origin + texel / 8.0 * float2(1.0 / 128.0, 1.0 / 64.0);
 """
 # FUN_00200390
+CORE_AS = "116.0"
 PROP_GS_ALPHA = """float at = min(floor((floor(A * 255.0 + 0.001) + 1.0) * 0.5), 128.0);
 float av = floor(VA * 255.0 + 0.5);
 return min(floor(at * av / 128.0), 255.0);
@@ -159,7 +160,7 @@ PROP_ATEST = "return As > 1.0 ? 1.0 : 0.0;"
 # layer over a dark scene much stronger than the PS2's display-space blend (Alaska's light curtains turned into white
 # sheets) and a dark layer over a bright sky much weaker (Mesablanca's tree foliage turned pale and see-through).
 PROP_BLEND = f"""
-if (As <= 1.0 || As >= 128.0) return 0.0;
+if (As <= 1.0 || As >= CORE_AS) return 0.0;
 float3 d = saturate({ENC.format(x='Tex')} * VC.rgb * (255.0 / 128.0));
 return pow(As / 128.0, lerp(0.7, 1.6, dot(d, float3(0.2126, 0.7152, 0.0722))));
 """
@@ -206,7 +207,9 @@ SKY_SHADE = f"float3 c = {DEC.format(x='saturate(' + ENC.format(x='Tex') + ' * F
 # The clear-colour shell fills the open top of the sky dome: the same clouds, so they do not stop at the dome's rim.
 CLEAR_SHADE = f"float3 c = {DEC.format(x='saturate(C.rgb)')};" + CLOUDS
 PROP_SOFT_SHADE = f"return {DEC.format(x='saturate(' + ENC.format(x='Tex') + ' * VC.rgb * (255.0 / 128.0))')};"
-PROP_CORE = "return As >= 128.0 ? 1.0 : 0.0;"
+# Near-opaque texels count as core: Alaska's ice has only As 117 and 128 per texel, and with the core lit and the soft layer
+# unlit that split showed as a pattern of texture pixels.
+PROP_CORE = "return As >= CORE_AS ? 1.0 : 0.0;"
 # The original's draw distance x MPC_SSXRemaster.DrawDistanceScale (the Remastered quality preset). Above the camera
 # (from about 3 to 15 degrees up) the scale falls to DrawDistanceUp, so the upper levels of a course stay hidden.
 # The last 12 % fades out (SSXRemaster::DrawFadeWidth): dithered where the material is masked, TSR resolves the dither.
@@ -604,7 +607,7 @@ for name, mode in (("M_RmProp", "plain"), ("M_RmProp_Masked", "atest"), ("M_RmPr
     surface(m, rm, base, baked, uvs)
     if mode in ("atest", "core", "crowd"):
         gs_a = custom(m, -1000, 800, PROP_GS_ALPHA, F1, [("A", (base, "A")), ("VA", (vc, "A"))], "PropGsAlpha")
-        alpha = custom(m, -800, 800, PROP_CORE if mode == "core" else PROP_ATEST, F1, [("As", (gs_a, ""))], "PropAlpha")
+        alpha = custom(m, -800, 800, PROP_CORE.replace("CORE_AS", CORE_AS) if mode == "core" else PROP_ATEST, F1, [("As", (gs_a, ""))], "PropAlpha")
         clip(m, mpc, (alpha, ""))
     elif mode == "plain":
         clip(m, mpc, (expr(m, unreal.MaterialExpressionConstant, -700, 1000, r=1.0), ""))
@@ -842,7 +845,7 @@ for name, glass in (("M_RmProp_Translucent", False), ("M_RmPropGlass", True)):
   else:
     connect_prop(shade, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
   gs_a = custom(m, -1000, 400, PROP_GS_ALPHA, F1, [("A", (base, "A")), ("VA", (vc, "A"))], "PropGsAlpha")
-  alpha = custom(m, -800, 400, PROP_BLEND, F1, [("As", (gs_a, "")), ("Tex", (base, "RGB")), ("VC", (vc, ""))], "PropBlend")
+  alpha = custom(m, -800, 400, PROP_BLEND.replace("CORE_AS", CORE_AS), F1, [("As", (gs_a, "")), ("Tex", (base, "RGB")), ("VC", (vc, ""))], "PropBlend")
   depth = expr(m, unreal.MaterialExpressionPixelDepth, -700, 500)
   cd = expr(m, unreal.MaterialExpressionSceneTexture, -1000, 650, scene_texture_id=unreal.SceneTextureId.PPI_CUSTOM_DEPTH)
   front = custom(m, -800, 650, SOFT_DEPTH, F1, [("PD", (depth, "")), ("CD", (cd, "Color"))], "SoftDepth")
