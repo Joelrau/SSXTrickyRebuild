@@ -596,7 +596,7 @@ FVector FSSXRaceCamera::EvalPosition(const FSSXCameraDef& D, const FSSXCameraRid
 	{
 		P = Collide(D.OrbitDist, P, A, bHit);
 	}
-	return P;   // TODO: shake noise table
+	return P;   // 0x16FA18 shake: never runs, its only trigger is effect op 23 and no retail .ssf has one
 }
 
 // FUN_001722e8

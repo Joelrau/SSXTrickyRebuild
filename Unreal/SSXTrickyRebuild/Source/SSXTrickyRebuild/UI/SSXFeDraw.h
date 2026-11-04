@@ -85,9 +85,10 @@ namespace SSXFeDrawHud
 }
 
 /** Widescreen with a 16:9 image (Options > Widescreen). The original's UI is one 640 x 480 frame, which a 16:9 TV
- *  stretches with the anamorphic picture: the Classic look stretches it the same way (StretchX). The Remastered look
- *  (deliberate difference, ssx.UI.Widescreen) keeps it centred and unstretched with the screen extending ExtraX() units
- *  past each side and the HUD anchored to the edges. */
+ *  stretches with the anamorphic picture. The 16:9 mode gives the same shape: its viewport clamps to the 640 x 336 band
+ *  (0x1E89C0) and the 2D projection maps the frame onto the viewport (0x1DCE08). So the frame stretches to the image
+ *  (StretchX). The Remastered race HUD (deliberate difference, ssx.UI.Widescreen) stays unstretched with the screen
+ *  extending ExtraX() units past each side and the HUD anchored to the edges. */
 namespace SSXFeWide
 {
 	/** The 3D image's aspect this frame (SSXSettings::ImageAspect, set where the camera takes it). */

@@ -48,7 +48,7 @@ public:
 	static constexpr int32 TrailLayerFlag = 0x100;
 	/** Added to a blend mode: the texture with REPEAT addressing (renderer slot 63 = 0; the splash sheets and the carve curtain). */
 	static constexpr int32 RepeatFlag = 0x200;
-	/** Translucency sort priority of the sprite renderer: above every prop (0), so sprites, then the fog (layer 4) and the lens FX draw after the soft-prop blend sections (the sprite primitive's sort point is the world origin). A sprite behind a soft texel is dropped by the SoftDepth node (SSXGsBlend.h). TODO: layer-3 particles interleave with the soft props by the 10-bit depth key in the original; here they all follow them. */
+	/** Translucency sort priority of the sprite renderer: above every prop (0), so sprites, then the fog (layer 4) and the lens FX draw after the soft-prop blend sections (the sprite primitive's sort point is the world origin). A sprite behind a soft texel is dropped by the SoftDepth node (SSXGsBlend.h). Particles have sort mode 2 value 0, so they follow the soft props in the original too. */
 	static constexpr int32 SpriteSortPriority = 1;
 
 	static USSXParticleWorld* Get(const UObject* WorldContext);
