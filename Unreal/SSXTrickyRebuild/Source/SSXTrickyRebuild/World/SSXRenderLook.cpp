@@ -1,5 +1,7 @@
 #include "World/SSXRenderLook.h"
 #include "Interfaces/IPluginManager.h"
+#include "Engine/Engine.h"
+#include "GameFramework/GameUserSettings.h"
 
 #include "HAL/IConsoleManager.h"
 
@@ -185,6 +187,15 @@ void USSXVideoSettings::Save()
 void USSXRenderLookSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
+	if (SSXRenderLook::IsClassicOnly() && !GIsEditor && !GIsAutomationTesting && GEngine)
+	{
+		// Deliberate (PC): no VIDEO page to choose a mode on, so always borderless at the desktop size. Runs before the window exists.
+		UGameUserSettings* G = GEngine->GetGameUserSettings();
+		G->SetScreenResolution(G->GetDesktopResolution());
+		G->SetFullscreenMode(EWindowMode::WindowedFullscreen);
+		G->ApplyResolutionSettings(true);
+		IConsoleManager::Get().CallAllConsoleVariableSinks();
+	}
 	if (GIsAutomationTesting || SSXRenderLook::IsClassicOnly())
 	{
 		return;   // tests run the Classic default unless they set the look themselves, whatever the user saved

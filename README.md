@@ -154,7 +154,7 @@ failing; the game data itself never needs recordings.
 ```
 package.bat                 Shipping build     -> Packaged\Windows\SSXTricky.exe
 package.bat Development     logging build      -> Packaged-Dev\Windows\SSXTricky.exe
-package.bat Classic         no Remastered look or its PC additions -> Packaged-Classic\Windows\SSXTrickyClassic.exe
+package.bat Classic         no Remastered look or its PC additions, always borderless -> Packaged-Classic\Windows\SSXTrickyClassic.exe
 ```
 
 Run `build_data.bat ... import` first (the cook needs the imported maps). Double-click `SSXTricky.exe` to play.
