@@ -7,6 +7,7 @@
 #include "Engine/Texture2D.h"
 #include "Engine/Engine.h"
 #include "HAL/IConsoleManager.h"
+#include "ImageUtils.h"
 #include "World/SSXRenderLook.h"
 #include "Engine/GameViewportClient.h"
 #include "Framework/Application/SlateApplication.h"
@@ -296,6 +297,34 @@ namespace
 		TEXT("UI with a 16:9 image (Options > Widescreen): 0 = the original's 640 x 480 frame stretched to the image width (as on ")
 		TEXT("a 16:9 TV), 1 = unstretched with the HUD anchored to the screen edges (deliberate difference), -1 = by look ")
 		TEXT("(Classic 0; Remastered: menus stretched, race HUD anchored)."));
+}
+
+namespace
+{
+	TMap<const UTexture*, FString> GSharpPaths;
+	TMap<const UTexture*, UTexture*> GSharpArt;   // rooted: they stay for the session; nullptr = failed to load
+}
+
+void SSXFeDrawHiRes::Register(const UTexture* Classic, const FString& SharpPath)
+{
+	GSharpPaths.Add(Classic, SharpPath);
+}
+
+UTexture* SSXFeDrawHiRes::For(UTexture* Classic)
+{
+	if (!Classic || SSXRenderLook::Get() != ESSXRenderLook::Remastered) { return Classic; }
+	if (UTexture* const* Loaded = GSharpArt.Find(Classic)) { return *Loaded ? *Loaded : Classic; }
+	const FString* Path = GSharpPaths.Find(Classic);
+	if (!Path) { return Classic; }
+	UTexture2D* Sharp = FImageUtils::ImportFileAsTexture2D(*Path);
+	if (Sharp)
+	{
+		Sharp->SRGB = true;
+		Sharp->UpdateResource();
+		Sharp->AddToRoot();
+	}
+	GSharpArt.Add(Classic, Sharp);
+	return Sharp ? Sharp : Classic;
 }
 
 void SSXFeWide::SetImageAspect(float Aspect)
@@ -817,7 +846,7 @@ int32 SSSXFeCanvas::OnPaint(const FPaintArgs& Args, const FGeometry& Geo, const 
 	for (int32 I : Order)
 	{
 		const FSSXFeDrawCmd& C = DrawList->Cmds[I];
-		UObject* Res = C.Kind == FSSXFeDrawCmd::EKind::Image ? C.ImageObject : (C.Texture ? (UObject*)C.Texture : (UObject*)WhiteTex);
+		UObject* Res = C.Kind == FSSXFeDrawCmd::EKind::Image ? C.ImageObject : (C.Texture ? (UObject*)SSXFeDrawHiRes::For(C.Texture) : (UObject*)WhiteTex);
 		if (!Res)
 		{
 			continue;

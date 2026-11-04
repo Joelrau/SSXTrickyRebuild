@@ -11,7 +11,9 @@ under converted/remaster/<same relative path without .png>:
             edges because the textures tile
     _M.png  detail masks: R roughness offset (0.5 = none), G sparkle mask (bright desaturated texels), B emissive mask
             (texels much brighter and more saturated than their texture), A cavity occlusion (1 = open)
-and converted/remaster/manifest.json listing every output. Game-derived data: everything stays git-ignored and
+UI art under converted/textures/TEXTURES/ (menus, HUD, portraits, loading screens) gets the _C.png only, at x4 up to
+128 px and x2 above. The game swaps it in at draw time; sprite coordinates are fractions of the sheet, so they still fit.
+converted/remaster/manifest.json lists every output. Game-derived data: everything stays git-ignored and
 Scripts/import_remaster.py imports it into /Game/RemasterData (also git-ignored).
 """
 import libpath  # noqa: F401,E402  (tools/lib on sys.path)
@@ -35,6 +37,10 @@ SPARKLE_LUMA = 0.72       # fraction of the texture's brightest luminance above 
 EMISSIVE_SIGMA = 2.0      # emissive: luminance this many standard deviations above the texture mean ...
 EMISSIVE_SAT = 0.45       # ... and at least this saturated
 VERSION = 2
+
+
+UI_SOURCES = "textures/TEXTURES/*/*.png"
+UI_SKIP = ("PARTICLE", "CROWD")   # particles have their maps above; the crowd atlas stays as it is
 
 
 def scale_for(w, h):
@@ -142,6 +148,19 @@ def build(job):
     return str(src), f"{img.width}x{img.height} -> {big.width}x{big.height}", outs
 
 
+def build_ui(job):
+    src, dst_stem, force = job
+    src, dst_stem = Path(src), Path(dst_stem)
+    out = dst_stem.with_name(dst_stem.name + "_C.png")
+    if not force and out.is_file() and out.stat().st_mtime >= src.stat().st_mtime:
+        return str(src), "up to date", [out]
+    img = Image.open(src).convert("RGBA")
+    big = upscale(img, 4 if max(img.width, img.height) <= 128 else 2)
+    dst_stem.parent.mkdir(parents=True, exist_ok=True)
+    big.save(out)
+    return str(src), f"{img.width}x{img.height} -> {big.width}x{big.height}", [out]
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--force", action="store_true", help="rebuild every map")
@@ -156,16 +175,23 @@ def main():
             if args.only and args.only not in rel.as_posix():
                 continue
             jobs.append((str(src), str(OUT / rel.with_suffix("")), args.force))
+    ui_jobs = []
+    for src in sorted(CONVERTED.glob(UI_SOURCES)):
+        rel = src.relative_to(CONVERTED)
+        if src.parent.name in UI_SKIP or (args.only and args.only not in rel.as_posix()):
+            continue
+        ui_jobs.append((str(src), str(OUT / rel.with_suffix("")), args.force))
     built = 0
     manifest = []
     with ProcessPoolExecutor(max_workers=max(1, (os.cpu_count() or 2) - 1)) as pool:
-        for src, what, outs in pool.map(build, jobs, chunksize=8):
-            built += what != "up to date"
-            rel = Path(src).relative_to(CONVERTED).with_suffix("").as_posix()
-            manifest.append({"source": rel, "maps": [o.relative_to(OUT).as_posix() for o in outs]})
+        for fn, group in ((build, jobs), (build_ui, ui_jobs)):
+            for src, what, outs in pool.map(fn, group, chunksize=8):
+                built += what != "up to date"
+                rel = Path(src).relative_to(CONVERTED).with_suffix("").as_posix()
+                manifest.append({"source": rel, "maps": [o.relative_to(OUT).as_posix() for o in outs]})
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "manifest.json").write_text(json.dumps({"version": VERSION, "textures": manifest}, indent=1))
-    print(f"remaster maps: {len(jobs)} textures, {built} rebuilt -> {OUT}")
+    print(f"remaster maps: {len(jobs) + len(ui_jobs)} textures, {built} rebuilt -> {OUT}")
 
 
 if __name__ == "__main__":

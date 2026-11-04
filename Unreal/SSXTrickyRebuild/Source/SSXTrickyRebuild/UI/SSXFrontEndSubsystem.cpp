@@ -150,6 +150,18 @@ UTexture2D* USSXFrontEndSubsystem::LoadPng(const FString& Path)
 	Tex->SRGB = true;
 	Tex->UpdateResource();
 	Textures.Add(Path, Tex);
+	if (!SSXRenderLook::IsClassicOnly())
+	{
+		// The Remastered look draws the sharper copy of UI art (tools/make_remaster_maps.py) when there is one.
+		FString Rel = Path;
+		const FString Root = FPaths::Combine(SSXFrontEnd::RepoRoot(), TEXT("converted"), TEXT("textures"));
+		if (FPaths::MakePathRelativeTo(Rel, *(Root + TEXT("/"))) && !Rel.StartsWith(TEXT("..")))
+		{
+			const FString Up = FPaths::Combine(SSXFrontEnd::RepoRoot(), TEXT("converted"), TEXT("remaster"), TEXT("textures"),
+				FPaths::GetPath(Rel), FPaths::GetBaseFilename(Rel) + TEXT("_C.png"));
+			if (FPaths::FileExists(Up)) { SSXFeDrawHiRes::Register(Tex, Up); }
+		}
+	}
 	return Tex;
 }
 

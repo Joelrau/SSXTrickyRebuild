@@ -84,6 +84,14 @@ namespace SSXFeDrawHud
 	SSXTRICKYREBUILD_API const FSSXSpriteTable* GetSheet();
 }
 
+/** The Remastered look's sharper copies of UI art; the sprite UVs are fractions of the sheet, so they fit both. */
+namespace SSXFeDrawHiRes
+{
+	SSXTRICKYREBUILD_API void Register(const UTexture* Classic, const FString& SharpPath);
+	/** The texture to draw for this one in the current look; a sharper copy loads the first time it is drawn. */
+	SSXTRICKYREBUILD_API UTexture* For(UTexture* Classic);
+}
+
 /** Widescreen with a 16:9 image (Options > Widescreen). The original's UI is one 640 x 480 frame, which a 16:9 TV
  *  stretches with the anamorphic picture. The 16:9 mode gives the same shape: its viewport clamps to the 640 x 336 band
  *  (0x1E89C0) and the 2D projection maps the frame onto the viewport (0x1DCE08). So the frame stretches to the image
