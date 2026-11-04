@@ -330,12 +330,12 @@ static float CurrentExtra()
 
 float SSXFeWide::ExtraX(bool bHud)
 {
-	return Anchored(bHud) && !SSXRenderLook::IsClassicOnly() ? CurrentExtra() : 0.f;
+	return Anchored(bHud) ? CurrentExtra() : 0.f;
 }
 
 float SSXFeWide::StretchX(bool bHud)
 {
-	return Anchored(bHud) || SSXRenderLook::IsClassicOnly() ? 1.f : 1.f + 2.f * CurrentExtra() / SSXFe::ScreenW;
+	return Anchored(bHud) ? 1.f : 1.f + 2.f * CurrentExtra() / SSXFe::ScreenW;
 }
 
 float SSXFeWide::AnchorX(float X, float Extra)

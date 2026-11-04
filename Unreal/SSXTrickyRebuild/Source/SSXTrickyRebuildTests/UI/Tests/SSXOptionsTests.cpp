@@ -776,8 +776,7 @@ bool FSSXOptionsClassicOnlyTest::RunTest(const FString&)
 	SSXRenderLook::Set(ESSXRenderLook::Remastered);
 	TestTrue(TEXT("the look cannot be changed"), SSXRenderLook::Get() == ESSXRenderLook::Classic);
 	TestFalse(TEXT("no frame generation"), SSXRenderLook::FrameGenerationAvailable());
-	TestEqual(TEXT("the UI frame is not stretched"), SSXFeWide::StretchX(false), 1.f);
-	TestEqual(TEXT("the HUD is not anchored"), SSXFeWide::ExtraX(true), 0.f);
+	TestFalse(TEXT("the HUD is not anchored: the UI frame stretches like the original's"), SSXFeWide::Anchored(true));
 	TestTrue(TEXT("no device prompts"), SSXPrompts::ImageFor(0x62, true, ESSXPromptContext::Race, ESSXPromptDevice::Keyboard).IsEmpty());
 	{
 		FOptFe F;
