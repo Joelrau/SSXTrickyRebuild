@@ -13,7 +13,7 @@ enum class ESSXPromptDevice : uint8 { PS2, Keyboard, Xbox, PS4, PS5 };
 
 /** Button prompts for the device in use (deliberate difference from the original, cvar ssx.UI.Prompts): the HUD button
  *  sprites 0x62..0x75 and the front end's face buttons 79..82 are drawn with the images in <Project>/Prompts
- *  (tools/import_prompts.py), fitted into the original sprite's box. */
+ *  (see its CREDITS.txt), fitted into the original sprite's box. */
 namespace SSXPrompts
 {
 	/** The prompt set to draw: ssx.UI.Prompts 0 = PS2, 1 = the last device used (keyboard until a pad is used or attached),

@@ -32,7 +32,8 @@ The game's behaviour is reimplemented in fresh C++; all game data comes from the
 ## 3. Repo layout and commands
 
 - `build.bat [iso] [refs] [dev]` does everything; `build_data.bat [iso] [refs] [import]` converts the disc;
-  `package.bat [Development]` packages to `Packaged\Windows\SSXTricky.exe`.
+  `package.bat [Development | Classic]` packages to `Packaged\Windows\SSXTricky.exe` (Classic, no remaster features:
+  `Packaged-Classic\Windows\SSXTrickyClassic.exe`).
   Always pass the ISO path explicitly or rely on `SSX_ISO` in the git-ignored `local_settings.bat`.
 - Unreal Engine is found by `tools\find_ue.bat`: `UE_ROOT`, `local_settings.bat`, the Epic launcher registry
   entry, `C:\Program Files\Epic Games\UE_5.8`.
@@ -42,7 +43,7 @@ The game's behaviour is reimplemented in fresh C++; all game data comes from the
 - C++: game module `Source/SSXTrickyRebuild` (folders Sim, Race, Camera, Input, Characters, Progression,
   Particles, Effects, World, Audio, UI, Harness). Tests live only in the editor-only module
   `Source/SSXTrickyRebuildTests` (same folder layout, test names `SSX.<Area>.<Name>`). The game target is
-  `SSXTricky`, the editor target `SSXTrickyRebuildEditor`.
+  `SSXTricky` (`SSXTrickyClassic` for the Classic package), the editor target `SSXTrickyRebuildEditor`.
 - Debug-only cvars, console commands, command-line switches and diagnostic logs go inside
   `#if !UE_BUILD_SHIPPING`. The Shipping package must contain no tests or debug switches.
 - Build: `"%UE_ROOT%\Engine\Build\BatchFiles\Build.bat" SSXTrickyRebuildEditor Win64 Development
