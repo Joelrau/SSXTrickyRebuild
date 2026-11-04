@@ -276,7 +276,7 @@ bool FSSXRenderTrackTuningTest::RunTest(const FString&)
 	TestNotNull(TEXT("the light-shaft material exists"), LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Remastered/M_RmLightShaft.M_RmLightShaft")));
 	TestTrue(TEXT("Alaska's sun is low, Aloha's high"),
 		SSXRemaster::TuningFor(TEXT("alaska")).SunElevation < 30.f && SSXRemaster::TuningFor(TEXT("aloha")).SunElevation > 50.f);
-	TestEqual(TEXT("other tracks keep their own sun direction"), SSXRemaster::TuningFor(TEXT("gari")).SunElevation, 0.f);
+	TestEqual(TEXT("indoor tracks keep their own sun direction"), SSXRemaster::TuningFor(TEXT("megaple")).SunElevation, 0.f);
 	TestTrue(TEXT("Merqury's lamps glow in the fog"), SSXRemaster::TuningFor(TEXT("merquer")).LightScatter > 1.f);
 	TestTrue(TEXT("Snowdream's glow stays below Merqury's"),
 		SSXRemaster::TuningFor(TEXT("snow")).LightScatter < SSXRemaster::TuningFor(TEXT("merquer")).LightScatter);

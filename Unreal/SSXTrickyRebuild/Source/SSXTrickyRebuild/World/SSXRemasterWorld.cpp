@@ -152,23 +152,29 @@ const SSXRemaster::FTrackTuning& SSXRemaster::TuningFor(const FString& Stem)
 	// Night (Snowdream, Merqury City, the trick tutorial): a faint coloured moon, the baked light and the lamps carry the
 	// scene; indoor (Tokyo Megaplex, Pipedream): hardly any sun; the front end's dark ice backdrop: no sun, only its own light.
 	static const FTrackTuning Table[] = {
-		// Snowdream: its orange lamps at Merqury's strength turned the moonlit snow peach under large halos.
-		[&Make]() { FTrackTuning T = Make(TEXT("snow"), 0.25f, 0.9f, 0.2f, 1.0f, 5.f, 25.f); T.Bloom = 0.5f; T.LightScatter = 1.5f; return T; }(),
-		[&Make]() { FTrackTuning T = Make(TEXT("merquer"), 0.25f, 0.9f, 0.2f, 1.0f, 7.f, 60.f); T.Bloom = 1.f; T.LightScatter = 3.f; return T; }(),
-		Make(TEXT("megaple"), 0.2f, 0.6f, 0.3f, 0.95f, 4.f, 40.f),
-		Make(TEXT("pipe"), 0.2f, 0.6f, 0.3f, 0.95f, 4.f, 40.f),
+		// Snowdream: a cold blue moon; its orange lamps at Merqury's strength turned the moonlit snow peach under large halos.
+		[&Make]() { FTrackTuning T = Make(TEXT("snow"), 0.5f, 0.9f, 0.2f, 0.85f, 5.f, 25.f); T.SunElevation = 40.f; T.SunTint = FLinearColor(0.6f, 0.7f, 1.f);
+			T.FogTint = FLinearColor(0.1f, 0.12f, 0.3f); T.Bloom = 0.5f; T.LightScatter = 1.5f; return T; }(),
+		[&Make]() { FTrackTuning T = Make(TEXT("merquer"), 0.25f, 0.9f, 0.2f, 0.9f, 7.f, 60.f); T.FogTint = FLinearColor(0.08f, 0.06f, 0.2f); T.Bloom = 1.f; T.LightScatter = 3.f; return T; }(),
+		// Tokyo Megaplex: an arena of bright neon and magenta haze; Pipedream: a cooler blue haze.
+		[&Make]() { FTrackTuning T = Make(TEXT("megaple"), 0.2f, 0.6f, 0.3f, 0.9f, 6.f, 50.f); T.FogTint = FLinearColor(0.3f, 0.08f, 0.3f); T.Bloom = 0.8f; T.LightScatter = 2.f; return T; }(),
+		[&Make]() { FTrackTuning T = Make(TEXT("pipe"), 0.2f, 0.6f, 0.3f, 0.9f, 5.f, 45.f); T.FogTint = FLinearColor(0.15f, 0.2f, 0.45f); T.Bloom = 0.7f; T.LightScatter = 2.f; return T; }(),
 		[&Make]() { FTrackTuning T = Make(TEXT("trick"), 0.25f, 0.9f, 0.2f, 1.0f, 7.f, 60.f); T.Bloom = 1.f; T.LightScatter = 3.f; return T; }(),
-		// Elysium's orange sunset light would turn its pink-purple slopes peach: a paler sun, more of the baked light.
-		Make(TEXT("elysium"), 1.6f, 0.3f, 0.5f, 0.7f, 3.f, 15.f),
-		// Mesablanca's blue sky light cooled its warm sunset snow grey: less sky, more of the baked light, a warmer sun.
-		Make(TEXT("mesa"), 2.0f, 0.85f, 0.25f, 0.8f, 3.f, 15.f),
+		// Elysium: a low pink sun and purple haze (its orange sunset light would turn the pink-purple slopes peach).
+		[&Make]() { FTrackTuning T = Make(TEXT("elysium"), 2.6f, 0.3f, 0.45f, 0.45f, 3.f, 15.f); T.SunElevation = 25.f; T.SunTint = FLinearColor(1.f, 0.75f, 0.85f);
+			T.FogTint = FLinearColor(0.75f, 0.5f, 0.8f); T.Saturation = 1.2f; T.Bloom = 0.6f; return T; }(),
+		// Mesablanca: a low orange desert sunset (its blue sky light cooled the warm snow grey: little sky).
+		[&Make]() { FTrackTuning T = Make(TEXT("mesa"), 3.f, 0.85f, 0.25f, 0.5f, 3.f, 15.f); T.SunElevation = 22.f; T.SunTint = FLinearColor(1.f, 0.62f, 0.35f);
+			T.FogTint = FLinearColor(1.f, 0.6f, 0.4f); T.Saturation = 1.2f; T.Bloom = 0.6f; return T; }(),
 		// Garibaldi: a crisp clear alpine day.
-		[&Make]() { FTrackTuning T = Make(TEXT("gari"), 2.2f, 0.5f, 0.55f, 0.55f, 3.f, 15.f); T.Saturation = 1.1f; T.Bloom = 0.45f; return T; }(),
+		[&Make]() { FTrackTuning T = Make(TEXT("gari"), 3.2f, 0.5f, 0.55f, 0.38f, 3.f, 15.f); T.SunElevation = 50.f; T.SunTint = FLinearColor(1.f, 0.95f, 0.88f);
+			T.FogTint = FLinearColor(0.62f, 0.76f, 0.95f); T.Saturation = 1.15f; T.Bloom = 0.5f; return T; }(),
 		// Aloha Ice Jam: a high, hot tropical sun over warm haze; the sun rather than the baked light shapes the slopes.
 		[&Make]() { FTrackTuning T = Make(TEXT("aloha"), 2.8f, 0.75f, 0.45f, 0.4f, 3.f, 15.f); T.SunElevation = 65.f; T.SunTint = FLinearColor(1.f, 0.88f, 0.68f);
 			T.FogTint = FLinearColor(1.f, 0.72f, 0.5f); T.Saturation = 1.3f; T.Bloom = 0.5f; T.Clouds = 0.8f; return T; }(),
 		// Untracked: hard high-altitude light, a pale sun and plenty of glints on the powder.
-		[&Make]() { FTrackTuning T = Make(TEXT("untrack"), 2.4f, 0.4f, 0.65f, 0.5f, 3.f, 15.f); T.Saturation = 1.05f; T.Clouds = 0.4f; T.Sparkle = 4.f; return T; }(),
+		[&Make]() { FTrackTuning T = Make(TEXT("untrack"), 3.f, 0.4f, 0.75f, 0.35f, 3.f, 15.f); T.SunElevation = 42.f; T.SunTint = FLinearColor(0.92f, 0.96f, 1.f);
+			T.FogTint = FLinearColor(0.75f, 0.85f, 1.f); T.Saturation = 1.f; T.Clouds = 0.4f; T.Sparkle = 4.f; return T; }(),
 		// Alaska: a low golden sun with long shadows, blue shade and cold blue haze.
 		[&Make]() { FTrackTuning T = Make(TEXT("alaska"), 4.f, 0.5f, 0.6f, 0.3f, 3.f, 15.f); T.LightShaftMaterials = TEXT("tex_168_"); T.SunElevation = 20.f; T.SunTint = FLinearColor(1.f, 0.7f, 0.48f);
 			T.FogTint = FLinearColor(0.42f, 0.58f, 0.85f); T.Saturation = 1.1f; T.Bloom = 0.5f; T.Clouds = 0.3f; T.Sparkle = 3.5f; return T; }(),
