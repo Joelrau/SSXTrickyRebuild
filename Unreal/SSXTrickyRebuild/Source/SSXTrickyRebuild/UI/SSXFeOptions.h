@@ -20,6 +20,15 @@ namespace SSXFeOptions
 	constexpr float KeyColumnW = 150.f;
 	/** Video page row id of FRAME GENERATION (present only with the FSR plugin). */
 	constexpr int32 FrameGenerationId = 4;
+	/** Video page row ids of VSYNC and FRAME LIMIT. */
+	constexpr int32 VSyncId = 5;
+	constexpr int32 FrameLimitId = 6;
+	/** FRAME LIMIT values in frames per second, 0 = no limit. */
+	constexpr int32 FrameLimits[] = { 0, 30, 60, 120, 144, 165, 240 };
+	/** The FRAME LIMIT entry nearest to a limit. */
+	SSXTRICKYREBUILD_API int32 FrameLimitIndex(float Limit);
+	/** Applies and saves VSYNC and FRAME LIMIT; the engine applies the saved values at startup. Not in automation tests. */
+	SSXTRICKYREBUILD_API void ApplyDisplayTiming(bool bVSync, int32 LimitIndex);
 	/** Row position of the row with this id on the page, or INDEX_NONE. */
 	SSXTRICKYREBUILD_API int32 RowIndex(int32 Page, int32 Id);
 

@@ -1,6 +1,10 @@
 #include "UI/SSXFeOptions.h"
 
+#include "Engine/Engine.h"
+#include "GameFramework/GameUserSettings.h"
+#include "HAL/IConsoleManager.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Misc/App.h"
 #include "World/SSXRenderLook.h"
 
 const TArray<FIntPoint>& SSXFeOptions::Resolutions()
@@ -20,6 +24,30 @@ const TArray<FIntPoint>& SSXFeOptions::Resolutions()
 		return Unique;
 	}();
 	return All;
+}
+
+int32 SSXFeOptions::FrameLimitIndex(float Limit)
+{
+	int32 Best = 0;
+	for (int32 I = 1; I < UE_ARRAY_COUNT(FrameLimits); ++I)
+	{
+		if (FMath::Abs(FrameLimits[I] - Limit) < FMath::Abs(FrameLimits[Best] - Limit)) { Best = I; }
+	}
+	return Best;
+}
+
+void SSXFeOptions::ApplyDisplayTiming(bool bVSync, int32 LimitIndex)
+{
+	UGameUserSettings* G = GEngine ? GEngine->GetGameUserSettings() : nullptr;
+	if (!G || GIsAutomationTesting || !FApp::CanEverRender()) { return; }
+	const float Limit = float(FrameLimits[FMath::Clamp(LimitIndex, 0, int32(UE_ARRAY_COUNT(FrameLimits)) - 1)]);
+	if (G->IsVSyncEnabled() == bVSync && G->GetFrameRateLimit() == Limit) { return; }
+	G->SetVSyncEnabled(bVSync);
+	G->SetFrameRateLimit(Limit);
+	// Not ApplyNonResolutionSettings: it would also reapply the scalability groups the Quality row sets.
+	if (IConsoleVariable* V = IConsoleManager::Get().FindConsoleVariable(TEXT("r.VSync"))) { V->Set(bVSync ? 1 : 0, ECVF_SetByGameSetting); }
+	GEngine->SetMaxFPS(Limit);
+	G->SaveSettings();
 }
 
 int32 SSXFeOptions::ResolutionIndex(const FIntPoint& Res)
@@ -84,7 +112,12 @@ const TArray<SSXFeOptions::FRow>& SSXFeOptions::PageRows(int32 Page)
 		Res.Text = TEXT("RESOLUTION");
 		FRow Mode = List(3, -1, { { 0, -1, TEXT("FULLSCREEN") }, { 1, -1, TEXT("BORDERLESS") }, { 2, -1, TEXT("WINDOWED") } });
 		Mode.Text = TEXT("DISPLAY");
-		TArray<FRow> Rows{ Look, Quality, Res, Mode };
+		FRow VSync = List(VSyncId, -1, { { 0, -1, TEXT("OFF") }, { 1, -1, TEXT("ON") } });
+		VSync.Text = TEXT("VSYNC");
+		FRow Limit = List(FrameLimitId, -1, { { 0, -1, TEXT("OFF") }, { 1, -1, TEXT("30") }, { 2, -1, TEXT("60") }, { 3, -1, TEXT("120") },
+			{ 4, -1, TEXT("144") }, { 5, -1, TEXT("165") }, { 6, -1, TEXT("240") } });
+		Limit.Text = TEXT("FRAME LIMIT");
+		TArray<FRow> Rows{ Look, Quality, Res, Mode, VSync, Limit };
 		if (SSXRenderLook::FrameGenerationAvailable())   // only with the optional AMD FSR plugin installed
 		{
 			static const FString Fsr = SSXRenderLook::FrameGenerationName();
@@ -154,6 +187,8 @@ const TCHAR* SSXFeOptions::HelpText(int32 Page, int32 ItemId)
 	if (Page == VideoPage && ItemId == 1) { return TEXT("Detail of the Remastered look. Low has no global illumination."); }
 	if (Page == VideoPage && ItemId == 2) { return TEXT("Screen resolution, applied with DONE. Borderless always uses the desktop resolution."); }
 	if (Page == VideoPage && ItemId == FrameGenerationId) { return TEXT("AMD FSR Frame Generation: generated frames between the rendered ones. Adds input latency."); }
+	if (Page == VideoPage && ItemId == VSyncId) { return TEXT("Syncs frames to the display's refresh. Removes tearing, adds input latency."); }
+	if (Page == VideoPage && ItemId == FrameLimitId) { return TEXT("The highest frame rate the game renders."); }
 	if (Page == VideoPage && ItemId == 3) { return TEXT("Fullscreen, borderless window over the desktop, or a window. Applied with DONE."); }
 	return nullptr;
 }

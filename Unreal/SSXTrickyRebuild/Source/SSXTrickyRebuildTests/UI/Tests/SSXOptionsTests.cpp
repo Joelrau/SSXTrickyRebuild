@@ -358,6 +358,12 @@ bool FSSXUIOptionsVideoTest::RunTest(const FString& Parameters)
 		TestNotNull(TEXT("value CLASSIC"), F.Txt(TEXT("CLASSIC")));
 		TestNotNull(TEXT("row RESOLUTION"), F.Txt(TEXT("RESOLUTION")));
 		TestNotNull(TEXT("row DISPLAY"), F.Txt(TEXT("DISPLAY")));
+		TestNotNull(TEXT("row VSYNC"), F.Txt(TEXT("VSYNC")));
+		TestNotNull(TEXT("row FRAME LIMIT"), F.Txt(TEXT("FRAME LIMIT")));
+		TestEqual(TEXT("no limit"), FrameLimitIndex(0.f), 0);
+		TestEqual(TEXT("a listed limit"), FrameLimits[FrameLimitIndex(144.f)], 144);
+		TestEqual(TEXT("an unlisted limit takes the nearest"), FrameLimits[FrameLimitIndex(59.f)], 60);
+		TestEqual(TEXT("a limit past the list takes the last"), FrameLimits[FrameLimitIndex(1000.f)], 240);
 		TestEqual(TEXT("FRAME GENERATION row only with the FSR plugin"), F.Txt(TEXT("FRAME GENERATION")) != nullptr,
 			SSXRenderLook::FrameGenerationAvailable());
 		TestTrue(TEXT("frame generation value names the AMD FSR version"), SSXRenderLook::FrameGenerationName().StartsWith(TEXT("AMD FSR")));
@@ -395,6 +401,17 @@ bool FSSXUIOptionsVideoTest::RunTest(const FString& Parameters)
 			TestFalse(TEXT("frame generation turns off"), SSXRenderLook::GetFrameGeneration());
 		}
 		TestEqual(TEXT("DONE leaves the page"), F.FE.Top()->Page, -1);
+	}
+	{
+		FOptFe F;
+		F.OpenPage(VideoPage);
+		const int32 Row = RowIndex(VideoPage, FrameLimitId);
+		for (int32 I = 0; I < Row; ++I) { F.Press(ESSXFeKey::Down); }
+		TestEqual(TEXT("help line of FRAME LIMIT"), F.FE.CurrentHelpLine(), FString(HelpText(VideoPage, FrameLimitId)));
+		const int32 Before = F.FE.Top()->Opt.List[VideoPage][Row];
+		F.Press(Before == 0 ? ESSXFeKey::Right : ESSXFeKey::Left);
+		TestNotEqual(TEXT("FRAME LIMIT changes"), F.FE.Top()->Opt.List[VideoPage][Row], Before);
+		F.Press(ESSXFeKey::Triangle);
 	}
 	if (const int32 Fg = RowIndex(VideoPage, FrameGenerationId); Fg != INDEX_NONE)
 	{

@@ -2033,6 +2033,8 @@ void FSSXFrontEnd::OptionsSync(FSSXFeState& S)
 	{
 		O.List[SSXFeOptions::VideoPage][2] = SSXFeOptions::ResolutionIndex(G->GetScreenResolution());
 		O.List[SSXFeOptions::VideoPage][3] = FMath::Clamp(int32(G->GetFullscreenMode()), 0, 2);
+		O.List[SSXFeOptions::VideoPage][SSXFeOptions::RowIndex(SSXFeOptions::VideoPage, SSXFeOptions::VSyncId)] = G->IsVSyncEnabled() ? 1 : 0;
+		O.List[SSXFeOptions::VideoPage][SSXFeOptions::RowIndex(SSXFeOptions::VideoPage, SSXFeOptions::FrameLimitId)] = SSXFeOptions::FrameLimitIndex(G->GetFrameRateLimit());
 	}
 	if (const int32 Fg = SSXFeOptions::RowIndex(SSXFeOptions::VideoPage, SSXFeOptions::FrameGenerationId); Fg != INDEX_NONE)
 	{
@@ -2125,6 +2127,8 @@ void FSSXFrontEnd::OptionsCommit(FSSXFeState& S, int32 P)
 		{
 			SSXRenderLook::SetFrameGeneration(S.Opt.List[P][Fg] != 0);
 		}
+		SSXFeOptions::ApplyDisplayTiming(S.Opt.List[P][SSXFeOptions::RowIndex(P, SSXFeOptions::VSyncId)] != 0,
+			S.Opt.List[P][SSXFeOptions::RowIndex(P, SSXFeOptions::FrameLimitId)]);
 		SoundHooks.Add(TEXT("saveVideo"));
 		UGameUserSettings* G = GEngine ? GEngine->GetGameUserSettings() : nullptr;
 		const TArray<FIntPoint>& Res = SSXFeOptions::Resolutions();
@@ -2199,6 +2203,10 @@ void FSSXFrontEnd::OptionsApplyList(FSSXFeState& S, int32 Row)
 		if (Rows[Row].Id == 0) { SSXRenderLook::Set(ESSXRenderLook(S.Opt.List[P][Row])); }
 		if (Rows[Row].Id == 1) { SSXRenderLook::SetQuality(S.Opt.List[P][Row]); }
 		if (Rows[Row].Id == FrameGenerationId) { SSXRenderLook::SetFrameGeneration(S.Opt.List[P][Row] != 0); }
+		if (Rows[Row].Id == VSyncId || Rows[Row].Id == FrameLimitId)
+		{
+			ApplyDisplayTiming(S.Opt.List[P][RowIndex(P, VSyncId)] != 0, S.Opt.List[P][RowIndex(P, FrameLimitId)]);
+		}
 		return;
 	}
 	if (!Rows.IsValidIndex(Row) || !Profile)
