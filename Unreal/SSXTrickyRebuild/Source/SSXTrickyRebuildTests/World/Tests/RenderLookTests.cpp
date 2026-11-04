@@ -258,6 +258,29 @@ bool FSSXRenderSpeedFxTest::RunTest(const FString&)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSSXRenderTrackTuningTest, "SSX.Render.TrackTuning", RenderLookFlags)
+bool FSSXRenderTrackTuningTest::RunTest(const FString&)
+{
+	const TCHAR* Stems[] = { TEXT("gari"), TEXT("aloha"), TEXT("untrack"), TEXT("alaska") };
+	TSet<float> Suns;
+	for (const TCHAR* Stem : Stems)
+	{
+		const SSXRemaster::FTrackTuning& T = SSXRemaster::TuningFor(Stem);
+		TestEqual(FString::Printf(TEXT("%s has its own entry"), Stem), FString(T.Stem ? T.Stem : TEXT("")), FString(Stem));
+		TestTrue(FString::Printf(TEXT("%s is a day track with real shadows"), Stem), T.SunLux >= 1.f);
+		Suns.Add(T.SunLux);
+	}
+	TestEqual(TEXT("each its own sun"), Suns.Num(), 4);
+	TestTrue(TEXT("Alaska's sun is low, Aloha's high"),
+		SSXRemaster::TuningFor(TEXT("alaska")).SunElevation < 30.f && SSXRemaster::TuningFor(TEXT("aloha")).SunElevation > 50.f);
+	TestEqual(TEXT("other tracks keep their own sun direction"), SSXRemaster::TuningFor(TEXT("gari")).SunElevation, 0.f);
+	TestTrue(TEXT("Merqury's lamps glow in the fog"), SSXRemaster::TuningFor(TEXT("merquer")).LightScatter > 1.f);
+	TestTrue(TEXT("Snowdream's glow stays below Merqury's"),
+		SSXRemaster::TuningFor(TEXT("snow")).LightScatter < SSXRemaster::TuningFor(TEXT("merquer")).LightScatter);
+	TestEqual(TEXT("an unknown track keeps the default glow"), SSXRemaster::TuningFor(TEXT("nothing")).LightScatter, 1.f);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSSXRenderFogTest, "SSX.Render.Fog", RenderLookFlags)
 bool FSSXRenderFogTest::RunTest(const FString&)
 {

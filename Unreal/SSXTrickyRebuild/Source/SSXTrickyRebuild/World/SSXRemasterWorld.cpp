@@ -153,15 +153,25 @@ const SSXRemaster::FTrackTuning& SSXRemaster::TuningFor(const FString& Stem)
 	// scene; indoor (Tokyo Megaplex, Pipedream): hardly any sun; the front end's dark ice backdrop: no sun, only its own light.
 	static const FTrackTuning Table[] = {
 		// Snowdream: its orange lamps at Merqury's strength turned the moonlit snow peach under large halos.
-		[&Make]() { FTrackTuning T = Make(TEXT("snow"), 0.25f, 0.9f, 0.2f, 1.0f, 5.f, 25.f); T.Bloom = 0.45f; return T; }(),
-		[&Make]() { FTrackTuning T = Make(TEXT("merquer"), 0.25f, 0.9f, 0.2f, 1.0f, 5.f, 60.f); T.Bloom = 0.8f; return T; }(),
+		[&Make]() { FTrackTuning T = Make(TEXT("snow"), 0.25f, 0.9f, 0.2f, 1.0f, 5.f, 25.f); T.Bloom = 0.5f; T.LightScatter = 1.5f; return T; }(),
+		[&Make]() { FTrackTuning T = Make(TEXT("merquer"), 0.25f, 0.9f, 0.2f, 1.0f, 7.f, 60.f); T.Bloom = 1.f; T.LightScatter = 3.f; return T; }(),
 		Make(TEXT("megaple"), 0.2f, 0.6f, 0.3f, 0.95f, 4.f, 40.f),
 		Make(TEXT("pipe"), 0.2f, 0.6f, 0.3f, 0.95f, 4.f, 40.f),
-		[&Make]() { FTrackTuning T = Make(TEXT("trick"), 0.25f, 0.9f, 0.2f, 1.0f, 5.f, 60.f); T.Bloom = 0.8f; return T; }(),
+		[&Make]() { FTrackTuning T = Make(TEXT("trick"), 0.25f, 0.9f, 0.2f, 1.0f, 7.f, 60.f); T.Bloom = 1.f; T.LightScatter = 3.f; return T; }(),
 		// Elysium's orange sunset light would turn its pink-purple slopes peach: a paler sun, more of the baked light.
 		Make(TEXT("elysium"), 1.6f, 0.3f, 0.5f, 0.7f, 3.f, 15.f),
 		// Mesablanca's blue sky light cooled its warm sunset snow grey: less sky, more of the baked light, a warmer sun.
 		Make(TEXT("mesa"), 2.0f, 0.85f, 0.25f, 0.8f, 3.f, 15.f),
+		// Garibaldi: a crisp clear alpine day.
+		[&Make]() { FTrackTuning T = Make(TEXT("gari"), 2.2f, 0.5f, 0.55f, 0.55f, 3.f, 15.f); T.Saturation = 1.1f; T.Bloom = 0.45f; return T; }(),
+		// Aloha Ice Jam: a high, hot tropical sun over warm haze; the sun rather than the baked light shapes the slopes.
+		[&Make]() { FTrackTuning T = Make(TEXT("aloha"), 2.8f, 0.75f, 0.45f, 0.4f, 3.f, 15.f); T.SunElevation = 65.f; T.SunTint = FLinearColor(1.f, 0.88f, 0.68f);
+			T.FogTint = FLinearColor(1.f, 0.72f, 0.5f); T.Saturation = 1.3f; T.Bloom = 0.5f; T.Clouds = 0.8f; return T; }(),
+		// Untracked: hard high-altitude light, a pale sun and plenty of glints on the powder.
+		[&Make]() { FTrackTuning T = Make(TEXT("untrack"), 2.4f, 0.4f, 0.65f, 0.5f, 3.f, 15.f); T.Saturation = 1.05f; T.Clouds = 0.4f; T.Sparkle = 4.f; return T; }(),
+		// Alaska: a low golden sun with long shadows, blue shade and cold blue haze.
+		[&Make]() { FTrackTuning T = Make(TEXT("alaska"), 4.f, 0.5f, 0.6f, 0.3f, 3.f, 15.f); T.SunElevation = 20.f; T.SunTint = FLinearColor(1.f, 0.7f, 0.48f);
+			T.FogTint = FLinearColor(0.42f, 0.58f, 0.85f); T.Saturation = 1.1f; T.Bloom = 0.5f; T.Clouds = 0.3f; T.Sparkle = 3.5f; return T; }(),
 		[&Make]() { FTrackTuning T = Make(TEXT("frontend"), 0.f, 0.6f, 0.05f, 1.0f, 3.f, 15.f); T.FogStrength = 0.f; T.Saturation = 1.f; T.Bloom = 0.3f; T.MaxLights = 0; T.RiderFill = 0.85f;
 			T.Emissive = 0.f; T.Sparkle = 0.f; return T; }(),   // the ice backdrop's bright texels are not lamps
 	};
@@ -1241,6 +1251,13 @@ void USSXRemasterWorld::Apply()
 			SunColour = FMath::Lerp(FLinearColor::White, FLinearColor(L.Colour.X / Max, L.Colour.Y / Max, L.Colour.Z / Max), T.SunSaturation);
 		}
 	}
+	if (T.SunElevation > 0.f)
+	{
+		const FVector2D Flat = FVector2D(SunDir.X, SunDir.Y).GetSafeNormal();
+		const double R = FMath::DegreesToRadians(double(T.SunElevation));
+		SunDir = FVector(Flat.X * FMath::Cos(R), Flat.Y * FMath::Cos(R), -FMath::Sin(R));
+	}
+	if (T.SunTint.A > 0.f) { SunColour = T.SunTint; }
 	if (ADirectionalLight* D = T.SunLux > 0.f ? W->SpawnActor<ADirectionalLight>(FVector::ZeroVector, SunDir.Rotation(), P) : nullptr)
 	{
 		UDirectionalLightComponent* C = CastChecked<UDirectionalLightComponent>(D->GetLightComponent());
@@ -1294,6 +1311,7 @@ void USSXRemasterWorld::Apply()
 		C->SetIntensity(T.LightCandela * float(FMath::Min(Max, 2.0)));
 		C->SetLightColor(Colour);
 		C->SetAttenuationRadius(SSXRemaster::LightRadius(L.Falloff));
+		C->SetVolumetricScatteringIntensity(T.LightScatter);
 		LocalLights.Add(C);
 	}
 	bAllLightShadows = T.bLightShadows;
@@ -1304,7 +1322,7 @@ void USSXRemasterWorld::Apply()
 		if (AExponentialHeightFog* F = W->SpawnActor<AExponentialHeightFog>(P))
 		{
 			UExponentialHeightFogComponent* C = F->GetComponent();
-			C->SetFogInscatteringColor(FLinearColor(Track->ClearColour()));
+			C->SetFogInscatteringColor(T.FogTint.A > 0.f ? T.FogTint : FLinearColor(Track->ClearColour()));
 			C->SetFogHeightFalloff(0.0002f);
 			C->SetFogMaxOpacity(1.f);
 			Fog = C;

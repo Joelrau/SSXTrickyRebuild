@@ -38,6 +38,9 @@ namespace SSXRemaster
 	{
 		const TCHAR* Stem = nullptr;
 		float SunLux = 2.0f;
+		float SunElevation = 0.f;       // degrees; 0 = the track's own direction, raised to ssx.Render.SunMinElevation
+		FLinearColor SunTint = FLinearColor::Transparent;   // A > 0: replaces the sun colour
+		FLinearColor FogTint = FLinearColor::Transparent;   // A > 0: replaces the fog colour (else the track's clear colour)
 		float SunSaturation = 0.6f;     // share of the track light's colour kept (the rest white): the baked ambient carries the palette
 		float SkyLight = 0.5f;
 		float BakedAmbient = 0.55f;     // MPC_SSXRemaster values
@@ -47,6 +50,7 @@ namespace SSXRemaster
 		float FogStrength = 1.f;        // 1 = almost opaque at the draw distance, 0 = no fog
 		float Bloom = 0.5f;             // bloom intensity, threshold 1 (highlights only)
 		float LightCandela = 15.f;      // track point / spot lights: candela per unit of the original colour
+		float LightScatter = 1.f;       // their glow in the volumetric fog (High and Epic)
 		float RiderFill = 0.6f;         // share of the Classic rider shading kept under the new light (1 = all of it)
 		float SpriteGlow = 0.8f;        // share of their own brightness the lit alpha sprites keep (spray, fog puffs)
 		float Clouds = 0.6f;            // drifting cloud wisps over the open blue sky of the dome (0 = none)
