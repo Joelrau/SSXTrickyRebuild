@@ -67,6 +67,8 @@ namespace SSXRemaster
 	/** The Remastered look draws real rider shadows in this world (a sun of at least 1 lux); elsewhere the original
 	 *  projected shadow stays (Particles/SSXParticleWorld.cpp). */
 	SSXTRICKYREBUILD_API bool RealRiderShadows(const UWorld& World);
+	/** The sun light's travel direction turned to the compass bearing of the visible sun (ToSun), its height kept. */
+	SSXTRICKYREBUILD_API FVector SunLightFacing(const FVector& LightDir, const FVector& ToSun);
 	/** The Classic material of a slot, also while the Remastered look shows a lit twin there (game code reading
 	 *  parameters, e.g. the flipbooks' BaseTex). */
 	SSXTRICKYREBUILD_API UMaterialInterface* ClassicMaterial(UMeshComponent& C, int32 Slot);

@@ -271,6 +271,14 @@ bool FSSXRenderTrackTuningTest::RunTest(const FString&)
 		Suns.Add(T.SunLux);
 	}
 	TestEqual(TEXT("each its own sun"), Suns.Num(), 4);
+	{
+		const FVector Light = FVector(0.5, 0.0, -FMath::Sqrt(0.75)), ToSun = FVector(0.0, 0.9, 0.1).GetSafeNormal();
+		const FVector Faced = SSXRemaster::SunLightFacing(Light, ToSun);
+		TestTrue(TEXT("the light keeps its height"), FMath::IsNearlyEqual(Faced.Z, Light.Z, 1e-9));
+		TestTrue(TEXT("the light is still a unit vector"), FMath::IsNearlyEqual(Faced.Size(), 1.0, 1e-9));
+		TestTrue(TEXT("the light travels away from the sun's bearing"), Faced.Y < -0.4 && FMath::Abs(Faced.X) < 1e-9);
+		TestTrue(TEXT("a sun straight up changes nothing"), SSXRemaster::SunLightFacing(Light, FVector(0, 0, 1)) == Light);
+	}
 	TestEqual(TEXT("Alaska's light-shaft cards"), FString(SSXRemaster::TuningFor(TEXT("alaska")).LightShaftMaterials), FString(TEXT("tex_168_")));
 	TestNull(TEXT("no light-shaft cards elsewhere"), SSXRemaster::TuningFor(TEXT("aloha")).LightShaftMaterials);
 	TestNotNull(TEXT("the light-shaft material exists"), LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Remastered/M_RmLightShaft.M_RmLightShaft")));
