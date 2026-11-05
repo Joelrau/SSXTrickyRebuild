@@ -162,13 +162,13 @@ const SSXRemaster::FTrackTuning& SSXRemaster::TuningFor(const FString& Stem)
 	// scene; indoor (Tokyo Megaplex, Pipedream): hardly any sun; the front end's dark ice backdrop: no sun, only its own light.
 	static const FTrackTuning Table[] = {
 		// Snowdream: a cold blue moon; its orange lamps at Merqury's strength turned the moonlit snow peach under large halos.
-		[&Make]() { FTrackTuning T = Make(TEXT("snow"), 0.5f, 0.9f, 0.2f, 0.85f, 5.f, 25.f); T.SunElevation = 40.f; T.SunTint = FLinearColor(0.6f, 0.7f, 1.f);
+		[&Make]() { FTrackTuning T = Make(TEXT("snow"), 0.5f, 0.9f, 0.2f, 0.85f, 5.f, 25.f); T.SunElevation = 40.f; T.MoonAzimuthDeg = 66.5f; T.MoonElevationDeg = 2.5f; T.Stars = 1.f; T.SunTint = FLinearColor(0.6f, 0.7f, 1.f);
 			T.FogTint = FLinearColor(0.03f, 0.04f, 0.12f); T.Bloom = 0.5f; T.LightScatter = 1.5f; return T; }(),
-		[&Make]() { FTrackTuning T = Make(TEXT("merquer"), 0.25f, 0.9f, 0.2f, 0.9f, 7.f, 60.f); T.FogTint = FLinearColor(0.04f, 0.06f, 0.16f); T.Bloom = 1.f; T.LightScatter = 3.f; return T; }(),
+		[&Make]() { FTrackTuning T = Make(TEXT("merquer"), 0.25f, 0.9f, 0.2f, 0.9f, 7.f, 60.f); T.MoonAzimuthDeg = 111.3f; T.MoonElevationDeg = 9.3f; T.Stars = 0.4f; T.FogTint = FLinearColor(0.04f, 0.06f, 0.16f); T.Bloom = 1.f; T.LightScatter = 3.f; return T; }(),
 		// Tokyo Megaplex: bright neon in the navy haze of its night sky; Pipedream: the grey-teal haze of its windows.
 		[&Make]() { FTrackTuning T = Make(TEXT("megaple"), 0.2f, 0.6f, 0.3f, 0.9f, 6.f, 50.f); T.FogTint = FLinearColor(0.05f, 0.06f, 0.16f); T.Bloom = 0.8f; T.LightScatter = 2.f; return T; }(),
 		[&Make]() { FTrackTuning T = Make(TEXT("pipe"), 0.2f, 0.6f, 0.3f, 0.9f, 5.f, 45.f); T.FogTint = FLinearColor(0.12f, 0.2f, 0.24f); T.Bloom = 0.7f; T.LightScatter = 2.f; return T; }(),
-		[&Make]() { FTrackTuning T = Make(TEXT("trick"), 0.25f, 0.9f, 0.2f, 1.0f, 7.f, 60.f); T.Bloom = 1.f; T.LightScatter = 3.f; return T; }(),
+		[&Make]() { FTrackTuning T = Make(TEXT("trick"), 0.25f, 0.9f, 0.2f, 1.0f, 7.f, 60.f); T.MoonAzimuthDeg = 117.3f; T.MoonElevationDeg = 9.4f; T.Stars = 1.f; T.Bloom = 1.f; T.LightScatter = 3.f; return T; }(),
 		// Elysium: a dim pink-red evening sun and haze, from its sky art.
 		[&Make]() { FTrackTuning T = Make(TEXT("elysium"), 1.9f, 0.3f, 0.4f, 0.42f, 3.f, 15.f); T.SunElevation = 25.f; T.SunTint = FLinearColor(1.f, 0.5f, 0.46f);
 			T.FogTint = FLinearColor(0.66f, 0.26f, 0.35f); T.Saturation = 1.2f; T.Bloom = 0.5f; return T; }(),
@@ -1253,6 +1253,7 @@ void USSXRemasterWorld::Apply()
 		UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("RiderFill"), T.RiderFill);
 		UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("SpriteGlow"), T.SpriteGlow);
 		UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("Clouds"), T.Clouds);
+		UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("Stars"), T.Stars);
 		UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("Sparkle"), T.Sparkle);
 	}
 
@@ -1306,7 +1307,12 @@ void USSXRemasterWorld::Apply()
 	// Tracks with the original's sun flare: the drawn sun sits where the flare and the painted sky have it, the light
 	// comes from the same bearing at its own height.
 	FVector ToSun = -SunDir;
-	if (Track && Track->bFlareOn)
+	if (T.MoonAzimuthDeg >= 0.f)
+	{
+		ToSun = SSXSim::GameToUnreal(SSXLensFX::SunDirectionGame(T.MoonAzimuthDeg, T.MoonElevationDeg)).GetSafeNormal();
+		SunDir = SSXRemaster::SunLightFacing(SunDir, ToSun);
+	}
+	else if (Track && Track->bFlareOn)
 	{
 		ToSun = SSXSim::GameToUnreal(SSXLensFX::SunDirectionGame(Track->SunAzimuthDeg, Track->SunElevationDeg)).GetSafeNormal();
 		SunDir = SSXRemaster::SunLightFacing(SunDir, ToSun);

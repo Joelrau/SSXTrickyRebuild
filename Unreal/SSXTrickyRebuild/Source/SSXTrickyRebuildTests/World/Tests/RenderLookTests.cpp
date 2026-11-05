@@ -271,6 +271,9 @@ bool FSSXRenderTrackTuningTest::RunTest(const FString&)
 		Suns.Add(T.SunLux);
 	}
 	TestEqual(TEXT("each its own sun"), Suns.Num(), 4);
+	TestTrue(TEXT("night tracks face their painted moons"), SSXRemaster::TuningFor(TEXT("snow")).MoonAzimuthDeg > 0.f && SSXRemaster::TuningFor(TEXT("merquer")).MoonAzimuthDeg > 0.f
+		&& SSXRemaster::TuningFor(TEXT("trick")).MoonAzimuthDeg > 0.f);
+	TestTrue(TEXT("day tracks have no moon or stars"), SSXRemaster::TuningFor(TEXT("gari")).MoonAzimuthDeg < 0.f && SSXRemaster::TuningFor(TEXT("gari")).Stars == 0.f);
 	TestNotNull(TEXT("Alaska has see-through ice"), SSXRemaster::TuningFor(TEXT("alaska")).IceTextures);
 	TestNull(TEXT("no see-through ice elsewhere"), SSXRemaster::TuningFor(TEXT("gari")).IceTextures);
 	TestNotNull(TEXT("the ice material exists"), LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Remastered/M_RmIce.M_RmIce")));

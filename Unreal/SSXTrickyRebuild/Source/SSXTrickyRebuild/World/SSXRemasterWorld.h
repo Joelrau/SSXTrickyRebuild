@@ -40,6 +40,9 @@ namespace SSXRemaster
 		float SunLux = 2.0f;
 		const TCHAR* IceTextures = nullptr;   // texture indices drawn as lit see-through ice (M_RmIce), not the core / soft split
 		const TCHAR* LightShaftMaterials = nullptr;   // prefix of the map's light-shaft cards, drawn as soft light (M_RmLightShaft)
+		float MoonAzimuthDeg = -1.f;    // game degrees of the moon painted on the sky, -1 = none: the light's bearing, and the sky's moon glow
+		float MoonElevationDeg = 0.f;
+		float Stars = 0.f;              // stars and moon glow on the night sky (0 = none)
 		float SunElevation = 0.f;       // degrees; 0 = the track's own direction, raised to ssx.Render.SunMinElevation
 		FLinearColor SunTint = FLinearColor::Transparent;   // A > 0: replaces the sun colour
 		FLinearColor FogTint = FLinearColor::Transparent;   // A > 0: replaces the fog colour (else the track's clear colour)

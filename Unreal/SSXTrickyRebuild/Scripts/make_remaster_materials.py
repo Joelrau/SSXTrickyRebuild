@@ -168,8 +168,21 @@ SOFT_DEPTH = "return (PD <= CD.r * 1.0005 + 0.5) ? 1.0 : 0.0;"
 # The Classic sky, plus slow cloud wisps (value-noise fbm on the view ray projected to a cloud plane) only where the dome
 # shows open blue sky above the horizon, so painted mountains and sunsets stay as drawn. Clouds = MPC amount per track.
 CLOUDS = """
-if (Clouds <= 0.0) return c;
 float3 d = normalize(WP - Cam);
+if (Clouds <= 0.0)
+{
+    if (Stars <= 0.0) return c;
+    // Night: a glow around the painted moon (the Sun* values hold its direction and colour); stars where the sky is dark.
+    float toMoon = saturate(dot(d, float3(SunX, SunY, SunZ)));
+    float3 glowed = c + float3(SunR, SunG, SunB) * (pow(toMoon, 60.0) * 0.12 + pow(toMoon, 8.0) * 0.04) * Stars;
+    float2 st = d.xy / max(d.z + 0.3, 0.3) * 90.0;
+    float2 cell = floor(st);
+    float h = frac(sin(dot(cell, float2(127.1, 311.7))) * 43758.5453);
+    float star = step(0.985, h) * smoothstep(0.35, 0.1, length(frac(st) - 0.5)) * (0.5 + 0.5 * frac(h * 91.7));
+    float twinkle = 0.75 + 0.25 * sin(T * 2.0 + h * 200.0);
+    float dark = saturate(1.0 - dot(c, float3(0.2126, 0.7152, 0.0722)) * 25.0);
+    return glowed + star * twinkle * saturate((d.z - 0.12) * 6.0) * dark * Stars * 0.7;
+}
 float up = saturate((d.z - 0.04) * 4.0);
 float3 sun = float3(SunX, SunY, SunZ);
 float3 tint = float3(SunR, SunG, SunB);
@@ -551,7 +564,7 @@ scalars = []
 for n, v in (("BakedWeight", 0.6), ("BakedAmbient", 0.55), ("AlbedoScale", 0.9), ("BaseRoughness", 0.62), ("Clouds", 0.0),
              ("Exposure", 1.0), ("Saturation", 1.15), ("Emissive", 3.0), ("RiderFill", 0.6), ("RiderRim", 0.35),
              ("ParticleSoftness", 40.0), ("SpriteGlow", 0.35), ("DrawDistanceScale", 3.0), ("DrawDistanceUp", 1.0), ("Sparkle", 3.0), ("SpeedFx", 0.0),
-             ("TrailX", 0.0), ("TrailY", 0.0), ("TrailSize", 1.0e9), ("WorldTime", 0.0),
+             ("TrailX", 0.0), ("TrailY", 0.0), ("TrailSize", 1.0e9), ("WorldTime", 0.0), ("Stars", 0.0),
              ("SunX", 0.0), ("SunY", 0.0), ("SunZ", 1.0), ("SunR", 1.0), ("SunG", 1.0), ("SunB", 1.0)):
     p = old.get(n) or unreal.CollectionScalarParameter()
     p.set_editor_property("parameter_name", n)
@@ -790,7 +803,7 @@ connect_prop(custom(m, -400, 0, SKY_SHADE, F3, [("Tex", (sky, "RGB")), ("Factor"
                                                  ("WP", (expr(m, unreal.MaterialExpressionWorldPosition, -750, 200), "")),
                                                  ("Cam", (expr(m, unreal.MaterialExpressionCameraPositionWS, -750, 280), "")),
                                                  ("T", (coll(m, rm, "WorldTime", -750, 360), "")),
-                                                 ("Clouds", (coll(m, rm, "Clouds", -750, 440), ""))] + [(k, (coll(m, rm, k, -750, 520 + 60 * i), "")) for i, k in enumerate(("SunX", "SunY", "SunZ", "SunR", "SunG", "SunB"))],
+                                                 ("Clouds", (coll(m, rm, "Clouds", -750, 440), ""))] + [(k, (coll(m, rm, k, -750, 520 + 60 * i), "")) for i, k in enumerate(("SunX", "SunY", "SunZ", "SunR", "SunG", "SunB", "Stars"))],
                     "RmSkyShade"), "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
 finish(m)
 
@@ -799,7 +812,7 @@ connect_prop(custom(m, -400, 0, CLEAR_SHADE, F3, [("C", (coll(m, mpc, "ClearColo
                                                    ("WP", (expr(m, unreal.MaterialExpressionWorldPosition, -750, 200), "")),
                                                    ("Cam", (expr(m, unreal.MaterialExpressionCameraPositionWS, -750, 280), "")),
                                                    ("T", (coll(m, rm, "WorldTime", -750, 360), "")),
-                                                   ("Clouds", (coll(m, rm, "Clouds", -750, 440), ""))] + [(k, (coll(m, rm, k, -750, 520 + 60 * i), "")) for i, k in enumerate(("SunX", "SunY", "SunZ", "SunR", "SunG", "SunB"))], "RmClearColour"), "",
+                                                   ("Clouds", (coll(m, rm, "Clouds", -750, 440), ""))] + [(k, (coll(m, rm, k, -750, 520 + 60 * i), "")) for i, k in enumerate(("SunX", "SunY", "SunZ", "SunR", "SunG", "SunB", "Stars"))], "RmClearColour"), "",
              unreal.MaterialProperty.MP_EMISSIVE_COLOR)
 finish(m)
 
@@ -812,7 +825,9 @@ for name, glass in (("M_RmProp_Translucent", False), ("M_RmPropGlass", True), ("
     m.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_DEFAULT_LIT)
     m.set_editor_property("translucency_lighting_mode", unreal.TranslucencyLightingMode.TLM_SURFACE_PER_PIXEL_LIGHTING)
   else:
-    m.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_UNLIT)
+    # Soft layers take the same light as the solid core next to them; unlit, the two showed as different colours.
+    m.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_DEFAULT_LIT)
+    m.set_editor_property("translucency_lighting_mode", unreal.TranslucencyLightingMode.TLM_SURFACE_PER_PIXEL_LIGHTING)
   m.set_editor_property("blend_mode", unreal.BlendMode.BLEND_TRANSLUCENT)
   m.set_editor_property("two_sided", True)
   m.set_editor_property("use_translucency_vertex_fog", True)
@@ -844,7 +859,13 @@ for name, glass in (("M_RmProp_Translucent", False), ("M_RmPropGlass", True), ("
     connect_prop(expr(m, unreal.MaterialExpressionConstant, -400, 140, r=0.12 if ice else 0.03), "", unreal.MaterialProperty.MP_ROUGHNESS)
     connect_prop(expr(m, unreal.MaterialExpressionConstant, -400, 200, r=0.7 if ice else 1.0), "", unreal.MaterialProperty.MP_SPECULAR)
   else:
-    connect_prop(shade, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    connect_prop(shade, "", unreal.MaterialProperty.MP_BASE_COLOR)
+    amb = expr(m, unreal.MaterialExpressionMultiply, -200, 40)
+    connect(shade, "", amb, "A")
+    connect(coll(m, rm, "BakedAmbient", -400, 60), "", amb, "B")
+    connect_prop(amb, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    connect_prop(expr(m, unreal.MaterialExpressionConstant, -400, 140, r=0.7), "", unreal.MaterialProperty.MP_ROUGHNESS)
+    connect_prop(expr(m, unreal.MaterialExpressionConstant, -400, 200, r=0.3), "", unreal.MaterialProperty.MP_SPECULAR)
   gs_a = custom(m, -1000, 400, PROP_GS_ALPHA, F1, [("A", (base, "A")), ("VA", (vc, "A"))], "PropGsAlpha")
   if ice:
     alpha = expr(m, unreal.MaterialExpressionConstant, -800, 400, r=0.85)
