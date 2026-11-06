@@ -1,8 +1,12 @@
+#include "Components/ExponentialHeightFogComponent.h"
 #include "Components/LightComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Engine/ExponentialHeightFog.h"
 #include "Engine/PostProcessVolume.h"
 #include "Engine/SpotLight.h"
 #include "EngineUtils.h"
+#include "Kismet/KismetMaterialLibrary.h"
+#include "Materials/MaterialParameterCollection.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -360,6 +364,43 @@ bool FSSXRenderSweepShadowsTest::RunTest(const FString&)
 	GEngine->DestroyWorldContext(W);
 	W->DestroyWorld(false);
 	SSXRenderLook::SetQuality(PrevQuality);
+	return true;
+}
+
+// The sky is unlit: PP_RmScene shows unlit pixels from MPC SkyFrom on as the sky, so it must lie short of the dome (grown
+// past the fog) and beyond the draw distance, where the world's last unlit pixels (spline lines) end.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSSXRenderSkyFromTest, "SSX.Render.SkyFrom", RenderLookFlags)
+bool FSSXRenderSkyFromTest::RunTest(const FString&)
+{
+	UMaterialParameterCollection* Mpc = LoadObject<UMaterialParameterCollection>(nullptr, SSXRemaster::CollectionPath);
+	UStaticMesh* Sphere = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Sphere.Sphere"));
+	if (!TestNotNull(TEXT("MPC_SSXRemaster"), Mpc) || !TestNotNull(TEXT("the engine sphere"), Sphere)) { return false; }
+	TestNotNull(TEXT("the collection has SkyFrom"), Mpc->GetScalarParameterByName(TEXT("SkyFrom")));
+	UWorld* W = UWorld::CreateWorld(EWorldType::Editor, false, TEXT("gari"), CreatePackage(TEXT("/Temp/SSXTest/gari")));
+	FWorldContext& Ctx = GEngine->CreateNewWorldContext(EWorldType::Editor);
+	Ctx.SetCurrentWorld(W);
+	AStaticMeshActor* Dome = W->SpawnActor<AStaticMeshActor>();
+	Dome->GetStaticMeshComponent()->SetMobility(EComponentMobility::Movable);
+	Dome->GetStaticMeshComponent()->SetStaticMesh(Sphere);
+	Dome->SetActorScale3D(FVector(2000.0));   // 1 km
+	Dome->Tags.Add(USSXWorldPresentation::SkyTag);
+	USSXRemasterLibrary::SetRemasteredInWorld(W, true);
+	const AExponentialHeightFog* Fog = nullptr;
+	for (TActorIterator<AExponentialHeightFog> It(W); It; ++It) { Fog = *It; }
+	if (!Fog)
+	{
+		SSXTest::Skip(*this, TEXT("SKIPPED sky distance: no Garibaldi presentation row (no fog)"));
+	}
+	else
+	{
+		const float SkyFrom = UKismetMaterialLibrary::GetScalarParameterValue(W, Mpc, TEXT("SkyFrom"));
+		const double DomeNear = 50.0 * Dome->GetActorScale3D().X;
+		TestTrue(TEXT("the sky starts short of the dome"), SkyFrom > 0.f && SkyFrom < DomeNear);
+		TestTrue(TEXT("and beyond the draw distance (half the fog's cutoff)"), SkyFrom > Fog->GetComponent()->FogCutoffDistance * 0.5f);
+	}
+	USSXRemasterLibrary::SetRemasteredInWorld(W, false);
+	GEngine->DestroyWorldContext(W);
+	W->DestroyWorld(false);
 	return true;
 }
 

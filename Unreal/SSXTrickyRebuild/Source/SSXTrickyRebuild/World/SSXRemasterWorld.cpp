@@ -430,16 +430,25 @@ void USSXRemasterWorld::Tick(float DeltaTime)
 
 void USSXRemasterWorld::UpdateFog()
 {
-	UExponentialHeightFogComponent* C = Fog.Get();
-	if (!C) { return; }
-	const SSXRemaster::FFogSetup F = SSXRemaster::FogFor(FogDrawDistance, SSXRemaster::DrawDistanceScale(SSXRenderLook::GetQuality()), FogStrength);
-	C->SetStartDistance(F.Start);
-	C->SetFogDensity(F.Density);
-	C->SetFogCutoffDistance(F.Cutoff);
-	const double Grow = FMath::Max(1.0, F.Cutoff * 1.05 / FMath::Max(SkyNearest, 1.0));
-	for (const TPair<TWeakObjectPtr<AActor>, FVector>& Sky : SkyBaseScale)
+	double Grow = 1.0;
+	if (UExponentialHeightFogComponent* C = Fog.Get())
 	{
-		if (AActor* A = Sky.Key.Get()) { A->SetActorScale3D(Sky.Value * Grow); }
+		const SSXRemaster::FFogSetup F = SSXRemaster::FogFor(FogDrawDistance, SSXRemaster::DrawDistanceScale(SSXRenderLook::GetQuality()), FogStrength);
+		C->SetStartDistance(F.Start);
+		C->SetFogDensity(F.Density);
+		C->SetFogCutoffDistance(F.Cutoff);
+		Grow = FMath::Max(1.0, F.Cutoff * 1.05 / FMath::Max(SkyNearest, 1.0));
+		for (const TPair<TWeakObjectPtr<AActor>, FVector>& Sky : SkyBaseScale)
+		{
+			if (AActor* A = Sky.Key.Get()) { A->SetActorScale3D(Sky.Value * Grow); }
+		}
+	}
+	// PP_RmScene: unlit pixels this far from the camera are the (unlit) sky, shown like the lit world. Short of the dome's
+	// nearest point, past anything else the world draws unlit (spline lines end inside the draw distance).
+	const double Sky = SkyBaseScale.Num() > 0 ? SkyNearest * Grow : USSXWorldPresentation::ClearShellRadius;
+	if (UMaterialParameterCollection* Mpc = LoadObject<UMaterialParameterCollection>(nullptr, SSXRemaster::CollectionPath))
+	{
+		UKismetMaterialLibrary::SetScalarParameterValue(GetWorld(), Mpc, TEXT("SkyFrom"), float(Sky * 0.8));
 	}
 }
 
@@ -1231,6 +1240,20 @@ void USSXRemasterWorld::Apply()
 	P.ObjectFlags = RF_Transient;
 	P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
+	// The dome follows the camera and its low, wide cap is nearer than the draw distance: UpdateFog scales it out past the
+	// fog's cutoff, so the sky stays clear
+	SkyNearest = SSXRemaster::SkyDistance;
+	SkyBaseScale.Reset();
+	for (TActorIterator<AActor> It(W); It; ++It)
+	{
+		if (!It->ActorHasTag(USSXWorldPresentation::SkyTag)) { continue; }
+		SkyBaseScale.Add(*It, It->GetActorScale3D());
+		FVector Origin, Extent;
+		It->GetActorBounds(false, Origin, Extent, true);
+		const FVector Lo = Origin - Extent - It->GetActorLocation(), Hi = Origin + Extent - It->GetActorLocation();
+		for (const double D : { Hi.Z, Hi.X, -Lo.X, Hi.Y, -Lo.Y }) { if (D > 100.0) { SkyNearest = FMath::Min(SkyNearest, D); } }
+	}
+
 	if (APostProcessVolume* V = W->SpawnActor<APostProcessVolume>(P))
 	{
 		V->bUnbound = true;
@@ -1434,19 +1457,6 @@ void USSXRemasterWorld::Apply()
 			Fog = C;
 			FogDrawDistance = Track->DrawDist1P;
 			FogStrength = T.FogStrength;
-			// The dome follows the camera and its low, wide cap is nearer than the draw distance: UpdateFog scales it out
-			// past the fog's cutoff, so the sky stays clear
-			SkyNearest = SSXRemaster::SkyDistance;
-			SkyBaseScale.Reset();
-			for (TActorIterator<AActor> It(W); It; ++It)
-			{
-				if (!It->ActorHasTag(USSXWorldPresentation::SkyTag)) { continue; }
-				SkyBaseScale.Add(*It, It->GetActorScale3D());
-				FVector Origin, Extent;
-				It->GetActorBounds(false, Origin, Extent, true);
-				const FVector Lo = Origin - Extent - It->GetActorLocation(), Hi = Origin + Extent - It->GetActorLocation();
-				for (const double D : { Hi.Z, Hi.X, -Lo.X, Hi.Y, -Lo.Y }) { if (D > 100.0) { SkyNearest = FMath::Min(SkyNearest, D); } }
-			}
 			UpdateFog();
 			C->SetVolumetricFog(true);
 			C->SetVolumetricFogExtinctionScale(T.FogVolume);

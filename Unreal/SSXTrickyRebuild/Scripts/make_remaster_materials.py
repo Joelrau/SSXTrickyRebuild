@@ -10,9 +10,9 @@ looks exactly as in Classic; the sun, lamps and Lumen add to that.
 M_RmRider* are the lit riders: the original's per-vertex light rig (the same parameters the Classic rider materials get
 every frame) becomes a local fill and a rim light in the track's colours, on top of the sun, sky and Lumen; chrome
 outfits are metal, glossy parts smoother; the rider depth pull and guard band of the Classic riders stay.
-M_RmSky / M_RmClearColour: the sky dome and the clear-colour shell as black lit surfaces glowing with their Classic
-colour as linear light, so the post pass treats the whole background like the lit world and anything translucent in
-front of it (soft props, snowfall) blends in the same space.
+M_RmSky / M_RmClearColour: the sky dome and the clear-colour shell, unlit (no lighting, shadow-page marking or Lumen on
+the sky), glowing with their Classic colour as linear light; the post pass treats them like the lit world, so anything
+translucent in front of them (soft props, snowfall) blends in the same space.
 M_RmProp_Translucent: the soft edges of the soft props (the Classic M_SSXProp_Translucent pass: same alpha, soft-prop
 depth and draw distance), lit per pixel like their solid core; Lumen's front-layer reflections stay for glass and water.
 Snow trails: the terrain materials read the trail map (RmTrails, a render target the game stamps where riders carve,
@@ -20,9 +20,10 @@ World/SSXRemasterWorld.cpp; MPC TrailX / TrailY / TrailSize place it in world sp
 and a little shade. M_RmTrailStamp / M_RmTrailShift draw into that map.
 M_RmParticleAdd / M_RmParticleAlpha: the Classic sprite colours (GsSprite) as linear light, faded softly where they
 meet geometry, with the Classic soft-prop depth test.
-PP_RmScene replaces the tonemapper in the Remastered look (it adds the engine's bloom itself): unlit pixels (riders, sky, particles: still the Classic
-materials, PS2 display values) pass through exactly as PP_SSXAuthoredColour shows them; lit pixels (linear light) get
-the exposure, a soft shoulder and the sRGB encode.
+PP_RmScene replaces the tonemapper in the Remastered look (it adds the engine's bloom itself): unlit pixels nearer than
+the sky (MPC_SSXRemaster.SkyFrom, World/SSXRemasterWorld.cpp; the Classic materials left, PS2 display values) pass
+through exactly as PP_SSXAuthoredColour shows them; lit pixels and the sky (linear light) get the exposure, a soft
+shoulder and the sRGB encode.
 """
 import os
 import struct
@@ -320,7 +321,7 @@ PP_SCENE = f"""
 float3 s = max(Scene.rgb / View.PreExposure, 0.0);
 float3 b = max(Bloom.rgb / View.PreExposure, 0.0);
 float vig = 1.0 - SpeedFx * saturate((length(UV - 0.5) * 1.414 - 0.45) / 0.55);   // darker edges at speed
-if (SM.r < 0.001) return saturate((s + {ENC.format(x='saturate(b)')} * 0.5) * Brightness) * vig;   // unlit: Classic + a share of the glow
+if (SM.r < 0.001 && length(Rel) < SkyFrom) return saturate((s + {ENC.format(x='saturate(b)')} * 0.5) * Brightness) * vig;   // unlit short of the sky: Classic + a share of the glow
 float3 c = (s + b) * Exposure;
 c = max(lerp(dot(c, float3(0.2126, 0.7152, 0.0722)).xxx, c, Saturation), 0.0);
 float k = 0.8;
@@ -590,7 +591,7 @@ for n, v in (("BakedWeight", 0.6), ("BakedAmbient", 0.55), ("AlbedoScale", 0.9),
              ("Exposure", 1.0), ("Saturation", 1.15), ("Emissive", 3.0), ("RiderFill", 0.6), ("RiderRim", 0.5),
              ("ParticleSoftness", 80.0), ("SpriteGlow", 0.35), ("DrawDistanceScale", 3.0), ("DrawDistanceUp", 1.0), ("Sparkle", 3.0), ("SpeedFx", 0.0),
              ("TrailX", 0.0), ("TrailY", 0.0), ("TrailSize", 1.0e9), ("WorldTime", 0.0), ("Stars", 0.0),
-             ("SunX", 0.0), ("SunY", 0.0), ("SunZ", 1.0), ("SunR", 1.0), ("SunG", 1.0), ("SunB", 1.0)):
+             ("SunX", 0.0), ("SunY", 0.0), ("SunZ", 1.0), ("SunR", 1.0), ("SunG", 1.0), ("SunB", 1.0), ("SkyFrom", 60000.0)):
     p = old.get(n) or unreal.CollectionScalarParameter()
     p.set_editor_property("parameter_name", n)
     p.set_editor_property("default_value", v)
@@ -811,13 +812,9 @@ for name, additive in (("M_RmParticleAdd", True), ("M_RmParticleAlpha", False)):
 
 def glow_material(name):
     m = recreate(name, unreal.Material, unreal.MaterialFactoryNew())
-    m.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_DEFAULT_LIT)
+    m.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_UNLIT)
     m.set_editor_property("blend_mode", unreal.BlendMode.BLEND_OPAQUE)
     m.set_editor_property("two_sided", True)
-    zero = expr(m, unreal.MaterialExpressionConstant, -400, 200, r=0.0)
-    connect_prop(zero, "", unreal.MaterialProperty.MP_BASE_COLOR)
-    connect_prop(zero, "", unreal.MaterialProperty.MP_SPECULAR)
-    connect_prop(expr(m, unreal.MaterialExpressionConstant, -400, 300, r=1.0), "", unreal.MaterialProperty.MP_ROUGHNESS)
     return m
 
 
@@ -986,7 +983,9 @@ enc = custom(pp, -350, 0, PP_SCENE, F3,
               ("Exposure", (coll(pp, rm, "Exposure", -700, 500), "")),
               ("Saturation", (coll(pp, rm, "Saturation", -700, 600), "")),
               ("SpeedFx", (coll(pp, rm, "SpeedFx", -700, 700), "")),
-              ("UV", (expr(pp, unreal.MaterialExpressionScreenPosition, -700, 800), "ViewportUV"))], "RmScene")
+              ("UV", (expr(pp, unreal.MaterialExpressionScreenPosition, -700, 800), "ViewportUV")),
+              ("Rel", (camera_relative(pp, -700, 900), "")),
+              ("SkyFrom", (coll(pp, rm, "SkyFrom", -700, 1000), ""))], "RmScene")
 connect_prop(enc, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
 finish(pp)
 
