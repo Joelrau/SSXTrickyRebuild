@@ -279,8 +279,13 @@ bool FSSXRenderTrackTuningTest::RunTest(const FString&)
 	TestNotNull(TEXT("Alaska has see-through ice"), SSXRemaster::TuningFor(TEXT("alaska")).IceTextures);
 	TestNull(TEXT("no see-through ice elsewhere"), SSXRemaster::TuningFor(TEXT("gari")).IceTextures);
 	TestNotNull(TEXT("the ice material exists"), LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Remastered/M_RmIce.M_RmIce")));
-	TestTrue(TEXT("Alaska and Aloha redraw their shadow pages"), SSXRemaster::TuningFor(TEXT("alaska")).bNoShadowCache && SSXRemaster::TuningFor(TEXT("aloha")).bNoShadowCache);
-	TestFalse(TEXT("other tracks keep the shadow cache"), SSXRemaster::TuningFor(TEXT("gari")).bNoShadowCache);
+	TestFalse(TEXT("Alaska and Aloha keep the shadow cache"), SSXRemaster::TuningFor(TEXT("alaska")).bNoShadowCache || SSXRemaster::TuningFor(TEXT("aloha")).bNoShadowCache);
+	bool bLodDelta = false;
+	for (const SSXRenderLook::FCvarValue& C : SSXRenderLook::RemasteredCvars())
+	{
+		bLodDelta |= FString(C.Name) == TEXT("r.Nanite.VSMInvalidateOnLODDelta") && FString(C.Value) == TEXT("1");
+	}
+	TestTrue(TEXT("cached shadow pages are drawn again once their Nanite detail streamed in"), bLodDelta);
 	{
 		const FVector Light = FVector(0.5, 0.0, -FMath::Sqrt(0.75)), ToSun = FVector(0.0, 0.9, 0.1).GetSafeNormal();
 		const FVector Faced = SSXRemaster::SunLightFacing(Light, ToSun);

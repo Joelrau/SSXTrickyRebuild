@@ -63,7 +63,7 @@ namespace SSXRemaster
 		float Clouds = 0.6f;            // drifting cloud wisps over the open blue sky of the dome (0 = none)
 		float Sparkle = 3.0f;           // snow glints on the terrain
 		int32 MaxLights = 48;
-		bool bNoShadowCache = false;    // stale cached sun shadow pages show as blocks on these tracks: redrawn every frame
+		bool bNoShadowCache = false;    // redraw the shadow pages every frame (r.Shadow.Virtual.Cache 0)
 		bool bLightShadows = false;     // every point / spot light casts shadows at every quality (the front end: few lights)
 	};
 	SSXTRICKYREBUILD_API const FTrackTuning& TuningFor(const FString& Stem);
