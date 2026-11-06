@@ -180,7 +180,8 @@ in the Classic look, which stays the default and renders exactly as before.
   latency. The row appears only when AMD's free FSR plugin is installed in the engine:
   1. Download `UE-FSR-4_1_1.zip` (about 2 GB, MIT license) from <https://gpuopen.com/learn/ue-fsr/>.
   2. Copy its `FSR-580\FSR` folder to `<UE_5.8>\Engine\Plugins\Marketplace\FSR`.
-  3. Rebuild / repackage. The project enables the plugin as optional, so it builds and runs without it.
+  3. Rebuild / repackage. The project enables the plugin as optional, so it builds and runs without it; `package.bat`
+     makes it required for the length of a package (a Development build of the installed engine would leave it out).
 
   Frame generation is off by default and FSR upscaling stays off (`r.FidelityFX.FI.Enabled`,
   `r.FidelityFX.FSR.Enabled` in `DefaultEngine.ini`); the game keeps its own TSR anti-aliasing.

@@ -31,7 +31,7 @@ if /i "%~1"=="Classic" (
     set "OUT=%~dp0Packaged-Classic"
 )
 
-rem A Classic package that was cut short left its settings in the config files.
+rem A package that was cut short left its settings in the config and project files.
 call :RestoreConfig || exit /b 1
 rem The cooker mounts the plugins listed in the editor's receipt: with no FSR there, the game crashes at launch on its missing shaders.
 if /i not "%~1"=="Classic" (
@@ -40,6 +40,13 @@ if /i not "%~1"=="Classic" (
         echo The editor build has no FSR plugin: close the editor and run package.bat again.
         exit /b 1
     )
+)
+rem A Development build of the installed engine leaves out an optional plugin that the engine's own precompiled plugin
+rem list does not name, as FSR: with the plugin installed, the project file requires it for the length of the package.
+if /i not "%~1"=="Classic" if exist "%UE_ROOT%\Engine\Plugins\Marketplace\FSR\FSR.uplugin" (
+    if not exist "%KEEP%" mkdir "%KEEP%"
+    copy /y "%UPROJECT%" "%KEEP%\FsrOptional.uproject" >nul
+    powershell -NoProfile -Command "$t = [IO.File]::ReadAllText($env:UPROJECT) -replace '(\"Name\": \"FSR\",\s*\"Enabled\": true),\s*\"Optional\": true', '$1'; [IO.File]::WriteAllText($env:UPROJECT, $t)"
 )
 if /i "%~1"=="Classic" (
     if not exist "%KEEP%" mkdir "%KEEP%"
@@ -74,6 +81,7 @@ exit /b 0
 :RestoreConfig
 if exist "%KEEP%\DefaultEngine.ini" move /y "%KEEP%\DefaultEngine.ini" "%CFG%\DefaultEngine.ini" >nul
 if exist "%KEEP%\DefaultGame.ini" move /y "%KEEP%\DefaultGame.ini" "%CFG%\DefaultGame.ini" >nul
+if exist "%KEEP%\FsrOptional.uproject" move /y "%KEEP%\FsrOptional.uproject" "%UPROJECT%" >nul
 if not exist "%KEEP%\SSXTrickyRebuild.uproject" exit /b 0
 move /y "%KEEP%\SSXTrickyRebuild.uproject" "%UPROJECT%" >nul
 
