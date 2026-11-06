@@ -14,7 +14,7 @@ M_RmSky / M_RmClearColour: the sky dome and the clear-colour shell as black lit 
 colour as linear light, so the post pass treats the whole background like the lit world and anything translucent in
 front of it (soft props, snowfall) blends in the same space.
 M_RmProp_Translucent: the soft edges of the soft props (the Classic M_SSXProp_Translucent pass: same alpha, soft-prop
-depth and draw distance), unlit like Classic but as linear light, so they match their lit core.
+depth and draw distance), lit per pixel like their solid core; Lumen's front-layer reflections stay for glass and water.
 Snow trails: the terrain materials read the trail map (RmTrails, a render target the game stamps where riders carve,
 World/SSXRemasterWorld.cpp; MPC TrailX / TrailY / TrailSize place it in world space) as grooves: normals in world space
 and a little shade. M_RmTrailStamp / M_RmTrailShift draw into that map.
@@ -856,6 +856,9 @@ for name, glass in (("M_RmProp_Translucent", False), ("M_RmPropGlass", True), ("
     # Soft layers take the same light as the solid core next to them; unlit, the two showed as different colours.
     m.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_DEFAULT_LIT)
     m.set_editor_property("translucency_lighting_mode", unreal.TranslucencyLightingMode.TLM_SURFACE_PER_PIXEL_LIGHTING)
+    # Lumen's front-layer reflections (a second reflection pass, Epic) are for the mirror layers; rough foliage edges
+    # take the radiance-cache reflections of any translucent layer.
+    m.set_editor_property("allow_front_layer_translucency", False)
   m.set_editor_property("blend_mode", unreal.BlendMode.BLEND_TRANSLUCENT)
   m.set_editor_property("two_sided", True)
   m.set_editor_property("use_translucency_vertex_fog", True)
