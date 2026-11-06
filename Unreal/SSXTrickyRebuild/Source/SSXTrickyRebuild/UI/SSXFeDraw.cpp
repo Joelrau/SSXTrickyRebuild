@@ -7,7 +7,10 @@
 #include "Engine/Texture2D.h"
 #include "Engine/Engine.h"
 #include "HAL/IConsoleManager.h"
+#include "ImageCore.h"
 #include "ImageUtils.h"
+#include "Misc/CoreDelegates.h"
+#include "Tasks/Task.h"
 #include "World/SSXRenderLook.h"
 #include "Engine/GameViewportClient.h"
 #include "Framework/Application/SlateApplication.h"
@@ -303,11 +306,34 @@ namespace
 {
 	TMap<const UTexture*, FString> GSharpPaths;
 	TMap<const UTexture*, UTexture*> GSharpArt;   // rooted: they stay for the session; nullptr = failed to load
+	TMap<const UTexture*, UE::Tasks::TTask<FImage>> GSharpDecodes;   // decoding on a worker since registration
 }
 
 void SSXFeDrawHiRes::Register(const UTexture* Classic, const FString& SharpPath)
 {
 	GSharpPaths.Add(Classic, SharpPath);
+	// Remastered: the sharper copy decodes on a worker now, so its first draw only uploads it. The trick book's pages
+	// (three quarters of the art, shown one at a time) decode when first drawn.
+	if (SSXRenderLook::Get() != ESSXRenderLook::Remastered || SharpPath.Contains(TEXT("/TB_")) || GSharpDecodes.Contains(Classic))
+	{
+		return;
+	}
+	static bool bExitHook = false;
+	if (!bExitHook)
+	{
+		bExitHook = true;
+		FCoreDelegates::OnPreExit.AddLambda([]
+		{
+			for (TPair<const UTexture*, UE::Tasks::TTask<FImage>>& D : GSharpDecodes) { D.Value.Wait(); }
+			GSharpDecodes.Empty();
+		});
+	}
+	GSharpDecodes.Add(Classic, UE::Tasks::Launch(UE_SOURCE_LOCATION, [SharpPath]
+	{
+		FImage Image;
+		FImageUtils::LoadImage(*SharpPath, Image);
+		return Image;
+	}, UE::Tasks::ETaskPriority::BackgroundNormal));
 }
 
 UTexture* SSXFeDrawHiRes::For(UTexture* Classic)
@@ -316,7 +342,18 @@ UTexture* SSXFeDrawHiRes::For(UTexture* Classic)
 	if (UTexture* const* Loaded = GSharpArt.Find(Classic)) { return *Loaded ? *Loaded : Classic; }
 	const FString* Path = GSharpPaths.Find(Classic);
 	if (!Path) { return Classic; }
-	UTexture2D* Sharp = FImageUtils::ImportFileAsTexture2D(*Path);
+	UTexture2D* Sharp = nullptr;
+	if (UE::Tasks::TTask<FImage>* Decode = GSharpDecodes.Find(Classic))
+	{
+		// the same texture as ImportFileAsTexture2D makes (it decodes and calls CreateTexture2DFromImage)
+		const FImage& Image = Decode->GetResult();
+		Sharp = Image.GetNumPixels() > 0 ? FImageUtils::CreateTexture2DFromImage(Image) : nullptr;
+		GSharpDecodes.Remove(Classic);
+	}
+	else
+	{
+		Sharp = FImageUtils::ImportFileAsTexture2D(*Path);
+	}
 	if (Sharp)
 	{
 		Sharp->SRGB = true;

@@ -4,7 +4,11 @@
 #include "Engine/ExponentialHeightFog.h"
 #include "Engine/PostProcessVolume.h"
 #include "Engine/SpotLight.h"
+#include "Engine/Texture2D.h"
 #include "EngineUtils.h"
+#include "HAL/FileManager.h"
+#include "ImageUtils.h"
+#include "UI/SSXFeDraw.h"
 #include "Kismet/KismetMaterialLibrary.h"
 #include "Materials/MaterialParameterCollection.h"
 #include "Engine/StaticMesh.h"
@@ -401,6 +405,35 @@ bool FSSXRenderSkyFromTest::RunTest(const FString&)
 	USSXRemasterLibrary::SetRemasteredInWorld(W, false);
 	GEngine->DestroyWorldContext(W);
 	W->DestroyWorld(false);
+	return true;
+}
+
+// Remastered: the sharper copy of UI art decodes on a worker from its registration; its first draw shows the same
+// texture a direct import makes.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSSXRenderSharpArtTest, "SSX.Render.SharpArt", RenderLookFlags)
+bool FSSXRenderSharpArtTest::RunTest(const FString&)
+{
+	const FString Dir = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectDir(), TEXT("../../converted/remaster/textures/TEXTURES/PARTICLE")));
+	TArray<FString> Found;
+	IFileManager::Get().FindFiles(Found, *FPaths::Combine(Dir, TEXT("*_C.png")), true, false);
+	if (Found.Num() == 0)
+	{
+		SSXTest::Skip(*this, TEXT("SKIPPED sharp art: no converted/remaster textures"));
+		return true;
+	}
+	const FString Path = FPaths::Combine(Dir, Found[0]);
+	FLookRestore Restore;
+	SSXRenderLook::Set(ESSXRenderLook::Remastered);
+	UTexture2D* Classic = UTexture2D::CreateTransient(4, 4);
+	SSXFeDrawHiRes::Register(Classic, Path);
+	const UTexture2D* Direct = FImageUtils::ImportFileAsTexture2D(Path);
+	const UTexture2D* Sharp = Cast<UTexture2D>(SSXFeDrawHiRes::For(Classic));
+	TestTrue(TEXT("the sharp copy is drawn"), Sharp && Sharp != Classic);
+	TestTrue(TEXT("as a direct import makes it"), Sharp && Direct && Sharp->GetSizeX() == Direct->GetSizeX()
+		&& Sharp->GetSizeY() == Direct->GetSizeY() && Sharp->GetPixelFormat() == Direct->GetPixelFormat());
+	TestTrue(TEXT("made once"), SSXFeDrawHiRes::For(Classic) == Sharp);
+	SSXRenderLook::Set(ESSXRenderLook::Classic);
+	TestTrue(TEXT("Classic draws the Classic art"), SSXFeDrawHiRes::For(Classic) == Classic);
 	return true;
 }
 
