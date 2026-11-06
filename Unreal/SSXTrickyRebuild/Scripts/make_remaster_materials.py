@@ -849,6 +849,10 @@ for name, glass in (("M_RmProp_Translucent", False), ("M_RmPropGlass", True), ("
     # front-layer reflections (Remastered post-process volume).
     m.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_DEFAULT_LIT)
     m.set_editor_property("translucency_lighting_mode", unreal.TranslucencyLightingMode.TLM_SURFACE_PER_PIXEL_LIGHTING)
+    if ice:
+      # The ice's solid shadow twin lies on the ice itself (USSXRemasterWorld::ApplyTranslucentProps): the sun's shadow is
+      # traced with the opaque surfaces' bias, not read as one raw shadow-map sample, which shadowed the ice in patches.
+      m.set_editor_property("translucent_directional_light_shadow_quality", 1.0)
   else:
     # Soft layers take the same light as the solid core next to them; unlit, the two showed as different colours.
     m.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_DEFAULT_LIT)
