@@ -186,6 +186,11 @@ void USSXParticleWorld::OnWorldBeginPlay(UWorld& InWorld)
 	RenderActor->SetRootComponent(Renderer);
 	Renderer->RegisterComponent();
 	bActive = true;
+	if (SSXRenderLook::Get() == ESSXRenderLook::Remastered)
+	{
+		// the sharper sprite art (larger files) is decoded while the world starts, not at its first use in the race
+		for (int32 Handle = 0; Handle < SSXParticles::NumTextures; ++Handle) { Texture(Handle, false, true); }
+	}
 }
 
 void USSXParticleWorld::AddTrackEmitter(const SSXEffects::FEffectData& Data, int32 Inst, int32 Kind, int32 Record, const FRiderSim* Rider)
