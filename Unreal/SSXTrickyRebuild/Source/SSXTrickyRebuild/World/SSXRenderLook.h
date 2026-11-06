@@ -46,17 +46,18 @@ namespace SSXRenderLook
 	/** Lumen GI and reflections at this preset (Low: none, screen-space reflections). */
 	SSXTRICKYREBUILD_API bool QualityUsesLumen(int32 Quality);
 
-	/** Upscaler of the Remastered look (PC only, user request): 0 Unreal TSR, 1 AMD FSR (TSR while the FSR plugin is
-	 *  not loaded). Classic ignores it. */
-	constexpr int32 NumUpscalers = 2;
+	/** Upscaler of the Remastered look (PC only, user request): 0 Off (the full resolution, TSR anti-aliasing), 1 Unreal
+	 *  TSR (default), 2 AMD FSR (TSR while the FSR plugin is not loaded). Classic ignores it. */
+	constexpr int32 NumUpscalers = 3;
+	constexpr int32 DefaultUpscaler = 1;
 	SSXTRICKYREBUILD_API int32 GetUpscaler();
 	SSXTRICKYREBUILD_API void SetUpscaler(int32 Upscaler);
-	/** Render resolution of the Remastered look (PC only, user request): 0 Auto (the quality preset's), 1 Native,
-	 *  2 Quality, 3 Balanced, 4 Performance, 5 Ultra Performance. Classic ignores it. */
+	/** Render resolution of the Remastered look with an upscaler on (PC only, user request): 0 Auto (the quality
+	 *  preset's), 1 Native, 2 Quality, 3 Balanced, 4 Performance, 5 Ultra Performance. Classic ignores it. */
 	constexpr int32 NumUpscaleQualities = 6;
 	SSXTRICKYREBUILD_API int32 GetUpscaleQuality();
 	SSXTRICKYREBUILD_API void SetUpscaleQuality(int32 UpscaleQuality);
-	/** r.ScreenPercentage of an upscale quality at a quality preset. */
+	/** r.ScreenPercentage of an upscale quality at a quality preset (with an upscaler on). */
 	SSXTRICKYREBUILD_API float UpscalePercent(int32 UpscaleQuality, int32 Quality);
 	/** The optional AMD FSR plugin is loaded (its console variables exist without it in a packaged game). */
 	SSXTRICKYREBUILD_API bool FsrLoaded();
@@ -98,7 +99,7 @@ public:
 
 	/** ssx.Render.Upscaler. */
 	UPROPERTY(config)
-	int32 Upscaler = 0;
+	int32 Upscaler = SSXRenderLook::DefaultUpscaler;
 
 	/** ssx.Render.UpscaleQuality. */
 	UPROPERTY(config)

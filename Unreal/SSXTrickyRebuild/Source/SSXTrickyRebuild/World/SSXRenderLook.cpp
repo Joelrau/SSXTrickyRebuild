@@ -49,13 +49,13 @@ namespace
 		FConsoleVariableDelegate::CreateStatic(&OnQualityCvar));
 
 	// PC-only deviations (user request), like the Remastered look itself.
-	TAutoConsoleVariable<int32> CVarUpscaler(TEXT("ssx.Render.Upscaler"), 0,
-		TEXT("Remastered look upscaler (PC-only, user request): 0 = Unreal TSR (default), 1 = AMD FSR (with the optional FSR ")
-		TEXT("plugin; TSR without it). No effect on the Classic look."),
+	TAutoConsoleVariable<int32> CVarUpscaler(TEXT("ssx.Render.Upscaler"), SSXRenderLook::DefaultUpscaler,
+		TEXT("Remastered look upscaler (PC-only, user request): 0 = off (the full resolution, Unreal TSR anti-aliasing), ")
+		TEXT("1 = Unreal TSR (default), 2 = AMD FSR (with the optional FSR plugin; TSR without it). No effect on the Classic look."),
 		FConsoleVariableDelegate::CreateStatic(&OnQualityCvar));
 
 	TAutoConsoleVariable<int32> CVarUpscaleQuality(TEXT("ssx.Render.UpscaleQuality"), 0,
-		TEXT("Remastered look render resolution (PC-only, user request): 0 = Auto (the quality preset's), 1 = Native, ")
+		TEXT("Remastered look render resolution with an upscaler on (PC-only, user request): 0 = Auto (the quality preset's), 1 = Native, ")
 		TEXT("2 = Quality (67 %), 3 = Balanced (59 %), 4 = Performance (50 %), 5 = Ultra Performance (33 %). ")
 		TEXT("No effect on the Classic look."),
 		FConsoleVariableDelegate::CreateStatic(&OnQualityCvar));
@@ -173,14 +173,14 @@ namespace SSXRenderLook
 		static TArray<FCvarValue> Out;
 		static FString FsrMode, FsrOn, Percent;
 		const int32 Quality = GetQuality();
-		const float Pct = UpscalePercent(GetUpscaleQuality(), Quality);
+		const float Pct = GetUpscaler() == 0 ? 100.f : UpscalePercent(GetUpscaleQuality(), Quality);
 		Out.Reset();
 		Out.Append(Cvars[Quality], UE_ARRAY_COUNT(Cvars[Quality]));
 		if (FsrLoaded())
 		{
 			// FSR modes 0 Native AA, 1 Quality, 2 Balanced, 3 Performance, 4 Ultra Performance
 			FsrMode = FString::FromInt(GetUpscaleQuality() > 0 ? GetUpscaleQuality() - 1 : (Pct >= 100.f ? 0 : 1));
-			FsrOn = GetUpscaler() == 1 ? TEXT("1") : TEXT("0");
+			FsrOn = GetUpscaler() == 2 ? TEXT("1") : TEXT("0");
 			Out.Add({ TEXT("r.FidelityFX.FSR.QualityMode"), *FsrMode });
 			Out.Add({ TEXT("r.FidelityFX.FSR.Enabled"), *FsrOn });
 		}

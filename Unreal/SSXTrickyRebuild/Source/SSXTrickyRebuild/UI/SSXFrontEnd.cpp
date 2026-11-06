@@ -2105,6 +2105,10 @@ void FSSXFrontEnd::OptionsEnterPage(FSSXFeState& S, int32 P)
 		break;
 	case VideoPage:
 		Snapshot(VideoPage);
+		if (const TArray<FRow>& Rows = PageRows(P); Rows.IsValidIndex(O.RowSel[P]) && RowGreyed(P, Rows[O.RowSel[P]].Id, O.List[P]))
+		{
+			O.RowSel[P] = 0;   // LOOK, never grey
+		}
 		break;
 	case KeybindsPage:
 		O.Binds = SSXKeyBinds::Current();
@@ -2372,6 +2376,10 @@ void FSSXFrontEnd::OptionsKey(FSSXFeState& S, ESSXFeKey K)
 	Sel = FMath::Clamp(Sel, 0, Rows.Num() - 1);
 	const FRow& R = Rows[Sel];
 	const bool bRight = K == ESSXFeKey::Right;
+	if (bLeftRight && RowGreyed(P, R.Id, O.List[P]))
+	{
+		return;
+	}
 	if (R.Kind == EKind::List && bLeftRight)
 	{
 		const int32 N = R.Values.Num();
@@ -2423,7 +2431,11 @@ void FSSXFrontEnd::OptionsKey(FSSXFeState& S, ESSXFeKey K)
 	}
 	if (bUpDown)
 	{
-		Sel = (Sel + (K == ESSXFeKey::Up ? -1 : 1) + Rows.Num()) % Rows.Num();
+		for (int32 Tries = 0; Tries < Rows.Num(); ++Tries)
+		{
+			Sel = (Sel + (K == ESSXFeKey::Up ? -1 : 1) + Rows.Num()) % Rows.Num();
+			if (!RowGreyed(P, Rows[Sel].Id, O.List[P])) { break; }
+		}
 		Sound(TEXT("move"));
 		if (P == 1)
 		{
@@ -3755,8 +3767,9 @@ void FSSXFrontEnd::DrawOptions(FSSXFeDrawList& D, const FSSXFeState& S) const
 	{
 		const FRow& R = Rows[I];
 		const float Y = Top + I * Pitch;
-		const bool bHi = I == Sel;
-		const FLinearColor C = bHi ? Gold : White;
+		const bool bGrey = RowGreyed(S.Page, R.Id, O.List[S.Page]);
+		const bool bHi = I == Sel && !bGrey;
+		const FLinearColor C = bGrey ? Grey : (bHi ? Gold : White);
 		if (R.Kind == EKind::Item)
 		{
 			const FString Str = R.Text ? FString(R.Text) : L(R.Loc);

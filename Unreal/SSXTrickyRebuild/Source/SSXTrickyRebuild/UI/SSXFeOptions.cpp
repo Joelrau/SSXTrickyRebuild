@@ -118,12 +118,10 @@ const TArray<SSXFeOptions::FRow>& SSXFeOptions::PageRows(int32 Page)
 			{ 4, -1, TEXT("144") }, { 5, -1, TEXT("165") }, { 6, -1, TEXT("240") } });
 		Limit.Text = TEXT("FRAME LIMIT");
 		TArray<FRow> Rows{ Look, Quality, Res, Mode, VSync, Limit };
-		if (SSXRenderLook::FsrLoaded())   // only with the optional AMD FSR plugin loaded
-		{
-			FRow Up = List(UpscalerId, -1, { { 0, -1, TEXT("UNREAL TSR") }, { 1, -1, TEXT("AMD FSR") } });
-			Up.Text = TEXT("UPSCALER");
-			Rows.Add(Up);
-		}
+		FRow Up = List(UpscalerId, -1, { { 0, -1, TEXT("OFF") }, { 1, -1, TEXT("UNREAL TSR") } });
+		if (SSXRenderLook::FsrLoaded()) { Up.Values.Add({ 2, -1, TEXT("AMD FSR") }); }   // only with the optional AMD FSR plugin loaded
+		Up.Text = TEXT("UPSCALER");
+		Rows.Add(Up);
 		FRow Uq = List(UpscaleQualityId, -1, { { 0, -1, TEXT("AUTO") }, { 1, -1, TEXT("NATIVE") }, { 2, -1, TEXT("QUALITY") },
 			{ 3, -1, TEXT("BALANCED") }, { 4, -1, TEXT("PERFORMANCE") }, { 5, -1, TEXT("ULTRA PERFORMANCE") } });
 		Uq.Text = TEXT("UPSCALE QUALITY");
@@ -168,6 +166,14 @@ const TArray<SSXFeOptions::FRow>& SSXFeOptions::PageRows(int32 Page)
 	}
 }
 
+bool SSXFeOptions::RowGreyed(int32 Page, int32 Id, const int32* PageList)
+{
+	if (Page != VideoPage || !PageList) { return false; }
+	const bool bClassic = PageList[RowIndex(VideoPage, 0)] == int32(ESSXRenderLook::Classic);
+	if (Id == 1 || Id == UpscalerId) { return bClassic; }
+	return Id == UpscaleQualityId && (bClassic || PageList[RowIndex(VideoPage, UpscalerId)] == 0);
+}
+
 int32 SSXFeOptions::RowIndex(int32 Page, int32 Id)
 {
 	return PageRows(Page).IndexOfByPredicate([Id](const FRow& R) { return R.Id == Id; });
@@ -199,8 +205,8 @@ const TCHAR* SSXFeOptions::HelpText(int32 Page, int32 ItemId)
 	if (Page == VideoPage && ItemId == FrameGenerationId) { return TEXT("AMD FSR Frame Generation: generated frames between the rendered ones. Adds input latency."); }
 	if (Page == VideoPage && ItemId == VSyncId) { return TEXT("Syncs frames to the display's refresh. Removes tearing, adds input latency."); }
 	if (Page == VideoPage && ItemId == FrameLimitId) { return TEXT("The highest frame rate the game renders."); }
-	if (Page == VideoPage && ItemId == UpscalerId) { return TEXT("Upscaling and anti-aliasing of the Remastered look: Unreal TSR or AMD FSR."); }
-	if (Page == VideoPage && ItemId == UpscaleQualityId) { return TEXT("Render resolution of the Remastered look. Auto follows QUALITY; lower is faster and softer."); }
+	if (Page == VideoPage && ItemId == UpscalerId) { return TEXT("Remastered look: off renders at the full resolution; TSR and FSR upscale and smooth."); }
+	if (Page == VideoPage && ItemId == UpscaleQualityId) { return TEXT("Render resolution with an upscaler on. Auto follows QUALITY; lower is faster, softer."); }
 	if (Page == VideoPage && ItemId == 3) { return TEXT("Fullscreen, borderless window over the desktop, or a window. Applied with DONE."); }
 	return nullptr;
 }

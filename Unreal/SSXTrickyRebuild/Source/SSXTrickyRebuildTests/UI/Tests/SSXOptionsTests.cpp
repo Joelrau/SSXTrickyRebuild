@@ -333,11 +333,18 @@ bool FSSXUIOptionsVideoTest::RunTest(const FString& Parameters)
 	if (!FOptAssets::Get().Ready()) { SSXTest::Skip(*this, TEXT("FE fonts / sprites / LOC not converted; Video page checks skipped")); return true; }
 	const ESSXRenderLook Prev = SSXRenderLook::Get();
 	const int32 PrevQuality = SSXRenderLook::GetQuality();
-	const int32 PrevUpscaleQuality = SSXRenderLook::GetUpscaleQuality();
-	ON_SCOPE_EXIT { SSXRenderLook::Set(Prev); SSXRenderLook::SetQuality(PrevQuality); SSXRenderLook::SetUpscaleQuality(PrevUpscaleQuality); };
+	const int32 PrevUpscaleQuality = SSXRenderLook::GetUpscaleQuality(), PrevUpscaler = SSXRenderLook::GetUpscaler();
+	ON_SCOPE_EXIT
+	{
+		SSXRenderLook::Set(Prev);
+		SSXRenderLook::SetQuality(PrevQuality);
+		SSXRenderLook::SetUpscaleQuality(PrevUpscaleQuality);
+		SSXRenderLook::SetUpscaler(PrevUpscaler);
+	};
 	SSXRenderLook::Set(ESSXRenderLook::Classic);
 	SSXRenderLook::SetQuality(2);
 	SSXRenderLook::SetUpscaleQuality(0);
+	SSXRenderLook::SetUpscaler(SSXRenderLook::DefaultUpscaler);
 	{
 		FOptFe F;
 		F.Press(ESSXFeKey::Square);
@@ -371,7 +378,10 @@ bool FSSXUIOptionsVideoTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("frame generation value names the AMD FSR version"), SSXRenderLook::FrameGenerationName().StartsWith(TEXT("AMD FSR")));
 		TestNotNull(TEXT("row UPSCALE QUALITY"), F.Txt(TEXT("UPSCALE QUALITY")));
 		TestNotNull(TEXT("value AUTO"), F.Txt(TEXT("AUTO")));
-		TestEqual(TEXT("UPSCALER row only with the FSR plugin"), F.Txt(TEXT("UPSCALER")) != nullptr, SSXRenderLook::FsrLoaded());
+		TestNotNull(TEXT("row UPSCALER"), F.Txt(TEXT("UPSCALER")));
+		TestNotNull(TEXT("value UNREAL TSR (the default)"), F.Txt(TEXT("UNREAL TSR")));
+		TestEqual(TEXT("OFF, UNREAL TSR, and AMD FSR only with the FSR plugin"), PageRows(VideoPage)[RowIndex(VideoPage, UpscalerId)].Values.Num(),
+			SSXRenderLook::FsrLoaded() ? 3 : 2);
 		const TArray<FIntPoint>& Res = Resolutions();
 		TestTrue(TEXT("resolutions listed, smallest first"), Res.Num() > 0 && Res[0].X <= Res.Last().X);
 		TestEqual(TEXT("the nearest listed resolution"), Res[ResolutionIndex(Res.Last())], Res.Last());
@@ -408,6 +418,7 @@ bool FSSXUIOptionsVideoTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("DONE leaves the page"), F.FE.Top()->Page, -1);
 	}
 	{
+		SSXRenderLook::Set(ESSXRenderLook::Remastered);   // the Remastered rows take changes
 		FOptFe F;
 		F.OpenPage(VideoPage);
 		for (int32 I = 0; I < RowIndex(VideoPage, UpscaleQualityId); ++I) { F.Press(ESSXFeKey::Down); }
@@ -420,6 +431,51 @@ bool FSSXUIOptionsVideoTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("Back restores Auto"), SSXRenderLook::GetUpscaleQuality(), 0);
 	}
 	{
+		// rows that do nothing at the other rows' values are grey and skipped
+		SSXRenderLook::Set(ESSXRenderLook::Classic);
+		FOptFe F;
+		F.OpenPage(VideoPage);
+		const FSSXFeState* S = F.FE.Top();
+		if (!TestTrue(TEXT("Video page open"), S && S->Page == VideoPage)) return false;
+		TestTrue(TEXT("QUALITY grey with LOOK Classic"), RowGreyed(VideoPage, 1, S->Opt.List[VideoPage]));
+		TestTrue(TEXT("UPSCALER grey with LOOK Classic"), RowGreyed(VideoPage, UpscalerId, S->Opt.List[VideoPage]));
+		F.Press(ESSXFeKey::Down);
+		TestEqual(TEXT("Down from LOOK skips QUALITY in Classic"), S->Opt.RowSel[VideoPage], RowIndex(VideoPage, 2));
+		F.Press(ESSXFeKey::Up);
+		F.Press(ESSXFeKey::Right);
+		TestFalse(TEXT("QUALITY takes changes with LOOK Remastered"), RowGreyed(VideoPage, 1, S->Opt.List[VideoPage]));
+		for (int32 I = 0; I < RowIndex(VideoPage, UpscalerId); ++I) { F.Press(ESSXFeKey::Down); }
+		F.Press(ESSXFeKey::Left);
+		TestEqual(TEXT("UPSCALER Left previews off"), SSXRenderLook::GetUpscaler(), 0);
+		TestTrue(TEXT("UPSCALE QUALITY grey with UPSCALER off"), RowGreyed(VideoPage, UpscaleQualityId, S->Opt.List[VideoPage]));
+		F.Press(ESSXFeKey::Down);
+		TestEqual(TEXT("Down from UPSCALER skips UPSCALE QUALITY"), S->Opt.RowSel[VideoPage], RowIndex(VideoPage, UpscaleQualityId) + 1);
+		F.Press(ESSXFeKey::Left);   // FRAME GENERATION or DONE, not the grey row
+		TestEqual(TEXT("the grey row keeps its value"), SSXRenderLook::GetUpscaleQuality(), 0);
+		F.Redraw();
+		const FSSXFeTextRec* Uq = F.Txt(TEXT("UPSCALE QUALITY"));
+		TestTrue(TEXT("UPSCALE QUALITY drawn grey"), Uq && Uq->Color.Equals(SSXFe::Grey));
+		F.Press(ESSXFeKey::Triangle);
+		TestEqual(TEXT("Back restores the upscaler"), SSXRenderLook::GetUpscaler(), SSXRenderLook::DefaultUpscaler);
+		TestEqual(TEXT("Back restores Classic"), int32(SSXRenderLook::Get()), int32(ESSXRenderLook::Classic));
+	}
+	{
+		// Back can grey the remembered row: the page reopens on LOOK
+		SSXRenderLook::Set(ESSXRenderLook::Classic);
+		FOptFe F;
+		F.OpenPage(VideoPage);
+		F.Press(ESSXFeKey::Right);
+		for (int32 I = 0; I < RowIndex(VideoPage, UpscaleQualityId); ++I) { F.Press(ESSXFeKey::Down); }
+		TestEqual(TEXT("on UPSCALE QUALITY with LOOK Remastered"), F.FE.Top()->Opt.RowSel[VideoPage], RowIndex(VideoPage, UpscaleQualityId));
+		F.Press(ESSXFeKey::Triangle);
+		F.Press(ESSXFeKey::Cross);
+		const FSSXFeState* S = F.FE.Top();
+		if (!TestTrue(TEXT("Video page open again"), S && S->Page == VideoPage)) return false;
+		TestEqual(TEXT("the page reopens on LOOK, not the grey row"), S->Opt.RowSel[VideoPage], 0);
+		F.Press(ESSXFeKey::Triangle);
+	}
+	{
+		SSXRenderLook::Set(ESSXRenderLook::Remastered);   // no grey rows above FRAME LIMIT
 		FOptFe F;
 		F.OpenPage(VideoPage);
 		const int32 Row = RowIndex(VideoPage, FrameLimitId);
@@ -435,6 +491,7 @@ bool FSSXUIOptionsVideoTest::RunTest(const FString& Parameters)
 		const bool bPrev = SSXRenderLook::GetFrameGeneration();
 		ON_SCOPE_EXIT { SSXRenderLook::SetFrameGeneration(bPrev); };
 		SSXRenderLook::SetFrameGeneration(false);
+		SSXRenderLook::Set(ESSXRenderLook::Remastered);   // no grey rows above FRAME GENERATION
 		FOptFe F;
 		F.OpenPage(VideoPage);
 		for (int32 I = 0; I < Fg; ++I) { F.Press(ESSXFeKey::Down); }

@@ -23,7 +23,7 @@ namespace SSXFeOptions
 	/** Video page row ids of VSYNC and FRAME LIMIT. */
 	constexpr int32 VSyncId = 5;
 	constexpr int32 FrameLimitId = 6;
-	/** Video page row ids of UPSCALER (present only with the FSR plugin) and UPSCALE QUALITY. */
+	/** Video page row ids of UPSCALER (its AMD FSR value only with the FSR plugin) and UPSCALE QUALITY. */
 	constexpr int32 UpscalerId = 7;
 	constexpr int32 UpscaleQualityId = 8;
 	/** FRAME LIMIT values in frames per second, 0 = no limit. */
@@ -34,6 +34,9 @@ namespace SSXFeOptions
 	SSXTRICKYREBUILD_API void ApplyDisplayTiming(bool bVSync, int32 LimitIndex);
 	/** Row position of the row with this id on the page, or INDEX_NONE. */
 	SSXTRICKYREBUILD_API int32 RowIndex(int32 Page, int32 Id);
+	/** Video page rows that do nothing at the page's current values, drawn grey and skipped (PC only, user request):
+	 *  QUALITY, UPSCALER and UPSCALE QUALITY with LOOK Classic, UPSCALE QUALITY with UPSCALER off. */
+	SSXTRICKYREBUILD_API bool RowGreyed(int32 Page, int32 Id, const int32* PageList);
 
 	/** Row widget kinds: a cFE3DWTextEntry with a value list (cFE3DWList style 2, wrap 1) or a progress bar
 	 *  (cFE3DProgressBar), the DONE entry (label only), or a plain single-line text item (Save/Load). */
