@@ -227,6 +227,7 @@ private:
 	};
 	TArray<FShadowFlags> TerrainShadows;
 	int32 ShadowCacheBefore = INDEX_NONE;   // r.Shadow.Virtual.Cache to restore; INDEX_NONE = not changed
+	void RestoreShadowCache();
 	/** A terrain casts only while its actor is shown: the hidden Showoff terrain (SSXShowOffDraw) casts no shadow in a race. */
 	void SyncTerrainShadows();
 	/** Nanite props with a translucent slot (Nanite draws opaque / masked only) draw non-Nanite without a shadow; a hidden

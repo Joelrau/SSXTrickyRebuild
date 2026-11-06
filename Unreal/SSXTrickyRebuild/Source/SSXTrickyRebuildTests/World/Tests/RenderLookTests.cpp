@@ -302,6 +302,26 @@ bool FSSXRenderTrackTuningTest::RunTest(const FString&)
 	return true;
 }
 
+// The shadow cache is a console variable: a track that turns it off turns it back on when its world closes, so the next
+// track (the world after a race) caches again.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSSXRenderShadowCacheRestoreTest, "SSX.Render.ShadowCacheRestore", RenderLookFlags)
+bool FSSXRenderShadowCacheRestoreTest::RunTest(const FString&)
+{
+	IConsoleVariable* Cache = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shadow.Virtual.Cache"));
+	if (!TestNotNull(TEXT("r.Shadow.Virtual.Cache"), Cache)) { return false; }
+	const int32 Before = Cache->GetInt();
+	UWorld* W = UWorld::CreateWorld(EWorldType::Game, false, TEXT("alaska"), CreatePackage(TEXT("/Temp/SSXTest/alaska")));
+	FWorldContext& Ctx = GEngine->CreateNewWorldContext(EWorldType::Game);
+	Ctx.SetCurrentWorld(W);
+	USSXRemasterLibrary::SetRemasteredInWorld(W, true);
+	TestEqual(TEXT("Remastered on Alaska: the shadow cache follows its tuning"), Cache->GetInt(),
+		SSXRemaster::TuningFor(TEXT("alaska")).bNoShadowCache ? 0 : Before);
+	GEngine->DestroyWorldContext(W);
+	W->DestroyWorld(false);
+	TestEqual(TEXT("closing the world restores the shadow cache"), Cache->GetInt(), Before);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSSXRenderFogTest, "SSX.Render.Fog", RenderLookFlags)
 bool FSSXRenderFogTest::RunTest(const FString&)
 {

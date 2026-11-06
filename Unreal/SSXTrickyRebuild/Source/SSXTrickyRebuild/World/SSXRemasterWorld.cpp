@@ -371,7 +371,15 @@ void USSXRemasterWorld::Initialize(FSubsystemCollectionBase& Collection)
 void USSXRemasterWorld::Deinitialize()
 {
 	FWorldDelegates::LevelAddedToWorld.Remove(LevelAddedHandle);
+	RestoreShadowCache();   // a console variable: the next world must not inherit this track's setting
 	Super::Deinitialize();
+}
+
+void USSXRemasterWorld::RestoreShadowCache()
+{
+	if (ShadowCacheBefore == INDEX_NONE) { return; }
+	if (IConsoleVariable* V = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shadow.Virtual.Cache"))) { V->Set(ShadowCacheBefore, ECVF_SetByCode); }
+	ShadowCacheBefore = INDEX_NONE;
 }
 
 TStatId USSXRemasterWorld::GetStatId() const
@@ -1511,11 +1519,7 @@ void USSXRemasterWorld::Revert()
 		}
 	}
 	TerrainShadows.Reset();
-	if (ShadowCacheBefore != INDEX_NONE)
-	{
-		if (IConsoleVariable* V = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shadow.Virtual.Cache"))) { V->Set(ShadowCacheBefore, ECVF_SetByCode); }
-		ShadowCacheBefore = INDEX_NONE;
-	}
+	RestoreShadowCache();
 	for (const FTranslucentProp& P : TranslucentProps)
 	{
 		if (UStaticMeshComponent* T = P.Twin.Get()) { T->DestroyComponent(); }
