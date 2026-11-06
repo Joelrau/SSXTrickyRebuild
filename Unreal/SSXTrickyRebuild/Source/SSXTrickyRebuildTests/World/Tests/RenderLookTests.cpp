@@ -1,5 +1,8 @@
+#include "Components/LightComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/PostProcessVolume.h"
+#include "Engine/SpotLight.h"
+#include "EngineUtils.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -324,6 +327,39 @@ bool FSSXRenderShadowCacheRestoreTest::RunTest(const FString&)
 	GEngine->DestroyWorldContext(W);
 	W->DestroyWorld(false);
 	TestEqual(TEXT("closing the world restores the shadow cache"), Cache->GetInt(), Before);
+	return true;
+}
+
+// Tokyo's spot lamps all sweep: even at Epic, where every lamp casts a shadow, only the strongest few of them do.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSSXRenderSweepShadowsTest, "SSX.Render.SweepShadows", RenderLookFlags)
+bool FSSXRenderSweepShadowsTest::RunTest(const FString&)
+{
+	const int32 PrevQuality = SSXRenderLook::GetQuality();
+	SSXRenderLook::SetQuality(3);
+	// an editor world has no presentation: the look reads the track's light list itself (as the offscreen captures)
+	UWorld* W = UWorld::CreateWorld(EWorldType::Editor, false, TEXT("megaple"), CreatePackage(TEXT("/Temp/SSXTest/megaple")));
+	FWorldContext& Ctx = GEngine->CreateNewWorldContext(EWorldType::Editor);
+	Ctx.SetCurrentWorld(W);
+	USSXRemasterLibrary::SetRemasteredInWorld(W, true);
+	int32 Spots = 0, Casting = 0;
+	for (TActorIterator<ASpotLight> It(W); It; ++It)
+	{
+		++Spots;
+		Casting += It->GetLightComponent()->CastShadows ? 1 : 0;
+	}
+	if (Spots == 0)
+	{
+		SSXTest::Skip(*this, TEXT("SKIPPED Tokyo lamps: no light list for megaple"));
+	}
+	else
+	{
+		TestTrue(TEXT("Tokyo has more sweeping lamps than shadowed ones"), Spots > SSXRemaster::MaxSweepShadowLights);
+		TestEqual(TEXT("only the strongest sweeping lamps cast shadows"), Casting, SSXRemaster::MaxSweepShadowLights);
+	}
+	USSXRemasterLibrary::SetRemasteredInWorld(W, false);
+	GEngine->DestroyWorldContext(W);
+	W->DestroyWorld(false);
+	SSXRenderLook::SetQuality(PrevQuality);
 	return true;
 }
 

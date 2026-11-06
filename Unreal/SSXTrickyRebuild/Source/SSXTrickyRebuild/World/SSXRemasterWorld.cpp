@@ -462,9 +462,17 @@ void USSXRemasterWorld::ApplyQuality()
 	}
 	UpdateFog();
 	const int32 Shadowed = bAllLightShadows ? LocalLights.Num() : SSXRemaster::ShadowedLights(AppliedQuality, LocalLights.Num());
+	int32 SweepShadows = 0;
 	for (int32 I = 0; I < LocalLights.Num(); ++I)
 	{
-		if (ULocalLightComponent* C = LocalLights[I].Get()) { C->SetCastShadows(I < Shadowed); }
+		ULocalLightComponent* C = LocalLights[I].Get();
+		if (!C) { continue; }
+		bool bCast = I < Shadowed;
+		if (bCast && SweepLights.ContainsByPredicate([C](const FSweep& S) { return S.Light.Get() == C; }))
+		{
+			bCast = SweepShadows++ < SSXRemaster::MaxSweepShadowLights;
+		}
+		C->SetCastShadows(bCast);
 	}
 }
 

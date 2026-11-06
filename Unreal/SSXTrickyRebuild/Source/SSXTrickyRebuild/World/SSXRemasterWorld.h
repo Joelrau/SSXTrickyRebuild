@@ -89,6 +89,9 @@ namespace SSXRemaster
 	SSXTRICKYREBUILD_API void SetGlow(UMeshComponent& C, float Glow);
 	/** How many of the strongest track lights cast shadows at a quality: Epic all, High 16, Medium / Low none. */
 	SSXTRICKYREBUILD_API int32 ShadowedLights(int32 Quality, int32 NumLights);
+	/** Of those, the lamps that sweep (FTrackTuning::bSweepLights) cast shadows only from the strongest few: a moving light
+	 *  draws its whole shadow map afresh every frame (the shadow cache is kept per light transform). */
+	constexpr int32 MaxSweepShadowLights = 4;
 	/** Remastered surface class of a sim surface id (SimData/surfaces.bin physics): 0 snow, 1 ice (no grip, fast),
 	 *  2 powder (deep sink), 3 wet / slush (no grip, heavy drag). */
 	SSXTRICKYREBUILD_API int32 SurfaceClass(float Grip, float DragQuadratic, float SinkDepth, float CruiseKmh);
