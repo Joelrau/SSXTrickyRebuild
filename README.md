@@ -171,20 +171,23 @@ in the Classic look, which stays the default and renders exactly as before.
 - **Quality:** Options → VIDEO → QUALITY, or `ssx.Render.Quality 0..3`: Low (no Lumen, screen-space reflections,
   67 % resolution with TSR upscaling), Medium (Lumen, 75 %), High (default: Lumen, volumetric fog, full resolution),
   Epic (highest shadow / GI / reflection quality). Only the Remastered look uses it.
+- **Upscaling:** Options → VIDEO → UPSCALER (UNREAL TSR / AMD FSR, with the FSR plugin below) and UPSCALE QUALITY
+  (AUTO = the QUALITY preset's resolution, NATIVE, QUALITY 67 %, BALANCED 59 %, PERFORMANCE 50 %, ULTRA PERFORMANCE
+  33 %), or `ssx.Render.Upscaler 0|1` and `ssx.Render.UpscaleQuality 0..5`. Only the Remastered look uses them.
 - **Resolution and display:** Options → VIDEO → RESOLUTION (the monitor's resolutions) and DISPLAY (fullscreen /
   borderless / windowed), applied with DONE and saved in `GameUserSettings.ini`. Borderless always uses the desktop
   resolution.
 - **Frame generation (optional, AMD FSR):** Options → VIDEO → FRAME GENERATION (OFF / AMD FSR <plugin major version>,
   saved with the other video settings) inserts generated frames between the rendered ones with AMD FSR Frame Generation. It works in both looks
   and with any GPU the plugin supports (ML frame generation on RDNA 4, analytical elsewhere), and adds some input
-  latency. The row appears only when AMD's free FSR plugin is installed in the engine:
+  latency. This row and UPSCALER appear only when AMD's free FSR plugin is installed in the engine:
   1. Download `UE-FSR-4_1_1.zip` (about 2 GB, MIT license) from <https://gpuopen.com/learn/ue-fsr/>.
   2. Copy its `FSR-580\FSR` folder to `<UE_5.8>\Engine\Plugins\Marketplace\FSR`.
   3. Rebuild / repackage. The project enables the plugin as optional, so it builds and runs without it; `package.bat`
      makes it required for the length of a package (a Development build of the installed engine would leave it out).
 
-  Frame generation is off by default and FSR upscaling stays off (`r.FidelityFX.FI.Enabled`,
-  `r.FidelityFX.FSR.Enabled` in `DefaultEngine.ini`); the game keeps its own TSR anti-aliasing.
+  Frame generation and FSR upscaling are off by default (`r.FidelityFX.FI.Enabled`, `r.FidelityFX.FSR.Enabled` in
+  `DefaultEngine.ini`); the Classic look always keeps TSR anti-aliasing.
 - **Extra data step:** `build_data.bat ... remaster` (with `import`) runs `tools\make_remaster_maps.py` (2x/4x upscaled
   colour, normal and detail-mask maps made from your disc's textures into `converted\remaster`) and imports them into
   `Content/RemasterData`. Both are game data and git-ignored. To redo only this step: `python tools\make_remaster_maps.py`,

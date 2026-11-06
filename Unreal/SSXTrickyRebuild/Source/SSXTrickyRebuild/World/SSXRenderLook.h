@@ -46,8 +46,23 @@ namespace SSXRenderLook
 	/** Lumen GI and reflections at this preset (Low: none, screen-space reflections). */
 	SSXTRICKYREBUILD_API bool QualityUsesLumen(int32 Quality);
 
-	/** Engine cvars the Remastered look sets at the current quality (the same names at every quality); Classic puts
-	 *  back the values they had before (the project settings). */
+	/** Upscaler of the Remastered look (PC only, user request): 0 Unreal TSR, 1 AMD FSR (TSR while the FSR plugin is
+	 *  not loaded). Classic ignores it. */
+	constexpr int32 NumUpscalers = 2;
+	SSXTRICKYREBUILD_API int32 GetUpscaler();
+	SSXTRICKYREBUILD_API void SetUpscaler(int32 Upscaler);
+	/** Render resolution of the Remastered look (PC only, user request): 0 Auto (the quality preset's), 1 Native,
+	 *  2 Quality, 3 Balanced, 4 Performance, 5 Ultra Performance. Classic ignores it. */
+	constexpr int32 NumUpscaleQualities = 6;
+	SSXTRICKYREBUILD_API int32 GetUpscaleQuality();
+	SSXTRICKYREBUILD_API void SetUpscaleQuality(int32 UpscaleQuality);
+	/** r.ScreenPercentage of an upscale quality at a quality preset. */
+	SSXTRICKYREBUILD_API float UpscalePercent(int32 UpscaleQuality, int32 Quality);
+	/** The optional AMD FSR plugin is loaded (its console variables exist without it in a packaged game). */
+	SSXTRICKYREBUILD_API bool FsrLoaded();
+
+	/** Engine cvars the Remastered look sets at the current quality and upscaler (the same names all session), with
+	 *  r.ScreenPercentage last; Classic puts back the values they had before (the project settings). */
 	SSXTRICKYREBUILD_API TConstArrayView<FCvarValue> RemasteredCvars();
 	/** Remastered: remember each cvar's current value (once) and set the new one. Classic: restore every remembered value.
 	 *  Unknown cvars are skipped. */
@@ -80,6 +95,14 @@ public:
 	/** SSXRenderLook::SetFrameGeneration (0 off, 1 on). */
 	UPROPERTY(config)
 	int32 FrameGeneration = 0;
+
+	/** ssx.Render.Upscaler. */
+	UPROPERTY(config)
+	int32 Upscaler = 0;
+
+	/** ssx.Render.UpscaleQuality. */
+	UPROPERTY(config)
+	int32 UpscaleQuality = 0;
 
 	/** Store the current ssx.Render.Look / ssx.Render.Quality and write the ini. */
 	static void Save();

@@ -2040,6 +2040,11 @@ void FSSXFrontEnd::OptionsSync(FSSXFeState& S)
 	{
 		O.List[SSXFeOptions::VideoPage][Fg] = SSXRenderLook::GetFrameGeneration() ? 1 : 0;
 	}
+	if (const int32 Up = SSXFeOptions::RowIndex(SSXFeOptions::VideoPage, SSXFeOptions::UpscalerId); Up != INDEX_NONE)
+	{
+		O.List[SSXFeOptions::VideoPage][Up] = SSXRenderLook::GetUpscaler();
+	}
+	O.List[SSXFeOptions::VideoPage][SSXFeOptions::RowIndex(SSXFeOptions::VideoPage, SSXFeOptions::UpscaleQualityId)] = SSXRenderLook::GetUpscaleQuality();
 }
 
 void FSSXFrontEnd::OptionsDiagram(FSSXFeState& S)
@@ -2123,6 +2128,11 @@ void FSSXFrontEnd::OptionsCommit(FSSXFeState& S, int32 P)
 	{
 		SSXRenderLook::Set(ESSXRenderLook(S.Opt.List[P][0]));
 		SSXRenderLook::SetQuality(S.Opt.List[P][1]);
+		if (const int32 Up = SSXFeOptions::RowIndex(P, SSXFeOptions::UpscalerId); Up != INDEX_NONE)
+		{
+			SSXRenderLook::SetUpscaler(S.Opt.List[P][Up]);
+		}
+		SSXRenderLook::SetUpscaleQuality(S.Opt.List[P][SSXFeOptions::RowIndex(P, SSXFeOptions::UpscaleQualityId)]);
 		if (const int32 Fg = SSXFeOptions::RowIndex(P, SSXFeOptions::FrameGenerationId); Fg != INDEX_NONE)
 		{
 			SSXRenderLook::SetFrameGeneration(S.Opt.List[P][Fg] != 0);
@@ -2202,6 +2212,8 @@ void FSSXFrontEnd::OptionsApplyList(FSSXFeState& S, int32 Row)
 	{
 		if (Rows[Row].Id == 0) { SSXRenderLook::Set(ESSXRenderLook(S.Opt.List[P][Row])); }
 		if (Rows[Row].Id == 1) { SSXRenderLook::SetQuality(S.Opt.List[P][Row]); }
+		if (Rows[Row].Id == UpscalerId) { SSXRenderLook::SetUpscaler(S.Opt.List[P][Row]); }
+		if (Rows[Row].Id == UpscaleQualityId) { SSXRenderLook::SetUpscaleQuality(S.Opt.List[P][Row]); }
 		if (Rows[Row].Id == FrameGenerationId) { SSXRenderLook::SetFrameGeneration(S.Opt.List[P][Row] != 0); }
 		if (Rows[Row].Id == VSyncId || Rows[Row].Id == FrameLimitId)
 		{

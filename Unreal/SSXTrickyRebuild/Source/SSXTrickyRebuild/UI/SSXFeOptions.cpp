@@ -118,7 +118,17 @@ const TArray<SSXFeOptions::FRow>& SSXFeOptions::PageRows(int32 Page)
 			{ 4, -1, TEXT("144") }, { 5, -1, TEXT("165") }, { 6, -1, TEXT("240") } });
 		Limit.Text = TEXT("FRAME LIMIT");
 		TArray<FRow> Rows{ Look, Quality, Res, Mode, VSync, Limit };
-		if (SSXRenderLook::FrameGenerationAvailable())   // only with the optional AMD FSR plugin installed
+		if (SSXRenderLook::FsrLoaded())   // only with the optional AMD FSR plugin loaded
+		{
+			FRow Up = List(UpscalerId, -1, { { 0, -1, TEXT("UNREAL TSR") }, { 1, -1, TEXT("AMD FSR") } });
+			Up.Text = TEXT("UPSCALER");
+			Rows.Add(Up);
+		}
+		FRow Uq = List(UpscaleQualityId, -1, { { 0, -1, TEXT("AUTO") }, { 1, -1, TEXT("NATIVE") }, { 2, -1, TEXT("QUALITY") },
+			{ 3, -1, TEXT("BALANCED") }, { 4, -1, TEXT("PERFORMANCE") }, { 5, -1, TEXT("ULTRA PERFORMANCE") } });
+		Uq.Text = TEXT("UPSCALE QUALITY");
+		Rows.Add(Uq);
+		if (SSXRenderLook::FrameGenerationAvailable())   // only with the optional AMD FSR plugin loaded
 		{
 			static const FString Fsr = SSXRenderLook::FrameGenerationName();
 			FRow Fg = List(FrameGenerationId, -1, { { 0, -1, TEXT("OFF") }, { 1, -1, *Fsr } });
@@ -189,6 +199,8 @@ const TCHAR* SSXFeOptions::HelpText(int32 Page, int32 ItemId)
 	if (Page == VideoPage && ItemId == FrameGenerationId) { return TEXT("AMD FSR Frame Generation: generated frames between the rendered ones. Adds input latency."); }
 	if (Page == VideoPage && ItemId == VSyncId) { return TEXT("Syncs frames to the display's refresh. Removes tearing, adds input latency."); }
 	if (Page == VideoPage && ItemId == FrameLimitId) { return TEXT("The highest frame rate the game renders."); }
+	if (Page == VideoPage && ItemId == UpscalerId) { return TEXT("Upscaling and anti-aliasing of the Remastered look: Unreal TSR or AMD FSR."); }
+	if (Page == VideoPage && ItemId == UpscaleQualityId) { return TEXT("Render resolution of the Remastered look. Auto follows QUALITY; lower is faster and softer."); }
 	if (Page == VideoPage && ItemId == 3) { return TEXT("Fullscreen, borderless window over the desktop, or a window. Applied with DONE."); }
 	return nullptr;
 }

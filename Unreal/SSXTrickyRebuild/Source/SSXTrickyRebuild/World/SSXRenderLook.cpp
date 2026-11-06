@@ -48,6 +48,18 @@ namespace
 		TEXT("No effect on the Classic look."),
 		FConsoleVariableDelegate::CreateStatic(&OnQualityCvar));
 
+	// PC-only deviations (user request), like the Remastered look itself.
+	TAutoConsoleVariable<int32> CVarUpscaler(TEXT("ssx.Render.Upscaler"), 0,
+		TEXT("Remastered look upscaler (PC-only, user request): 0 = Unreal TSR (default), 1 = AMD FSR (with the optional FSR ")
+		TEXT("plugin; TSR without it). No effect on the Classic look."),
+		FConsoleVariableDelegate::CreateStatic(&OnQualityCvar));
+
+	TAutoConsoleVariable<int32> CVarUpscaleQuality(TEXT("ssx.Render.UpscaleQuality"), 0,
+		TEXT("Remastered look render resolution (PC-only, user request): 0 = Auto (the quality preset's), 1 = Native, ")
+		TEXT("2 = Quality (67 %), 3 = Balanced (59 %), 4 = Performance (50 %), 5 = Ultra Performance (33 %). ")
+		TEXT("No effect on the Classic look."),
+		FConsoleVariableDelegate::CreateStatic(&OnQualityCvar));
+
 	// PC-only deviation (user request): Remastered is not part of the original game.
 	TAutoConsoleVariable<int32> CVarLook(TEXT("ssx.Render.Look"), int32(SSXRenderLook::Default),
 		TEXT("Render look: 0 = Classic, the PS2-faithful presentation (default); 1 = Remastered (PC-only deviation: ")
@@ -91,6 +103,32 @@ namespace SSXRenderLook
 
 	bool QualityUsesLumen(int32 Quality) { return Quality > 0; }
 
+	int32 GetUpscaler() { return FMath::Clamp(CVarUpscaler.GetValueOnGameThread(), 0, NumUpscalers - 1); }
+
+	void SetUpscaler(int32 Upscaler) { CVarUpscaler->Set(FMath::Clamp(Upscaler, 0, NumUpscalers - 1), ECVF_SetByCode); }
+
+	int32 GetUpscaleQuality() { return FMath::Clamp(CVarUpscaleQuality.GetValueOnGameThread(), 0, NumUpscaleQualities - 1); }
+
+	void SetUpscaleQuality(int32 UpscaleQuality)
+	{
+		CVarUpscaleQuality->Set(FMath::Clamp(UpscaleQuality, 0, NumUpscaleQualities - 1), ECVF_SetByCode);
+	}
+
+	float UpscalePercent(int32 UpscaleQuality, int32 Quality)
+	{
+		// the upscalers' common modes: per axis 1, 1 / 1.5, 1 / 1.7, 1 / 2 and 1 / 3 of the output resolution
+		static const float Modes[NumUpscaleQualities] = { 0.f, 100.f, 66.7f, 58.8f, 50.f, 33.3f };
+		static const float Auto[NumQualities] = { 67.f, 75.f, 100.f, 100.f };   // Low .. Epic
+		const int32 U = FMath::Clamp(UpscaleQuality, 0, NumUpscaleQualities - 1);
+		return U == 0 ? Auto[FMath::Clamp(Quality, 0, NumQualities - 1)] : Modes[U];
+	}
+
+	bool FsrLoaded()
+	{
+		const TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(TEXT("FSR"));
+		return !IsClassicOnly() && Plugin.IsValid() && Plugin->IsEnabled();
+	}
+
 	TConstArrayView<FCvarValue> RemasteredCvars()
 	{
 		// GI 1 / reflections 1 = Lumen, reflections 2 = screen space. Epic: Lumen on hardware ray tracing (needs
@@ -100,37 +138,55 @@ namespace SSXRenderLook
 		// once it has (the hidden terrain shadow twins of Alaska and Aloha stream only for shadow passes).
 		// Shadows: Epic takes the engine's Epic tier like High (the Cinematic tier doubles the soft-shadow rays and samples and
 		// quarters the volumetric fog cells) with the Cinematic page pool, as every one of its lamps casts a shadow.
-		static const FCvarValue Cvars[NumQualities][12] = {
+		static const FCvarValue Cvars[NumQualities][11] = {
 			{ { TEXT("r.DynamicGlobalIlluminationMethod"), TEXT("0") }, { TEXT("r.ReflectionMethod"), TEXT("2") },
 			  { TEXT("sg.GlobalIlluminationQuality"), TEXT("1") }, { TEXT("sg.ReflectionQuality"), TEXT("1") },
 			  { TEXT("sg.ShadowQuality"), TEXT("1") }, { TEXT("r.VolumetricFog"), TEXT("0") },
-			  { TEXT("r.ScreenPercentage"), TEXT("67") }, { TEXT("sg.EffectsQuality"), TEXT("1") },
+			  { TEXT("sg.EffectsQuality"), TEXT("1") },
 			  { TEXT("r.Lumen.HardwareRayTracing"), TEXT("0") }, { TEXT("r.Nanite"), TEXT("1") },
 			  { TEXT("r.Nanite.VSMInvalidateOnLODDelta"), TEXT("1") },
 			  { TEXT("r.Shadow.Virtual.MaxPhysicalPages"), TEXT("512") } },
 			{ { TEXT("r.DynamicGlobalIlluminationMethod"), TEXT("1") }, { TEXT("r.ReflectionMethod"), TEXT("1") },
 			  { TEXT("sg.GlobalIlluminationQuality"), TEXT("1") }, { TEXT("sg.ReflectionQuality"), TEXT("1") },
 			  { TEXT("sg.ShadowQuality"), TEXT("2") }, { TEXT("r.VolumetricFog"), TEXT("0") },
-			  { TEXT("r.ScreenPercentage"), TEXT("75") }, { TEXT("sg.EffectsQuality"), TEXT("2") },
+			  { TEXT("sg.EffectsQuality"), TEXT("2") },
 			  { TEXT("r.Lumen.HardwareRayTracing"), TEXT("0") }, { TEXT("r.Nanite"), TEXT("1") },
 			  { TEXT("r.Nanite.VSMInvalidateOnLODDelta"), TEXT("1") },
 			  { TEXT("r.Shadow.Virtual.MaxPhysicalPages"), TEXT("2048") } },
 			{ { TEXT("r.DynamicGlobalIlluminationMethod"), TEXT("1") }, { TEXT("r.ReflectionMethod"), TEXT("1") },
 			  { TEXT("sg.GlobalIlluminationQuality"), TEXT("2") }, { TEXT("sg.ReflectionQuality"), TEXT("2") },
 			  { TEXT("sg.ShadowQuality"), TEXT("3") }, { TEXT("r.VolumetricFog"), TEXT("1") },
-			  { TEXT("r.ScreenPercentage"), TEXT("100") }, { TEXT("sg.EffectsQuality"), TEXT("3") },
+			  { TEXT("sg.EffectsQuality"), TEXT("3") },
 			  { TEXT("r.Lumen.HardwareRayTracing"), TEXT("0") }, { TEXT("r.Nanite"), TEXT("1") },
 			  { TEXT("r.Nanite.VSMInvalidateOnLODDelta"), TEXT("1") },
 			  { TEXT("r.Shadow.Virtual.MaxPhysicalPages"), TEXT("4096") } },
 			{ { TEXT("r.DynamicGlobalIlluminationMethod"), TEXT("1") }, { TEXT("r.ReflectionMethod"), TEXT("1") },
 			  { TEXT("sg.GlobalIlluminationQuality"), TEXT("3") }, { TEXT("sg.ReflectionQuality"), TEXT("3") },
 			  { TEXT("sg.ShadowQuality"), TEXT("3") }, { TEXT("r.VolumetricFog"), TEXT("1") },
-			  { TEXT("r.ScreenPercentage"), TEXT("100") }, { TEXT("sg.EffectsQuality"), TEXT("4") },
+			  { TEXT("sg.EffectsQuality"), TEXT("4") },
 			  { TEXT("r.Lumen.HardwareRayTracing"), TEXT("1") }, { TEXT("r.Nanite"), TEXT("1") },
 			  { TEXT("r.Nanite.VSMInvalidateOnLODDelta"), TEXT("1") },
 			  { TEXT("r.Shadow.Virtual.MaxPhysicalPages"), TEXT("8192") } },
 		};
-		return Cvars[GetQuality()];
+		// Then the upscaler and the render resolution, r.ScreenPercentage last: the FSR plugin sets it itself whenever FSR is
+		// switched or changes mode, and the look's value must win.
+		static TArray<FCvarValue> Out;
+		static FString FsrMode, FsrOn, Percent;
+		const int32 Quality = GetQuality();
+		const float Pct = UpscalePercent(GetUpscaleQuality(), Quality);
+		Out.Reset();
+		Out.Append(Cvars[Quality], UE_ARRAY_COUNT(Cvars[Quality]));
+		if (FsrLoaded())
+		{
+			// FSR modes 0 Native AA, 1 Quality, 2 Balanced, 3 Performance, 4 Ultra Performance
+			FsrMode = FString::FromInt(GetUpscaleQuality() > 0 ? GetUpscaleQuality() - 1 : (Pct >= 100.f ? 0 : 1));
+			FsrOn = GetUpscaler() == 1 ? TEXT("1") : TEXT("0");
+			Out.Add({ TEXT("r.FidelityFX.FSR.QualityMode"), *FsrMode });
+			Out.Add({ TEXT("r.FidelityFX.FSR.Enabled"), *FsrOn });
+		}
+		Percent = FString::SanitizeFloat(Pct);
+		Out.Add({ TEXT("r.ScreenPercentage"), *Percent });
+		return Out;
 	}
 
 	void ApplyCvars(TConstArrayView<FCvarValue> Cvars, ESSXRenderLook Look)
@@ -160,7 +216,7 @@ namespace SSXRenderLook
 		IConsoleVariable* FrameGenerationCvar() { return IConsoleManager::Get().FindConsoleVariable(TEXT("r.FidelityFX.FI.Enabled")); }
 	}
 
-	bool FrameGenerationAvailable() { return !IsClassicOnly() && FrameGenerationCvar() != nullptr; }
+	bool FrameGenerationAvailable() { return FsrLoaded() && FrameGenerationCvar() != nullptr; }
 
 	FString FrameGenerationName()
 	{
@@ -193,6 +249,8 @@ void USSXVideoSettings::Save()
 	S->Look = int32(SSXRenderLook::Get());
 	S->Quality = SSXRenderLook::GetQuality();
 	S->FrameGeneration = SSXRenderLook::GetFrameGeneration() ? 1 : 0;
+	S->Upscaler = SSXRenderLook::GetUpscaler();
+	S->UpscaleQuality = SSXRenderLook::GetUpscaleQuality();
 	S->SaveConfig();
 }
 
@@ -213,6 +271,8 @@ void USSXRenderLookSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		return;   // tests run the Classic default unless they set the look themselves, whatever the user saved
 	}
 	SSXRenderLook::SetQuality(GetDefault<USSXVideoSettings>()->Quality);
+	SSXRenderLook::SetUpscaler(GetDefault<USSXVideoSettings>()->Upscaler);
+	SSXRenderLook::SetUpscaleQuality(GetDefault<USSXVideoSettings>()->UpscaleQuality);
 	SSXRenderLook::Set(FromInt(GetDefault<USSXVideoSettings>()->Look));
 	SSXRenderLook::SetFrameGeneration(GetDefault<USSXVideoSettings>()->FrameGeneration != 0);
 }

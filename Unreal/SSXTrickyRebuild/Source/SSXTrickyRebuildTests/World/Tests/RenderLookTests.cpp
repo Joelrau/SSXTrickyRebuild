@@ -25,6 +25,7 @@
 #include "Misc/AutomationTest.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
+#include "Misc/ScopeExit.h"
 #include "Misc/SecureHash.h"
 #include "TestSkip.h"
 #include "World/SSXRenderLook.h"
@@ -434,6 +435,44 @@ bool FSSXRenderSharpArtTest::RunTest(const FString&)
 	TestTrue(TEXT("made once"), SSXFeDrawHiRes::For(Classic) == Sharp);
 	SSXRenderLook::Set(ESSXRenderLook::Classic);
 	TestTrue(TEXT("Classic draws the Classic art"), SSXFeDrawHiRes::For(Classic) == Classic);
+	return true;
+}
+
+// The Remastered render resolution: Auto keeps each quality preset's own, the modes the upscalers' usual ratios. The
+// upscaler's console variables (with the FSR plugin) come before r.ScreenPercentage, which the FSR plugin also sets.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSSXRenderUpscaleTest, "SSX.Render.Upscale", RenderLookFlags)
+bool FSSXRenderUpscaleTest::RunTest(const FString&)
+{
+	using namespace SSXRenderLook;
+	TestEqual(TEXT("Auto at Low"), UpscalePercent(0, 0), 67.f);
+	TestEqual(TEXT("Auto at Medium"), UpscalePercent(0, 1), 75.f);
+	TestEqual(TEXT("Auto at High"), UpscalePercent(0, 2), 100.f);
+	TestEqual(TEXT("Native at Low"), UpscalePercent(1, 0), 100.f);
+	TestEqual(TEXT("Performance is half"), UpscalePercent(4, 3), 50.f);
+	for (int32 U = 2; U < NumUpscaleQualities; ++U)
+	{
+		TestTrue(FString::Printf(TEXT("mode %d below mode %d"), U, U - 1), UpscalePercent(U, 2) < UpscalePercent(U - 1, 2));
+	}
+	IConsoleVariable* Pct = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ScreenPercentage"));
+	if (!TestNotNull(TEXT("r.ScreenPercentage"), Pct)) { return false; }
+	FLookRestore Restore;
+	const int32 PrevQuality = GetQuality(), PrevUpscaleQuality = GetUpscaleQuality(), PrevUpscaler = GetUpscaler();
+	ON_SCOPE_EXIT { SetQuality(PrevQuality); SetUpscaleQuality(PrevUpscaleQuality); SetUpscaler(PrevUpscaler); };
+	Set(ESSXRenderLook::Classic);
+	const float ClassicPct = Pct->GetFloat();
+	SetQuality(2);
+	SetUpscaleQuality(4);
+	const TConstArrayView<FCvarValue> Cvars = RemasteredCvars();
+	TestTrue(TEXT("r.ScreenPercentage comes last"), Cvars.Num() > 0 && FString(Cvars.Last().Name) == TEXT("r.ScreenPercentage"));
+	bool bFsr = false;
+	for (const FCvarValue& C : Cvars) { bFsr |= FString(C.Name).StartsWith(TEXT("r.FidelityFX.")); }
+	TestEqual(TEXT("the FSR plugin's console variables only with the plugin loaded"), bFsr, FsrLoaded());
+	Set(ESSXRenderLook::Remastered);
+	TestEqual(TEXT("Performance renders at half the resolution"), Pct->GetFloat(), 50.f);
+	SetUpscaleQuality(0);
+	TestEqual(TEXT("Auto at High renders at full resolution"), Pct->GetFloat(), 100.f);
+	Set(ESSXRenderLook::Classic);
+	TestEqual(TEXT("Classic keeps its own resolution"), Pct->GetFloat(), ClassicPct);
 	return true;
 }
 

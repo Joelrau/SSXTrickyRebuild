@@ -333,9 +333,11 @@ bool FSSXUIOptionsVideoTest::RunTest(const FString& Parameters)
 	if (!FOptAssets::Get().Ready()) { SSXTest::Skip(*this, TEXT("FE fonts / sprites / LOC not converted; Video page checks skipped")); return true; }
 	const ESSXRenderLook Prev = SSXRenderLook::Get();
 	const int32 PrevQuality = SSXRenderLook::GetQuality();
-	ON_SCOPE_EXIT { SSXRenderLook::Set(Prev); SSXRenderLook::SetQuality(PrevQuality); };
+	const int32 PrevUpscaleQuality = SSXRenderLook::GetUpscaleQuality();
+	ON_SCOPE_EXIT { SSXRenderLook::Set(Prev); SSXRenderLook::SetQuality(PrevQuality); SSXRenderLook::SetUpscaleQuality(PrevUpscaleQuality); };
 	SSXRenderLook::Set(ESSXRenderLook::Classic);
 	SSXRenderLook::SetQuality(2);
+	SSXRenderLook::SetUpscaleQuality(0);
 	{
 		FOptFe F;
 		F.Press(ESSXFeKey::Square);
@@ -367,6 +369,9 @@ bool FSSXUIOptionsVideoTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("FRAME GENERATION row only with the FSR plugin"), F.Txt(TEXT("FRAME GENERATION")) != nullptr,
 			SSXRenderLook::FrameGenerationAvailable());
 		TestTrue(TEXT("frame generation value names the AMD FSR version"), SSXRenderLook::FrameGenerationName().StartsWith(TEXT("AMD FSR")));
+		TestNotNull(TEXT("row UPSCALE QUALITY"), F.Txt(TEXT("UPSCALE QUALITY")));
+		TestNotNull(TEXT("value AUTO"), F.Txt(TEXT("AUTO")));
+		TestEqual(TEXT("UPSCALER row only with the FSR plugin"), F.Txt(TEXT("UPSCALER")) != nullptr, SSXRenderLook::FsrLoaded());
 		const TArray<FIntPoint>& Res = Resolutions();
 		TestTrue(TEXT("resolutions listed, smallest first"), Res.Num() > 0 && Res[0].X <= Res.Last().X);
 		TestEqual(TEXT("the nearest listed resolution"), Res[ResolutionIndex(Res.Last())], Res.Last());
@@ -401,6 +406,18 @@ bool FSSXUIOptionsVideoTest::RunTest(const FString& Parameters)
 			TestFalse(TEXT("frame generation turns off"), SSXRenderLook::GetFrameGeneration());
 		}
 		TestEqual(TEXT("DONE leaves the page"), F.FE.Top()->Page, -1);
+	}
+	{
+		FOptFe F;
+		F.OpenPage(VideoPage);
+		for (int32 I = 0; I < RowIndex(VideoPage, UpscaleQualityId); ++I) { F.Press(ESSXFeKey::Down); }
+		TestEqual(TEXT("UPSCALE QUALITY help line"), F.FE.CurrentHelpLine(), FString(HelpText(VideoPage, UpscaleQualityId)));
+		F.Press(ESSXFeKey::Right);
+		TestEqual(TEXT("UPSCALE QUALITY Right previews Native"), SSXRenderLook::GetUpscaleQuality(), 1);
+		F.Redraw();
+		TestNotNull(TEXT("value NATIVE"), F.Txt(TEXT("NATIVE")));
+		F.Press(ESSXFeKey::Triangle);
+		TestEqual(TEXT("Back restores Auto"), SSXRenderLook::GetUpscaleQuality(), 0);
 	}
 	{
 		FOptFe F;

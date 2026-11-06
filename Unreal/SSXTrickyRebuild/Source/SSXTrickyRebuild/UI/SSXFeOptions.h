@@ -23,6 +23,9 @@ namespace SSXFeOptions
 	/** Video page row ids of VSYNC and FRAME LIMIT. */
 	constexpr int32 VSyncId = 5;
 	constexpr int32 FrameLimitId = 6;
+	/** Video page row ids of UPSCALER (present only with the FSR plugin) and UPSCALE QUALITY. */
+	constexpr int32 UpscalerId = 7;
+	constexpr int32 UpscaleQualityId = 8;
 	/** FRAME LIMIT values in frames per second, 0 = no limit. */
 	constexpr int32 FrameLimits[] = { 0, 30, 60, 120, 144, 165, 240 };
 	/** The FRAME LIMIT entry nearest to a limit. */
