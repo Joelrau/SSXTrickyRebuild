@@ -173,8 +173,9 @@ in the Classic look, which stays the default and renders exactly as before.
   Epic (highest shadow / GI / reflection quality). Only the Remastered look uses it.
 - **Upscaling:** Options → VIDEO → UPSCALER (OFF = the full resolution with TSR anti-aliasing / UNREAL TSR / AMD FSR,
   with the FSR plugin below) and UPSCALE QUALITY, the render resolution with an upscaler on (AUTO = the QUALITY
-  preset's, NATIVE, QUALITY 67 %, BALANCED 59 %, PERFORMANCE 50 %, ULTRA PERFORMANCE 33 %), or `ssx.Render.Upscaler
-  0..2` and `ssx.Render.UpscaleQuality 0..5`. Only the Remastered look uses them.
+  preset's, named on the row: Low 67 %, Medium 75 %, High and Epic NATIVE; NATIVE, QUALITY 67 %, BALANCED 59 %,
+  PERFORMANCE 50 %, ULTRA PERFORMANCE 33 %), or `ssx.Render.Upscaler 0..2` and `ssx.Render.UpscaleQuality 0..5`. Only
+  the Remastered look uses them.
 - **Resolution and display:** Options → VIDEO → RESOLUTION (the monitor's resolutions) and DISPLAY (fullscreen /
   borderless / windowed), applied with DONE and saved in `GameUserSettings.ini`. Borderless always uses the desktop
   resolution.

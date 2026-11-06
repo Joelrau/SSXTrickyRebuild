@@ -174,6 +174,12 @@ bool SSXFeOptions::RowGreyed(int32 Page, int32 Id, const int32* PageList)
 	return Id == UpscaleQualityId && (bClassic || PageList[RowIndex(VideoPage, UpscalerId)] == 0);
 }
 
+FString SSXFeOptions::UpscaleAutoText(int32 Quality)
+{
+	const int32 Pct = FMath::RoundToInt(SSXRenderLook::UpscalePercent(0, Quality));
+	return Pct >= 100 ? FString(TEXT("AUTO (NATIVE)")) : FString::Printf(TEXT("AUTO (%d%%)"), Pct);
+}
+
 int32 SSXFeOptions::RowIndex(int32 Page, int32 Id)
 {
 	return PageRows(Page).IndexOfByPredicate([Id](const FRow& R) { return R.Id == Id; });

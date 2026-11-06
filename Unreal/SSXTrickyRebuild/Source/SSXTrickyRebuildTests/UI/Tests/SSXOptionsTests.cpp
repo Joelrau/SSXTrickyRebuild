@@ -377,7 +377,10 @@ bool FSSXUIOptionsVideoTest::RunTest(const FString& Parameters)
 			SSXRenderLook::FrameGenerationAvailable());
 		TestTrue(TEXT("frame generation value names the AMD FSR version"), SSXRenderLook::FrameGenerationName().StartsWith(TEXT("AMD FSR")));
 		TestNotNull(TEXT("row UPSCALE QUALITY"), F.Txt(TEXT("UPSCALE QUALITY")));
-		TestNotNull(TEXT("value AUTO"), F.Txt(TEXT("AUTO")));
+		TestNotNull(TEXT("value AUTO names what High renders at"), F.Txt(TEXT("AUTO (NATIVE)")));
+		TestEqual(TEXT("AUTO at Low"), UpscaleAutoText(0), FString(TEXT("AUTO (67%)")));
+		TestEqual(TEXT("AUTO at Medium"), UpscaleAutoText(1), FString(TEXT("AUTO (75%)")));
+		TestEqual(TEXT("AUTO at Epic"), UpscaleAutoText(3), FString(TEXT("AUTO (NATIVE)")));
 		TestNotNull(TEXT("row UPSCALER"), F.Txt(TEXT("UPSCALER")));
 		TestNotNull(TEXT("value UNREAL TSR (the default)"), F.Txt(TEXT("UNREAL TSR")));
 		TestEqual(TEXT("OFF, UNREAL TSR, and AMD FSR only with the FSR plugin"), PageRows(VideoPage)[RowIndex(VideoPage, UpscalerId)].Values.Num(),
@@ -401,6 +404,8 @@ bool FSSXUIOptionsVideoTest::RunTest(const FString& Parameters)
 		F.Press(ESSXFeKey::Down);
 		F.Press(ESSXFeKey::Left);
 		TestEqual(TEXT("QUALITY Left previews Medium"), SSXRenderLook::GetQuality(), 1);
+		F.Redraw();
+		TestNotNull(TEXT("AUTO follows QUALITY on the page"), F.Txt(TEXT("AUTO (75%)")));
 		// down from QUALITY to DONE (FRAME GENERATION is there only with the FSR plugin)
 		for (int32 I = 1; I < RowIndex(VideoPage, DoneId); ++I) { F.Press(ESSXFeKey::Down); }
 		F.FE.SoundHooks.Reset();

@@ -3782,7 +3782,8 @@ void FSSXFrontEnd::DrawOptions(FSSXFeDrawList& D, const FSSXFeState& S) const
 		if (R.Kind == EKind::List)
 		{
 			const int32 Idx = FMath::Clamp(O.List[S.Page][I], 0, R.Values.Num() - 1);
-			const FString Val = ValueStr(R.Values[Idx]);
+			const bool bAuto = S.Page == VideoPage && R.Id == UpscaleQualityId && R.Values[Idx].Id == 0;
+			const FString Val = bAuto ? UpscaleAutoText(O.List[S.Page][RowIndex(VideoPage, 1)]) : ValueStr(R.Values[Idx]);
 			const float Vw = MenuW(Val, 1.f);
 			D.Text(EFont::Menu, Vx, Y, 1.f, C, Val, ESSXAlign::Left, true, Tl);
 			if (bHi)

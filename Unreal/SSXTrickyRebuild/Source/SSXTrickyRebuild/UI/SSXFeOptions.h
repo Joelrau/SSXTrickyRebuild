@@ -37,6 +37,8 @@ namespace SSXFeOptions
 	/** Video page rows that do nothing at the page's current values, drawn grey and skipped (PC only, user request):
 	 *  QUALITY, UPSCALER and UPSCALE QUALITY with LOOK Classic, UPSCALE QUALITY with UPSCALER off. */
 	SSXTRICKYREBUILD_API bool RowGreyed(int32 Page, int32 Id, const int32* PageList);
+	/** UPSCALE QUALITY's AUTO value at a QUALITY preset, naming what it renders at: "AUTO (NATIVE)", "AUTO (75%)". */
+	SSXTRICKYREBUILD_API FString UpscaleAutoText(int32 Quality);
 
 	/** Row widget kinds: a cFE3DWTextEntry with a value list (cFE3DWList style 2, wrap 1) or a progress bar
 	 *  (cFE3DProgressBar), the DONE entry (label only), or a plain single-line text item (Save/Load). */
