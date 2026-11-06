@@ -153,7 +153,7 @@ const SSXRemaster::FTrackTuning& SSXRemaster::TuningFor(const FString& Stem)
 	{
 		FTrackTuning T;
 		T.Stem = S; T.SunLux = Sun; T.SunSaturation = SunSat; T.SkyLight = Sky; T.BakedAmbient = Amb; T.Emissive = Emis; T.LightCandela = Cd;
-		T.RiderFill = Sun < 1.f ? 1.f : 0.6f;
+		T.RiderFill = Sun < 1.f ? 1.f : 0.5f;
 		T.SpriteGlow = Sun > 0.f && Sun < 1.f ? 0.9f : 0.8f;
 		T.Clouds = Sun >= 1.f ? 0.6f : 0.f;   // day tracks; none at night, indoors or in the front end
 		return T;

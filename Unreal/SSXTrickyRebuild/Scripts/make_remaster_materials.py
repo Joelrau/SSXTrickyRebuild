@@ -247,7 +247,8 @@ float3 t = saturate({ENC.format(x='Tex')} * (255.0 / 128.0));
 return {DEC.format(x='t')} * AlbedoScale;
 """
 # The Classic rider colour (texture x light rig, display space, clamped) as linear light x RiderFill: at 1 a rider with
-# no other light looks exactly as in Classic; sun, lamps and Lumen add to it. Plus a rim in the strongest rig light's colour.
+# no other light looks exactly as in Classic; sun, lamps and Lumen add to it. Plus a rim towards the sun in its colour, and
+# on gloss and chrome a sun glint (none where the fill carries the rider, at night and indoors).
 RIDER_FILL = f"""
 float3 c = saturate({ENC.format(x='Tex')} * V) * lerp(1.0, M.a, 0.7);   // the fill is emissive: AO alone would not touch it
 float3 g = saturate({ENC.format(x='G')} * V);
@@ -256,10 +257,15 @@ c = Chrome > 0.5 ? saturate(c + (g - c) * (33.0 / 128.0)) : saturate(c + g * Fix
 // and mostly desaturated.
 float3 rc = max(C2, 0.0) / max(1.0, max(C2.r, max(C2.g, C2.b)));
 rc = lerp(dot(rc, float3(0.2126, 0.7152, 0.0722)).xxx, rc, 0.35);
-float3 rim = {DEC.format(x='saturate(rc * 0.5)')} * pow(1.0 - saturate(dot(N, normalize(Dir))), 3.0);   // Dir: pixel to camera
-return {DEC.format(x='c')} * RiderFill + rim * RiderRim;
+float3 sun = float3(SunX, SunY, SunZ);
+float3 tint = float3(SunR, SunG, SunB);
+rc = lerp(rc, tint, 0.6);
+float3 nrm = normalize(N), toCam = normalize(Dir);   // Dir: pixel to camera
+float3 rim = {DEC.format(x='saturate(rc * 0.6)')} * pow(1.0 - saturate(dot(nrm, toCam)), 3.0) * (0.5 + 0.5 * saturate(dot(nrm, sun)));
+float glint = pow(saturate(dot(nrm, normalize(toCam + sun))), 90.0) * (Chrome > 0.5 ? 1.2 : Fix * 0.8) * saturate((1.0 - RiderFill) * 2.0);
+return {DEC.format(x='c')} * RiderFill + rim * RiderRim + tint * glint;
 """
-RIDER_ROUGH = "return clamp(0.65 - Fix * 0.5 + (M.r - 0.5) * 0.6, 0.2, 1.0);"
+RIDER_ROUGH = "return clamp(0.58 - Fix * 0.5 + (M.r - 0.5) * 0.6, 0.15, 1.0);"
 # 0x318080: the Classic rider gloss / chrome sphere-map coordinates from the world normal and the view axes.
 CHROME_UV = "return float2(N.x * R.x - N.y * U.x + N.z * F.x, -N.x * R.y + N.y * U.y - N.z * F.y);"
 GLOSS_UV = "return saturate(float2(N.x * R.x - N.y * U.x + N.z * F.x, -N.x * R.y + N.y * U.y - N.z * F.y));"
@@ -562,7 +568,7 @@ else:
 old = {str(p.get_editor_property("parameter_name")): p for p in rm.get_editor_property("scalar_parameters")}
 scalars = []
 for n, v in (("BakedWeight", 0.6), ("BakedAmbient", 0.55), ("AlbedoScale", 0.9), ("BaseRoughness", 0.62), ("Clouds", 0.0),
-             ("Exposure", 1.0), ("Saturation", 1.15), ("Emissive", 3.0), ("RiderFill", 0.6), ("RiderRim", 0.35),
+             ("Exposure", 1.0), ("Saturation", 1.15), ("Emissive", 3.0), ("RiderFill", 0.6), ("RiderRim", 0.5),
              ("ParticleSoftness", 40.0), ("SpriteGlow", 0.35), ("DrawDistanceScale", 3.0), ("DrawDistanceUp", 1.0), ("Sparkle", 3.0), ("SpeedFx", 0.0),
              ("TrailX", 0.0), ("TrailY", 0.0), ("TrailSize", 1.0e9), ("WorldTime", 0.0), ("Stars", 0.0),
              ("SunX", 0.0), ("SunY", 0.0), ("SunZ", 1.0), ("SunR", 1.0), ("SunG", 1.0), ("SunB", 1.0)):
@@ -685,11 +691,13 @@ for name, masked, chrome in (("M_RmRider", False, False), ("M_RmRider_Masked", T
                    ("Chrome", (expr(m, unreal.MaterialExpressionConstant, -800, 620, r=1.0 if chrome else 0.0), "")),
                    ("N", (expr(m, unreal.MaterialExpressionPixelNormalWS, -800, 330), "")), ("Dir", (view_dir, "")),
                    ("RiderFill", (coll(m, rm, "RiderFill", -800, 480), "")),
-                   ("RiderRim", (coll(m, rm, "RiderRim", -800, 550), ""))], "RmRiderFill")
+                   ("RiderRim", (coll(m, rm, "RiderRim", -800, 550), ""))]
+                  + [(k, (coll(m, rm, k, -800, 620 + 60 * i), "")) for i, k in enumerate(("SunX", "SunY", "SunZ", "SunR", "SunG", "SunB"))],
+                  "RmRiderFill")
     connect_prop(fill, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
     if chrome:
         connect_prop(expr(m, unreal.MaterialExpressionConstant, -400, 200, r=0.85), "", unreal.MaterialProperty.MP_METALLIC)
-        connect_prop(expr(m, unreal.MaterialExpressionConstant, -400, 280, r=0.18), "", unreal.MaterialProperty.MP_ROUGHNESS)
+        connect_prop(expr(m, unreal.MaterialExpressionConstant, -400, 280, r=0.12), "", unreal.MaterialProperty.MP_ROUGHNESS)
     else:
         connect_prop(custom(m, -400, 250, RIDER_ROUGH, F1, [("Fix", (gfix, "")), ("M", (rmasks4, ""))], "RmRiderRoughness"), "",
                      unreal.MaterialProperty.MP_ROUGHNESS)
