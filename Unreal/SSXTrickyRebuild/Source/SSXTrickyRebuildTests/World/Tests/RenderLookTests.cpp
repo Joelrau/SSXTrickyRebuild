@@ -271,6 +271,8 @@ bool FSSXRenderTrackTuningTest::RunTest(const FString&)
 		Suns.Add(T.SunLux);
 	}
 	TestEqual(TEXT("each its own sun"), Suns.Num(), 4);
+	TestTrue(TEXT("Tokyo's lamps sweep through thick fog"), SSXRemaster::TuningFor(TEXT("megaple")).bSweepLights && SSXRemaster::TuningFor(TEXT("megaple")).FogVolume > 1.f);
+	TestFalse(TEXT("other tracks' lamps stay still"), SSXRemaster::TuningFor(TEXT("merquer")).bSweepLights);
 	TestTrue(TEXT("night tracks face their painted moons"), SSXRemaster::TuningFor(TEXT("snow")).MoonAzimuthDeg > 0.f && SSXRemaster::TuningFor(TEXT("merquer")).MoonAzimuthDeg > 0.f
 		&& SSXRemaster::TuningFor(TEXT("trick")).MoonAzimuthDeg > 0.f);
 	TestTrue(TEXT("day tracks have no moon or stars"), SSXRemaster::TuningFor(TEXT("gari")).MoonAzimuthDeg < 0.f && SSXRemaster::TuningFor(TEXT("gari")).Stars == 0.f);

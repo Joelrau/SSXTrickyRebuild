@@ -166,7 +166,7 @@ const SSXRemaster::FTrackTuning& SSXRemaster::TuningFor(const FString& Stem)
 			T.FogTint = FLinearColor(0.03f, 0.04f, 0.12f); T.Bloom = 0.5f; T.LightScatter = 1.5f; return T; }(),
 		[&Make]() { FTrackTuning T = Make(TEXT("merquer"), 0.25f, 0.9f, 0.2f, 0.9f, 7.f, 60.f); T.MoonAzimuthDeg = 111.3f; T.MoonElevationDeg = 9.3f; T.Stars = 0.4f; T.FogTint = FLinearColor(0.04f, 0.06f, 0.16f); T.Bloom = 1.f; T.LightScatter = 3.f; return T; }(),
 		// Tokyo Megaplex: bright neon in the navy haze of its night sky; Pipedream: the grey-teal haze of its windows.
-		[&Make]() { FTrackTuning T = Make(TEXT("megaple"), 0.2f, 0.6f, 0.3f, 0.9f, 6.f, 50.f); T.FogTint = FLinearColor(0.05f, 0.06f, 0.16f); T.Bloom = 0.8f; T.LightScatter = 2.f; return T; }(),
+		[&Make]() { FTrackTuning T = Make(TEXT("megaple"), 0.2f, 0.6f, 0.3f, 0.9f, 6.f, 50.f); T.FogTint = FLinearColor(0.05f, 0.06f, 0.16f); T.Bloom = 0.8f; T.LightScatter = 4.f; T.FogVolume = 3.f; T.bSweepLights = true; return T; }(),
 		[&Make]() { FTrackTuning T = Make(TEXT("pipe"), 0.2f, 0.6f, 0.3f, 0.9f, 5.f, 45.f); T.FogTint = FLinearColor(0.12f, 0.2f, 0.24f); T.Bloom = 0.7f; T.LightScatter = 2.f; return T; }(),
 		[&Make]() { FTrackTuning T = Make(TEXT("trick"), 0.25f, 0.9f, 0.2f, 1.0f, 7.f, 60.f); T.MoonAzimuthDeg = 117.3f; T.MoonElevationDeg = 9.4f; T.Stars = 1.f; T.Bloom = 1.f; T.LightScatter = 3.f; return T; }(),
 		// Elysium: a dim pink-red evening sun and haze, from its sky art.
@@ -406,6 +406,14 @@ void USSXRemasterWorld::Tick(float DeltaTime)
 		UpdateFrontEndSpots();
 		UpdateDepthOfField();
 		UpdateSpeedFx(DeltaTime);
+		for (int32 I = 0; I < SweepLights.Num(); ++I)
+		{
+			// a slow sweep of +-14 degrees, each spot on its own phase
+			if (USceneComponent* C = SweepLights[I].Light.Get())
+			{
+				C->SetWorldRotation(SweepLights[I].Base + FRotator(0.0, 14.0 * FMath::Sin(WorldTime * 0.6 + I * 1.7), 0.0));
+			}
+		}
 		UpdateTrails();
 		SwapRiders();
 		if (AppliedQuality != SSXRenderLook::GetQuality()) { ApplyQuality(); }
@@ -823,6 +831,7 @@ void USSXRemasterWorld::LookFinish(const UMeshComponent& C, UMaterialInstanceDyn
 	{
 		M.SetScalarParameterValue(TEXT("RmSurface"), 4.f);
 	}
+	if (WaterComponents.Contains(&C)) { M.SetScalarParameterValue(TEXT("RmWater"), 1.f); }
 }
 
 UStaticMeshComponent* USSXRemasterWorld::MakeTerrainShadowTwin(UStaticMeshComponent& M)
@@ -967,6 +976,7 @@ void USSXRemasterWorld::ApplySurfaceLook()
 	UMaterialInterface* Glass = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Remastered/M_RmPropGlass.M_RmPropGlass"));
 	int32 Slots = 0;
 	LookComponents.Reset();
+	WaterComponents.Reset();
 	for (TActorIterator<AActor> It(W); It; ++It)
 	{
 		const int32 Inst = SSXShowOff::InstanceOfActor(*It);
@@ -975,6 +985,7 @@ void USSXRemasterWorld::ApplySurfaceLook()
 		for (UMeshComponent* C : Meshes)
 		{
 			LookComponents.Add(C);
+			if (Look.FindRef(Inst) == 2) { WaterComponents.Add(C); }
 			for (int32 S = 0; S < C->GetNumMaterials(); ++S)
 			{
 				// An animated slot (UV scroll, flipbook): its twin follows the Classic instance, so it is remade with the look.
@@ -1383,6 +1394,7 @@ void USSXRemasterWorld::Apply()
 		C->SetAttenuationRadius(SSXRemaster::LightRadius(L.Falloff));
 		C->SetVolumetricScatteringIntensity(T.LightScatter);
 		LocalLights.Add(C);
+		if (T.bSweepLights && L.Type == FSSXLight::Spot) { SweepLights.Add({ C, C->GetComponentRotation() }); }
 	}
 	bAllLightShadows = T.bLightShadows;
 	if (T.bNoShadowCache && ShadowCacheBefore == INDEX_NONE)
@@ -1421,6 +1433,7 @@ void USSXRemasterWorld::Apply()
 			}
 			UpdateFog();
 			C->SetVolumetricFog(true);
+			C->SetVolumetricFogExtinctionScale(T.FogVolume);
 			Spawned.Add(F);
 		}
 	}
@@ -1482,6 +1495,11 @@ void USSXRemasterWorld::Revert()
 	}
 	Spawned.Reset();
 	LocalLights.Reset();
+	for (const FSweep& S : SweepLights)
+	{
+		if (USceneComponent* C = S.Light.Get()) { C->SetWorldRotation(S.Base); }
+	}
+	SweepLights.Reset();
 	for (const FShadowFlags& F : TerrainShadows)
 	{
 		if (UStaticMeshComponent* T = F.Twin.Get()) { T->DestroyComponent(); }

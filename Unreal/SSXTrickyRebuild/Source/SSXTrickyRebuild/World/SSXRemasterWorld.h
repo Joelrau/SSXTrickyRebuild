@@ -55,6 +55,8 @@ namespace SSXRemaster
 		float FogStrength = 1.f;        // 1 = almost opaque at the draw distance, 0 = no fog
 		float Bloom = 0.5f;             // bloom intensity, threshold 1 (highlights only)
 		float LightCandela = 15.f;      // track point / spot lights: candela per unit of the original colour
+		float FogVolume = 1.f;          // volumetric fog thickness (extinction scale): light beams show in thicker fog
+		bool bSweepLights = false;      // the spot lights sweep slowly (stadium)
 		float LightScatter = 1.f;       // their glow in the volumetric fog (High and Epic)
 		float RiderFill = 0.6f;         // share of the Classic rider shading kept under the new light (1 = all of it)
 		float SpriteGlow = 0.8f;        // share of their own brightness the lit alpha sprites keep (spray, fog puffs)
@@ -159,6 +161,7 @@ private:
 	UMaterialInterface* LookParent(const UMeshComponent& C, UMaterialInterface* Parent) const;
 	/** Glass / water components: a lit instance gets the mirror class (RmSurface 4). */
 	void LookFinish(const UMeshComponent& C, UMaterialInstanceDynamic& M) const;
+	TSet<TWeakObjectPtr<const UMeshComponent>> WaterComponents;   // surface look class 2 (water): its glass gets ripples
 	TSet<TWeakObjectPtr<const UMeshComponent>> LookComponents;   // glass / water props (ApplySurfaceLook)
 	UMaterialInterface* RemasteredFor(UMaterialInterface* Classic);
 	void OnLevelAdded(ULevel* Level, UWorld* World);
@@ -206,6 +209,8 @@ private:
 	TArray<TObjectPtr<UMaterialInstanceDynamic>> ClassicMids;   // Classic instances whose slot shows a twin
 
 	TWeakObjectPtr<APostProcessVolume> Volume;
+	struct FSweep { TWeakObjectPtr<USceneComponent> Light; FRotator Base; };
+	TArray<FSweep> SweepLights;
 	TArray<TWeakObjectPtr<class ULocalLightComponent>> LocalLights;   // strongest first
 	TWeakObjectPtr<class UExponentialHeightFogComponent> Fog;
 	double FogDrawDistance = 0.0;   // the original's draw distance, cm

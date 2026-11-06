@@ -97,7 +97,24 @@ float hx = Trails.SampleLevel(TrailsSampler, uv + float2(e, 0.0), 0).r - Trails.
 float hy = Trails.SampleLevel(TrailsSampler, uv + float2(0.0, e), 0).r - Trails.SampleLevel(TrailsSampler, uv - float2(0.0, e), 0).r;
 return float4(normalize(N + float3(hx, hy, 0.0) * 2.5), h);
 """
-TRAIL_SHADE = "return C * (1.0 - 0.28 * T.a);"
+# Fine grain on snow and powder near the camera, over the trail shade.
+TRAIL_SHADE = """
+float g = 1.0;
+if (Surface < 0.5 || (Surface > 1.5 && Surface < 2.5))
+{
+    float h = frac(sin(dot(floor(WP.xy / 3.0), float2(12.9898, 78.233))) * 43758.5453);
+    g = 1.0 + (h - 0.5) * 0.12 * saturate(1.0 - Depth / 1500.0);
+}
+return C * (1.0 - 0.28 * T.a) * g;
+"""
+# Water layers (surface look class 2): small moving ripples; glass stays flat.
+WATER_NORMAL = """
+if (Water < 0.5) return float3(0.0, 0.0, 1.0);
+float2 w = WP.xy / 45.0;
+w += 0.6 * sin(w.yx * 1.1 + T * 0.5);
+float2 n = float2(cos(w.x * 2.0 + T * 1.2) + 0.5 * cos(w.y * 3.7 - T * 1.6), cos(w.y * 2.3 - T * 1.0) + 0.5 * cos(w.x * 4.1 + T * 1.5));
+return normalize(float3(n * 0.08, 1.0));
+"""
 TRAIL_AO = "return A * (1.0 - 0.45 * T.a);"
 # Wind ripples on snow near the camera: warped sines, no texture, so nothing tiles or repeats visibly. Ice: broad swells
 # that bend its reflections. Slush: small moving ripples.
@@ -298,7 +315,7 @@ return float4(cs / 255.0, sa / 128.0);
 SOFT_DEPTH_SPRITE = "return float4(S.rgb, (PD <= CD.r * 1.0005 + 0.5) ? S.a : 0.0);"
 SPRITE_ADD = f"return {DEC.format(x='saturate(S.rgb * S.a)')} * Fade;"
 SPRITE_ALPHA = f"return {DEC.format(x='saturate(S.rgb)')};"
-SPRITE_ALPHA_GLOW = "return C * Glow;"   # lit spray keeps a share of its own brightness (MPC SpriteGlow, per track)
+SPRITE_ALPHA_GLOW = "return C * Glow * lerp(float3(1.0, 1.0, 1.0), float3(SunR, SunG, SunB), 0.5);"   # lit spray keeps a share of its own brightness (MPC SpriteGlow, per track)
 PP_SCENE = f"""
 float3 s = max(Scene.rgb / View.PreExposure, 0.0);
 float3 b = max(Bloom.rgb / View.PreExposure, 0.0);
@@ -484,7 +501,9 @@ def surface(m, rm, base, baked, uv=None, trails=False):
         tn = expr(m, unreal.MaterialExpressionComponentMask, -200, 400, r=True, g=True, b=True, a=False)
         connect(trail, "", tn, "")
         connect_prop(tn, "", unreal.MaterialProperty.MP_NORMAL)
-        connect_prop(custom(m, -200, -200, TRAIL_SHADE, F3, [("C", (albedo, "")), ("T", (trail, ""))], "RmTrailShade"), "",
+        connect_prop(custom(m, -200, -200, TRAIL_SHADE, F3, [("C", (albedo, "")), ("T", (trail, "")), ("Surface", (surf, "")),
+                                                          ("WP", (expr(m, unreal.MaterialExpressionWorldPosition, -400, -300), "")),
+                                                          ("Depth", (expr(m, unreal.MaterialExpressionPixelDepth, -400, -340), ""))], "RmTrailShade"), "",
                      unreal.MaterialProperty.MP_BASE_COLOR)
     else:
         connect_prop(albedo, "", unreal.MaterialProperty.MP_BASE_COLOR)
@@ -569,7 +588,7 @@ old = {str(p.get_editor_property("parameter_name")): p for p in rm.get_editor_pr
 scalars = []
 for n, v in (("BakedWeight", 0.6), ("BakedAmbient", 0.55), ("AlbedoScale", 0.9), ("BaseRoughness", 0.62), ("Clouds", 0.0),
              ("Exposure", 1.0), ("Saturation", 1.15), ("Emissive", 3.0), ("RiderFill", 0.6), ("RiderRim", 0.5),
-             ("ParticleSoftness", 40.0), ("SpriteGlow", 0.35), ("DrawDistanceScale", 3.0), ("DrawDistanceUp", 1.0), ("Sparkle", 3.0), ("SpeedFx", 0.0),
+             ("ParticleSoftness", 80.0), ("SpriteGlow", 0.35), ("DrawDistanceScale", 3.0), ("DrawDistanceUp", 1.0), ("Sparkle", 3.0), ("SpeedFx", 0.0),
              ("TrailX", 0.0), ("TrailY", 0.0), ("TrailSize", 1.0e9), ("WorldTime", 0.0), ("Stars", 0.0),
              ("SunX", 0.0), ("SunY", 0.0), ("SunZ", 1.0), ("SunR", 1.0), ("SunG", 1.0), ("SunB", 1.0)):
     p = old.get(n) or unreal.CollectionScalarParameter()
@@ -777,7 +796,8 @@ for name, additive in (("M_RmParticleAdd", True), ("M_RmParticleAlpha", False)):
         col = custom(m, -250, 0, SPRITE_ALPHA, F3, [("S", (soft, ""))], "RmSpriteAlpha")
         connect_prop(col, "", unreal.MaterialProperty.MP_BASE_COLOR)
         connect_prop(custom(m, -100, -100, SPRITE_ALPHA_GLOW, F3,
-                            [("C", (col, "")), ("Glow", (coll(m, rm, "SpriteGlow", -300, -150), ""))], "RmSpriteGlow"), "",
+                            [("C", (col, "")), ("Glow", (coll(m, rm, "SpriteGlow", -300, -150), ""))]
+                            + [(k, (coll(m, rm, k, -300, -90 + 50 * i), "")) for i, k in enumerate(("SunR", "SunG", "SunB"))], "RmSpriteGlow"), "",
                      unreal.MaterialProperty.MP_EMISSIVE_COLOR)
         a = expr(m, unreal.MaterialExpressionComponentMask, -300, 200, r=False, g=False, b=False, a=True)
         connect(soft, "", a, "")
@@ -866,6 +886,10 @@ for name, glass in (("M_RmProp_Translucent", False), ("M_RmPropGlass", True), ("
     connect_prop(glow, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
     connect_prop(expr(m, unreal.MaterialExpressionConstant, -400, 140, r=0.12 if ice else 0.03), "", unreal.MaterialProperty.MP_ROUGHNESS)
     connect_prop(expr(m, unreal.MaterialExpressionConstant, -400, 200, r=0.7 if ice else 1.0), "", unreal.MaterialProperty.MP_SPECULAR)
+    water = expr(m, unreal.MaterialExpressionScalarParameter, -700, 260, parameter_name="RmWater", default_value=0.0)
+    connect_prop(custom(m, -400, 260, WATER_NORMAL, F3, [("Water", (water, "")), ("WP", (expr(m, unreal.MaterialExpressionWorldPosition, -700, 320), "")),
+                                                        ("T", (coll(m, rm, "WorldTime", -700, 380), ""))], "RmWaterNormal"), "",
+                 unreal.MaterialProperty.MP_NORMAL)
   else:
     connect_prop(shade, "", unreal.MaterialProperty.MP_BASE_COLOR)
     amb = expr(m, unreal.MaterialExpressionMultiply, -200, 40)
