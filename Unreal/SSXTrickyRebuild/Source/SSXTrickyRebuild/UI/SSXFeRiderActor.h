@@ -23,6 +23,9 @@ public:
 	void ApplyPose();
 	/** Selection lights: the blended light block (ambient + three directional lights, directions in FE camera space); USSXWorldPresentation feeds it to the rider materials (FeRiderLightInputs). */
 	void SetLights(const SSXFeRiders::FLightSet& InLights) { Lights = InLights; bLightsValid = true; }
+	/** The carousel's selected-light blend of this rider (0 unselected .. 1 selected, FLightBlend). */
+	void SetSelectBlend(float InBlend) { SelectBlend = InBlend; }
+	float GetSelectBlend() const { return SelectBlend; }
 	const SSXFeRiders::FLightSet* GetLights() const { return bLightsValid ? &Lights : nullptr; }
 
 	int32 GetSlot() const { return Slot; }
@@ -51,4 +54,5 @@ private:
 	bool bMapped = false;
 	SSXFeRiders::FLightSet Lights;
 	bool bLightsValid = false;
+	float SelectBlend = 0.f;
 };

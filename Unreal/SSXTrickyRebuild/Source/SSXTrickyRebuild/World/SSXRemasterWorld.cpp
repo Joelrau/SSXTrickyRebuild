@@ -187,7 +187,7 @@ const SSXRemaster::FTrackTuning& SSXRemaster::TuningFor(const FString& Stem)
 		// Alaska: a low golden sun with long shadows, blue shade and the blue-grey haze of its sky art.
 		[&Make]() { FTrackTuning T = Make(TEXT("alaska"), 4.f, 0.5f, 0.6f, 0.3f, 3.f, 15.f); T.IceTextures = TEXT("031 032 033 034 035 036 089 177"); T.LightShaftMaterials = TEXT("tex_168_"); T.bNoShadowCache = true; T.SunElevation = 20.f; T.SunTint = FLinearColor(1.f, 0.7f, 0.48f);
 			T.FogTint = FLinearColor(0.3f, 0.4f, 0.55f); T.Saturation = 1.1f; T.Bloom = 0.5f; T.Clouds = 0.3f; T.Sparkle = 3.5f; return T; }(),
-		[&Make]() { FTrackTuning T = Make(TEXT("frontend"), 0.f, 0.6f, 0.05f, 1.0f, 3.f, 15.f); T.FogStrength = 0.f; T.Saturation = 1.f; T.Bloom = 0.3f; T.MaxLights = 0; T.RiderFill = 0.85f;
+		[&Make]() { FTrackTuning T = Make(TEXT("frontend"), 0.f, 0.6f, 0.1f, 1.0f, 3.f, 15.f); T.FogStrength = 0.f; T.Saturation = 1.1f; T.Bloom = 0.5f; T.MaxLights = 0; T.RiderFill = 0.6f;
 			T.Emissive = 0.f; T.Sparkle = 0.f; return T; }(),   // the ice backdrop's bright texels are not lamps
 	};
 	static const FTrackTuning Default;
@@ -585,8 +585,8 @@ void USSXRemasterWorld::UpdateFrontEndSpots()
 {
 	UWorld* W = GetWorld();
 	if (!W) { return; }
-	// Front end: a stage spotlight above each carousel rider on the camera side (the light list's points sit inside
-	// the riders: they only light the riders' own rig).
+	// Front end: a stage spotlight above the hovered carousel rider on the camera side, fading with the original's
+	// selected-light blend (the light list's points sit inside the riders: they only light the riders' own rig).
 	FVector CamLoc = FVector::ZeroVector;
 	bool bCam = false;
 	if (const APlayerController* PC = W->GetFirstPlayerController())
@@ -603,7 +603,7 @@ void USSXRemasterWorld::UpdateFrontEndSpots()
 		for (TActorIterator<ASSXFeRiderActor> It(W); It; ++It)
 		{
 			const FVector To = (It->GetActorLocation() - CamLoc).GetSafeNormal();
-			const double F = FVector::DotProduct(To, Fwd);
+			const double F = FVector::DotProduct(To, Fwd) * It->GetSelectBlend();
 			if (F > Best) { Best = F; Centre = *It; }
 		}
 	}
@@ -627,8 +627,8 @@ void USSXRemasterWorld::UpdateFrontEndSpots()
 			USpotLightComponent* C = CastChecked<USpotLightComponent>(Spot->GetLightComponent());
 			C->SetMobility(EComponentMobility::Movable);
 			C->SetIntensityUnits(ELightUnits::Candelas);
-			C->SetIntensity(18.f);
-			C->SetLightColor(FLinearColor(1.f, 0.95f, 0.88f));
+			C->SetIntensity(35.f);
+			C->SetLightColor(FLinearColor(1.f, 0.93f, 0.82f));
 			C->SetOuterConeAngle(28.f);
 			C->SetInnerConeAngle(18.f);
 			C->SetAttenuationRadius(800.f);
@@ -640,6 +640,8 @@ void USSXRemasterWorld::UpdateFrontEndSpots()
 		}
 		if (ULightComponent* L = Spot->GetLightComponent())
 		{
+			L->SetIntensity(35.f * It->GetSelectBlend());
+			L->SetVisibility(It->GetSelectBlend() > 0.f);
 			const bool bShadow = *It == Centre;
 			if (L->CastShadows != bShadow) { L->SetCastShadows(bShadow); }
 		}

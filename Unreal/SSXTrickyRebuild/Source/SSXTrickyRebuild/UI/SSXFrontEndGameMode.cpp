@@ -196,6 +196,7 @@ void ASSXFrontEndPlayerController::TickRiders(float DeltaSeconds)
 		if (bStepped && Data)
 		{
 			Riders[Slot]->SetLights(SSXFeRiders::FLightSet::Lerp(Data->Unselected, Data->Selected, Ring.Lights[Slot].Blend));
+			Riders[Slot]->SetSelectBlend(Ring.Lights[Slot].Blend);
 		}
 		Riders[Slot]->ApplyPose();
 		// FUN_00261B38
