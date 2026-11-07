@@ -227,6 +227,11 @@ public:
 	bool bReplayLaunch = false;
 	SSXReplayFile::FSetup ReplayLaunchSetup;
 	bool bLaunchPending = false;
+	/** PC port only (the PS2 game has no quit): Back (Triangle / Select, Esc) on the Title menu opens a QUIT GAME? prompt
+	 *  (a small box over the menu with the save screen's yes / no buttons); Accept sets bQuitConfirmed for the host to close
+	 *  the game, Back closes the prompt. */
+	bool bQuitPrompt = false;
+	bool bQuitConfirmed = false;
 	/** An Accept is leaving the top screen for PendingOpen / PendingPlayer: the screen closes (vfunc_06: out fade, 31-frame
 	 *  slide-out, phase 3), its vfunc_21 runs (camera requests such as the Title's modeSelectIntro fly-in or the
 	 *  CharacterModify venueSelect_intro), the state waits for the camera (phase 4), then vfunc_08 builds the next screen
@@ -409,6 +414,7 @@ public:
 	 *  centred lines, no shadow, line pitch font +0xC + 3 + 4, '\' breaks a line) and, for Buttons != 0, the button row
 	 *  FUN_00183C20 (bCentred: one row at y 340 centred on 320; else stacked from (160, 340), +30). */
 	void DrawStartBox(FSSXFeDrawList& D, const FString& Msg, uint32 Buttons, bool bCentred) const;
+	void DrawQuitPrompt(FSSXFeDrawList& D) const;
 private:
 	void DrawScreens(FSSXFeDrawList& D) const;
 

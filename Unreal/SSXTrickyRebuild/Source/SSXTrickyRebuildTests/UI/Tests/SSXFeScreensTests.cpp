@@ -1336,3 +1336,43 @@ bool FSSXUIMemCardDialogButtonsTest::RunTest(const FString& Parameters)
 	}
 	return true;
 }
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSSXUIQuitPromptTest, "SSX.UI.QuitPrompt", ScrTestFlags)
+bool FSSXUIQuitPromptTest::RunTest(const FString& Parameters)
+{
+	using namespace SSXFe;
+	if (!FScrAssets::Get().Ready()) { SSXTest::Skip(*this, TEXT("FE fonts / sprites / LOC not converted; QuitPrompt checks skipped")); return true; }
+	FScrFe F;
+	F.Settle();
+	TestEqual(TEXT("starts on Title"), (int32)F.FE.Current(), (int32)ESSXFeScreen::Title);
+	F.Redraw();
+	TestNull(TEXT("no prompt before Select"), F.Txt(TEXT("QUIT GAME?")));
+	F.Settle();
+	F.FE.SoundHooks.Reset();
+	F.Press(ESSXFeKey::Select);
+	TestTrue(TEXT("Select (Esc / pad Back) opens the prompt"), F.FE.bQuitPrompt && !F.FE.bQuitConfirmed);
+	TestTrue(TEXT("opening plays the back sound (ui6)"), F.HasHook(TEXT("ui6")));
+	F.Redraw();
+	TestNotNull(TEXT("QUIT GAME? drawn"), F.Txt(TEXT("QUIT GAME?")));
+	TestNotNull(TEXT("yes drawn"), F.Txt(F.L(470)));
+	TestNotNull(TEXT("no drawn"), F.Txt(F.L(392)));
+	TestNotNull(TEXT("X icon"), F.Spr(IconCross));
+	TestNotNull(TEXT("triangle icon"), F.Spr(IconTriangle));
+	for (int32 N = 0; N < 4000; ++N) F.FE.Tick();
+	TestEqual(TEXT("no attract movie while the prompt is open"), F.FE.MovieRequest, FString());
+	F.Press(ESSXFeKey::Down);
+	TestEqual(TEXT("menu keys are eaten by the prompt"), (int32)F.FE.Current(), (int32)ESSXFeScreen::Title);
+	F.Press(ESSXFeKey::Select);
+	TestTrue(TEXT("Select again closes it"), !F.FE.bQuitPrompt && !F.FE.bQuitConfirmed);
+	F.Press(ESSXFeKey::Select);
+	F.Press(ESSXFeKey::Triangle);
+	TestTrue(TEXT("Triangle closes it"), !F.FE.bQuitPrompt && !F.FE.bQuitConfirmed);
+	F.Press(ESSXFeKey::Triangle);
+	TestTrue(TEXT("Triangle (backing out) opens it too"), F.FE.bQuitPrompt && !F.FE.bQuitConfirmed);
+	F.Press(ESSXFeKey::Triangle);
+	F.Press(ESSXFeKey::Select);
+	F.Press(ESSXFeKey::Cross);
+	TestTrue(TEXT("Cross confirms the quit"), F.FE.bQuitConfirmed);
+	TestEqual(TEXT("Cross does not open the next screen"), (int32)F.FE.Current(), (int32)ESSXFeScreen::Title);
+	return true;
+}

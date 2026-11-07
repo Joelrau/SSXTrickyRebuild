@@ -1142,6 +1142,25 @@ void FSSXFrontEnd::Key(int32 Pad, ESSXFeKey K)
 	{
 		return;
 	}
+	if (S->Screen == ESSXFeScreen::Title && (bQuitPrompt || IsBack(K)))
+	{
+		if (!bQuitPrompt)
+		{
+			bQuitPrompt = true;
+			Sound(TEXT("back"));   // the Title's accept sound (id 5) is silent before the menu music's state 4
+		}
+		else if (IsAccept(K))
+		{
+			Sound(TEXT("accept"));
+			bQuitConfirmed = true;
+		}
+		else if (IsBack(K))
+		{
+			bQuitPrompt = false;
+			Sound(TEXT("back"));
+		}
+		return;
+	}
 	const bool bPlayerScreen = S->Screen == ESSXFeScreen::CharacterSelect || S->Screen == ESSXFeScreen::CharacterAccept
 		|| S->Screen == ESSXFeScreen::CharacterModify || S->Screen == ESSXFeScreen::UserName;
 	if (bPlayerScreen && NumPlayers > 1 && Pad != S->Player)
@@ -2860,7 +2879,11 @@ void FSSXFrontEnd::Tick()
 	{
 	case ESSXFeScreen::Title:
 		// 0x265398
-		if (++IdleFrames >= AttractFrames)
+		if (bQuitPrompt)
+		{
+			IdleFrames = 0;
+		}
+		else if (++IdleFrames >= AttractFrames)
 		{
 			IdleFrames = 0;
 			Boot = ESSXFeBoot::Attract;
@@ -3834,6 +3857,31 @@ void FSSXFrontEnd::DrawOptions(FSSXFeDrawList& D, const FSSXFeState& S) const
 	}
 }
 
+void FSSXFrontEnd::DrawQuitPrompt(FSSXFeDrawList& D) const
+{
+	// PC port only: a small panel over the Title menu, the message and the save screen's X yes / triangle no (0x291E00)
+	constexpr int32 Layer = FadeLayer - 4;
+	constexpr float BoxW = 300.f, BoxH = 120.f, BoxX = 320.f - BoxW * 0.5f, BoxY = 240.f - BoxH * 0.5f, Edge = 2.f;
+	D.Rect(BoxX, BoxY, BoxW, BoxH, OptionsPanel, SpriteLayer(Layer));
+	D.Rect(BoxX, BoxY, BoxW, Edge, FrameGrey, SpriteLayer(Layer));
+	D.Rect(BoxX, BoxY + BoxH - Edge, BoxW, Edge, FrameGrey, SpriteLayer(Layer));
+	D.Rect(BoxX, BoxY, Edge, BoxH, FrameGrey, SpriteLayer(Layer));
+	D.Rect(BoxX + BoxW - Edge, BoxY, Edge, BoxH, FrameGrey, SpriteLayer(Layer));
+	D.TextBox(EFont::Menu, BoxX, BoxY + 22.f, BoxW, 1.f, White, TEXT("QUIT GAME?"), ESSXAlign::Center, true, TextLayer(Layer + 1));
+	const float By = BoxY + BoxH - 40.f;
+	constexpr float BtnIcon = 17.f, BtnGap = 4.f, BtnLabelScale = 0.7f;
+	const float Lh = D.FontHeight(EFont::Menu, BtnLabelScale) + ShadowOffset;
+	auto DrawBtn = [&](int32 Icon, int32 LocId, float X)
+	{
+		D.Sprite(Icon, X - BtnIcon, By, BtnIcon, BtnIcon, White, SpriteLayer(Layer + 1));
+		D.Text(EFont::Menu, X + BtnGap, By + (BtnIcon - Lh) * 0.5f, BtnLabelScale, White, L(LocId), ESSXAlign::Left, true,
+			TextLayer(Layer + 1));
+	};
+	const float W1 = BtnGap + D.TextWidth(EFont::Menu, L(470), BtnLabelScale) + ShadowOffset;
+	DrawBtn(IconCross, 470, 320.f - (W1 + 50.f));
+	DrawBtn(IconTriangle, 392, 370.f);
+}
+
 void FSSXFrontEnd::DrawStartBox(FSSXFeDrawList& D, const FString& Msg, uint32 Buttons, bool bCentred) const
 {
 	// FUN_00183538 / FUN_00196070 / FUN_00196088 / FUN_001961E8
@@ -3954,6 +4002,10 @@ void FSSXFrontEnd::Draw(FSSXFeDrawList& D) const
 		return;
 	}
 	DrawScreens(D);
+	if (bQuitPrompt && Boot == ESSXFeBoot::FrontEnd && Current() == ESSXFeScreen::Title)
+	{
+		DrawQuitPrompt(D);
+	}
 	// 0x264FD8
 	if (Fader.bActive && (Boot == ESSXFeBoot::FrontEnd || Boot == ESSXFeBoot::Loading))
 	{

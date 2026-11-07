@@ -126,13 +126,6 @@ FReply USSXFeWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEven
 		return FReply::Unhandled();
 	}
 	const int32 Pad = Key.IsGamepadKey() ? FMath::Clamp((int32)InKeyEvent.GetUserIndex(), 0, 1) : 0;
-	if (Mode == EMode::FrontEnd && Key == EKeys::Escape && !InKeyEvent.IsRepeat() && FE.Boot == ESSXFeBoot::FrontEnd
-		&& FE.MovieRequest.IsEmpty() && FE.Current() == ESSXFeScreen::Title)
-	{
-		// PC port only (the PS2 game has no quit): Esc on the Title menu closes the game (ends PIE in the editor)
-		UKismetSystemLibrary::QuitGame(this, GetOwningPlayer(), EQuitPreference::Quit, false);
-		return FReply::Handled();
-	}
 	if (Mode == EMode::FrontEnd)
 	{
 		// the FE reads the stick from the analog value (> 0.5) once per frame (StepPads), not from Slate's stick buttons
@@ -289,6 +282,13 @@ void USSXFeWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 	{
 		Accum -= 1.f / FrameRate;
 		Step();
+	}
+	if (Mode == EMode::FrontEnd && FE.bQuitConfirmed)
+	{
+		// PC port only: YES on the Title menu's QUIT GAME? prompt closes the game (ends PIE in the editor)
+		FE.bQuitConfirmed = false;
+		UKismetSystemLibrary::QuitGame(this, GetOwningPlayer(), EQuitPreference::Quit, false);
+		return;
 	}
 	if (Mode == EMode::FrontEnd)
 	{
