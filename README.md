@@ -182,9 +182,13 @@ in the Classic look, which stays the default and renders exactly as before.
 - **Frame generation (optional, AMD FSR):** Options → VIDEO → FRAME GENERATION (OFF / AMD FSR <plugin major version>,
   saved with the other video settings) inserts generated frames between the rendered ones with AMD FSR Frame Generation. It works in both looks
   and with any GPU the plugin supports (ML frame generation on RDNA 4, analytical elsewhere), and adds some input
-  latency. This row and UPSCALER appear only when AMD's free FSR plugin is installed in the engine:
+  latency. This row and UPSCALER appear only when AMD's free FSR plugin is installed:
   1. Download `UE-FSR-4_1_1.zip` (about 2 GB, MIT license) from <https://gpuopen.com/learn/ue-fsr/>.
-  2. Copy its `FSR-580\FSR` folder to `<UE_5.8>\Engine\Plugins\Marketplace\FSR`.
+  2. Copy the `Source`, `Shaders` and `Resources` folders and `FSR.uplugin` from its `FSR-580\FSR` folder to
+     `Unreal\SSXTrickyRebuild\Plugins\FSR` (git-ignored; leave out its `Binaries` and `Intermediate`), and set
+     `"Installed": false` in that `FSR.uplugin`. The project then builds the plugin from source against your engine.
+     AMD's precompiled copy (in `<UE_5.8>\Engine\Plugins\Marketplace\FSR`) is made for UE 5.8.0, and with a later
+     5.8 patch its upscaler can crash (an access violation in `FFXD3D12Backend::GetAvailableVRAM`).
   3. Rebuild / repackage. The project enables the plugin as optional, so it builds and runs without it; `package.bat`
      makes it required for the length of a package (a Development build of the installed engine would leave it out).
 

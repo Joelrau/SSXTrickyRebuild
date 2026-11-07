@@ -12,6 +12,9 @@ __pycache__/
 SLUS-20326.iso
 *.iso
 
+# AMD's FSR plugin, built from source in the project (MIT, downloaded by each user; README)
+Unreal/SSXTrickyRebuild/Plugins/FSR/
+
 # Packaged game (contains data converted from the disc; never committed)
 Packaged/
 Packaged-Dev/

@@ -17,6 +17,9 @@ set "CFG=%~dp0Unreal\SSXTrickyRebuild\Config"
 set "UPROJECT=%~dp0Unreal\SSXTrickyRebuild\SSXTrickyRebuild.uproject"
 set "KEEP=%~dp0Unreal\SSXTrickyRebuild\Intermediate\ClassicConfig"
 set "RECEIPT=%~dp0Unreal\SSXTrickyRebuild\Binaries\Win64\SSXTrickyRebuildEditor.target"
+rem The FSR plugin: the project's source copy (built against this engine) or, without it, the engine's precompiled one.
+set "FSRUPLUGIN=%~dp0Unreal\SSXTrickyRebuild\Plugins\FSR\FSR.uplugin"
+if not exist "%FSRUPLUGIN%" set "FSRUPLUGIN=%UE_ROOT%\Engine\Plugins\Marketplace\FSR\FSR.uplugin"
 set "OUT=%~dp0Packaged"
 rem Shipping stages no .pdb: UAT copies debug files unless -nodebuginfo (IncludeDebugFiles in DefaultGame.ini only
 rem applies to the editor's Package Project menu).
@@ -43,7 +46,7 @@ if /i not "%~1"=="Classic" (
 )
 rem A Development build of the installed engine leaves out an optional plugin that the engine's own precompiled plugin
 rem list does not name, as FSR: with the plugin installed, the project file requires it for the length of the package.
-if /i not "%~1"=="Classic" if exist "%UE_ROOT%\Engine\Plugins\Marketplace\FSR\FSR.uplugin" (
+if /i not "%~1"=="Classic" if exist "%FSRUPLUGIN%" (
     if not exist "%KEEP%" mkdir "%KEEP%"
     copy /y "%UPROJECT%" "%KEEP%\FsrOptional.uproject" >nul
     powershell -NoProfile -Command "$t = [IO.File]::ReadAllText($env:UPROJECT) -replace '(\"Name\": \"FSR\",\s*\"Enabled\": true),\s*\"Optional\": true', '$1'; [IO.File]::WriteAllText($env:UPROJECT, $t)"
