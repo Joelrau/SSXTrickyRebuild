@@ -195,7 +195,7 @@ in the Classic look, which stays the default and renders exactly as before.
   `Content/RemasterData`. Both are game data and git-ignored. To redo only this step: `python tools\make_remaster_maps.py`,
   then the editor script `Scripts\import_remaster.py`. Without the maps the Remastered look still works, with flat detail.
 - **Fonts:** the same step runs `tools\make_remaster_fonts.py`: Exo 2 Black Italic for titles and
-  Rajdhani SemiBold for menu and small text (`toolsonts`, SIL Open Font License). The letters keep their shape in
+  Rajdhani SemiBold for menu and small text (`tools\fonts`, SIL Open Font License). The letters keep their shape in
   stretched widescreen menus. Without these files the Remastered look uses the disc fonts.
 - **What changes:** terrain and props become lit materials (the original lightmaps and vertex light stay in as the
   tint and ambient light, so every track keeps its colours); a sun from the track's own strongest light, a sky light,
