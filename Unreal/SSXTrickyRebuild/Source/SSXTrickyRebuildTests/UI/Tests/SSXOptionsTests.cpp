@@ -392,7 +392,7 @@ bool FSSXUIOptionsVideoTest::RunTest(const FString& Parameters)
 		F.Press(ESSXFeKey::Right);
 		TestEqual(TEXT("Right previews Remastered"), int32(SSXRenderLook::Get()), int32(ESSXRenderLook::Remastered));
 		F.Redraw();
-		TestNotNull(TEXT("value REMASTERED"), F.Txt(TEXT("REMASTERED")));
+		TestNotNull(TEXT("value ENHANCED"), F.Txt(TEXT("ENHANCED")));
 		F.Press(ESSXFeKey::Triangle);
 		TestEqual(TEXT("Back restores Classic"), int32(SSXRenderLook::Get()), int32(ESSXRenderLook::Classic));
 		TestEqual(TEXT("Back leaves the page"), F.FE.Top()->Page, -1);

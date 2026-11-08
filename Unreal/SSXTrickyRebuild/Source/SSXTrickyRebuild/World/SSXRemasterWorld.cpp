@@ -64,7 +64,7 @@
 namespace
 {
 	TAutoConsoleVariable<float> CVarSunMinElevation(TEXT("ssx.Render.SunMinElevation"), 35.f,
-		TEXT("Remastered look: lowest sun elevation in degrees. The sun takes the track's rider light direction, which on some ")
+		TEXT("Enhanced look: lowest sun elevation in degrees. The sun takes the track's rider light direction, which on some ")
 		TEXT("tracks is nearly level (Tricky 5, Aloha 13, Elysium 17); raised to this, distant terrain casts no course-long shadows."));
 
 	const UMaterial* RootOf(const UMaterialInterface* M)

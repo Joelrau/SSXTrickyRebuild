@@ -32,7 +32,7 @@ The game's behaviour is reimplemented in fresh C++; all game data comes from the
 ## 3. Repo layout and commands
 
 - `build.bat [iso] [refs] [dev]` does everything; `build_data.bat [iso] [refs] [import]` converts the disc;
-  `package.bat [Development | Classic]` packages to `Packaged\Windows\SSXTricky.exe` (Classic, no remaster features:
+  `package.bat [Development | Classic]` packages to `Packaged\Windows\SSXTricky.exe` (Classic, no Enhanced-look features:
   `Packaged-Classic\Windows\SSXTrickyClassic.exe`).
   Always pass the ISO path explicitly or rely on `SSX_ISO` in the git-ignored `local_settings.bat`.
 - Unreal Engine is found by `tools\find_ue.bat`: `UE_ROOT`, `local_settings.bat`, the Epic launcher registry

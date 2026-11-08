@@ -3,7 +3,7 @@ rem Build, cook and package the Windows game (needs the game data from build_dat
 rem Usage:  package.bat [Development | Classic]
 rem   default      Shipping build   -> Packaged\Windows\SSXTricky.exe
 rem   Development  logging build    -> Packaged-Dev\Windows\SSXTricky.exe (log in Packaged-Dev\Windows\SSXTrickyRebuild\Saved\Logs)
-rem   Classic      no Remastered look or its PC additions -> Packaged-Classic\Windows\SSXTrickyClassic.exe
+rem   Classic      no Enhanced look or its PC additions -> Packaged-Classic\Windows\SSXTrickyClassic.exe
 rem The package holds data converted from your own disc: keep it to yourself, never share or upload it.
 rem Unreal Engine 5.8 is found by tools\find_ue.bat.
 

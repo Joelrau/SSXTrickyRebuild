@@ -100,7 +100,7 @@ const TArray<SSXFeOptions::FRow>& SSXFeOptions::PageRows(int32 Page)
 	static const TArray<FRow> SaveLoad = { Item(0, 222), Item(1, 198), Item(2, 199) };
 	static const TArray<FRow> Video = [&]()
 	{
-		FRow Look = List(0, -1, { { 0, -1, TEXT("CLASSIC") }, { 1, -1, TEXT("REMASTERED") } });
+		FRow Look = List(0, -1, { { 0, -1, TEXT("CLASSIC") }, { 1, -1, TEXT("ENHANCED") } });
 		Look.Text = TEXT("LOOK");
 		FRow Quality = List(1, -1, { { 0, -1, TEXT("LOW") }, { 1, -1, TEXT("MEDIUM") }, { 2, -1, TEXT("HIGH") }, { 3, -1, TEXT("EPIC") } });
 		Quality.Text = TEXT("QUALITY");
@@ -205,13 +205,13 @@ const TCHAR* SSXFeOptions::HelpText(int32 Page, int32 ItemId)
 	{
 		return TEXT("Left/right picks the key, accept changes it. Delete clears it, Esc cancels. Applied with DONE.");
 	}
-	if (Page == VideoPage && ItemId == 0) { return TEXT("Classic: the original look. Remastered: modern lighting and materials."); }
-	if (Page == VideoPage && ItemId == 1) { return TEXT("Detail of the Remastered look. Low has no global illumination."); }
+	if (Page == VideoPage && ItemId == 0) { return TEXT("Classic: the original look. Enhanced: modern lighting and materials."); }
+	if (Page == VideoPage && ItemId == 1) { return TEXT("Detail of the Enhanced look. Low has no global illumination."); }
 	if (Page == VideoPage && ItemId == 2) { return TEXT("Screen resolution, applied with DONE. Borderless always uses the desktop resolution."); }
 	if (Page == VideoPage && ItemId == FrameGenerationId) { return TEXT("AMD FSR Frame Generation: generated frames between the rendered ones. Adds input latency."); }
 	if (Page == VideoPage && ItemId == VSyncId) { return TEXT("Syncs frames to the display's refresh. Removes tearing, adds input latency."); }
 	if (Page == VideoPage && ItemId == FrameLimitId) { return TEXT("The highest frame rate the game renders."); }
-	if (Page == VideoPage && ItemId == UpscalerId) { return TEXT("Remastered look: off renders at the full resolution; TSR and FSR upscale and smooth."); }
+	if (Page == VideoPage && ItemId == UpscalerId) { return TEXT("Enhanced look: off renders at the full resolution; TSR and FSR upscale and smooth."); }
 	if (Page == VideoPage && ItemId == UpscaleQualityId) { return TEXT("Render resolution with an upscaler on. Auto follows QUALITY; lower is faster, softer."); }
 	if (Page == VideoPage && ItemId == 3) { return TEXT("Fullscreen, borderless window over the desktop, or a window. Applied with DONE."); }
 	return nullptr;

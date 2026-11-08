@@ -37,7 +37,7 @@ namespace
 		TEXT("1: the Showoff multiplier crystals always spin (user-requested port difference, render only). 0: the original ")
 		TEXT("(they spin only while their 100 m cell is next to a rider's)."));
 	TAutoConsoleVariable<float> CVarGemGlow(TEXT("ssx.Render.GemGlow"), 2.0f,
-		TEXT("Remastered look: how strongly the Showoff multiplier crystals glow (x their colour, 0 = not at all)."));
+		TEXT("Enhanced look: how strongly the Showoff multiplier crystals glow (x their colour, 0 = not at all)."));
 
 	bool IsAnimType(int32 T) { return T >= SSXEffects::TypeAnimObject && T <= SSXEffects::TypeAnimTexFlip; }
 

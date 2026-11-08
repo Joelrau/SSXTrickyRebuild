@@ -3,7 +3,7 @@ rem Extract and convert all game data from the user's SSX Tricky disc image.
 rem Usage:  build_data.bat ["path\to\SLUS-20326.iso"] [refs] [import] [remaster]
 rem   refs    also writes the test reference data (tools\make_*_reference.py, make_probe_cases.py, ground_reference.py).
 rem   import  also builds the editor and runs the Unreal import / map scripts.
-rem   remaster  also makes the Remastered-look maps (tools\make_remaster_maps.py; with import, imports them too).
+rem   remaster  also makes the Enhanced-look maps (tools\make_remaster_maps.py; with import, imports them too).
 rem Needs Python 3.10+ (pip install pycdlib pillow numpy). Test references that compare against recordings of the
 rem original game read them from SSX_TRACES (optional; without it those scripts print "skipped (no traces)").
 rem Unreal Engine 5.8 (only for "import") is found by tools\find_ue.bat.
@@ -72,7 +72,7 @@ for %%S in (export_sim_data export_rails export_instance_collision export_race_d
 )
 
 if not defined DOREMASTER goto :refs
-echo === Remastered-look maps
+echo === Enhanced-look maps
 call :py tools\make_remaster_maps.py || goto :fail
 call :py tools\make_remaster_fonts.py || goto :fail
 

@@ -44,25 +44,25 @@ namespace
 	}
 
 	TAutoConsoleVariable<int32> CVarQuality(TEXT("ssx.Render.Quality"), SSXRenderLook::DefaultQuality,
-		TEXT("Remastered look quality: 0 = Low (no Lumen, 67 % resolution), 1 = Medium, 2 = High (default), 3 = Epic. ")
+		TEXT("Enhanced look quality: 0 = Low (no Lumen, 67 % resolution), 1 = Medium, 2 = High (default), 3 = Epic. ")
 		TEXT("No effect on the Classic look."),
 		FConsoleVariableDelegate::CreateStatic(&OnQualityCvar));
 
 	// PC-only deviations (user request), like the Remastered look itself.
 	TAutoConsoleVariable<int32> CVarUpscaler(TEXT("ssx.Render.Upscaler"), SSXRenderLook::DefaultUpscaler,
-		TEXT("Remastered look upscaler (PC-only, user request): 0 = off (the full resolution, Unreal TSR anti-aliasing), ")
+		TEXT("Enhanced look upscaler (PC-only, user request): 0 = off (the full resolution, Unreal TSR anti-aliasing), ")
 		TEXT("1 = Unreal TSR (default), 2 = AMD FSR (with the optional FSR plugin; TSR without it). No effect on the Classic look."),
 		FConsoleVariableDelegate::CreateStatic(&OnQualityCvar));
 
 	TAutoConsoleVariable<int32> CVarUpscaleQuality(TEXT("ssx.Render.UpscaleQuality"), 0,
-		TEXT("Remastered look render resolution with an upscaler on (PC-only, user request): 0 = Auto (the quality preset's), 1 = Native, ")
+		TEXT("Enhanced look render resolution with an upscaler on (PC-only, user request): 0 = Auto (the quality preset's), 1 = Native, ")
 		TEXT("2 = Quality (67 %), 3 = Balanced (59 %), 4 = Performance (50 %), 5 = Ultra Performance (33 %). ")
 		TEXT("No effect on the Classic look."),
 		FConsoleVariableDelegate::CreateStatic(&OnQualityCvar));
 
 	// PC-only deviation (user request): Remastered is not part of the original game.
 	TAutoConsoleVariable<int32> CVarLook(TEXT("ssx.Render.Look"), int32(SSXRenderLook::Default),
-		TEXT("Render look: 0 = Classic, the PS2-faithful presentation (default); 1 = Remastered (PC-only deviation: ")
+		TEXT("Render look: 0 = Classic, the PS2-faithful presentation (default); 1 = Enhanced (PC-only deviation: ")
 		TEXT("modern lighting, materials and post; gameplay, audio, HUD and replays unchanged)."),
 		FConsoleVariableDelegate::CreateStatic(&OnLookCvar));
 }

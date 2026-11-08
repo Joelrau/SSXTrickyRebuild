@@ -154,28 +154,28 @@ failing; the game data itself never needs recordings.
 ```
 package.bat                 Shipping build     -> Packaged\Windows\SSXTricky.exe
 package.bat Development     logging build      -> Packaged-Dev\Windows\SSXTricky.exe
-package.bat Classic         no Remastered look or its PC additions, always borderless -> Packaged-Classic\Windows\SSXTrickyClassic.exe
+package.bat Classic         no Enhanced look or its PC additions, always borderless -> Packaged-Classic\Windows\SSXTrickyClassic.exe
 ```
 
 Run `build_data.bat ... import` first (the cook needs the imported maps). Double-click `SSXTricky.exe` to play.
 **The package contains data converted from your own disc: keep it to yourself, never share or upload it.**
 
-## Remastered look
+## Enhanced look
 
 An optional modern presentation on top of the faithful game: lit materials, a sun and sky light, Lumen global
 illumination and reflections. Only the picture changes. Gameplay, timing, audio, HUD, menus and replays are the same as
 in the Classic look, which stays the default and renders exactly as before.
 
-- **Switch:** Options → VIDEO → LOOK (Classic / Remastered), or the console variable `ssx.Render.Look 0|1`. It
+- **Switch:** Options → VIDEO → LOOK (Classic / Enhanced), or the console variable `ssx.Render.Look 0|1`. It
   switches live and is saved in `GameUserSettings.ini` (never on the memory card).
 - **Quality:** Options → VIDEO → QUALITY, or `ssx.Render.Quality 0..3`: Low (no Lumen, screen-space reflections,
   67 % resolution with TSR upscaling), Medium (Lumen, 75 %), High (default: Lumen, volumetric fog, full resolution),
-  Epic (highest shadow / GI / reflection quality). Only the Remastered look uses it.
+  Epic (highest shadow / GI / reflection quality). Only the Enhanced look uses it.
 - **Upscaling:** Options → VIDEO → UPSCALER (OFF = the full resolution with TSR anti-aliasing / UNREAL TSR / AMD FSR,
   with the FSR plugin below) and UPSCALE QUALITY, the render resolution with an upscaler on (AUTO = the QUALITY
   preset's, named on the row: Low 67 %, Medium 75 %, High and Epic NATIVE; NATIVE, QUALITY 67 %, BALANCED 59 %,
   PERFORMANCE 50 %, ULTRA PERFORMANCE 33 %), or `ssx.Render.Upscaler 0..2` and `ssx.Render.UpscaleQuality 0..5`. Only
-  the Remastered look uses them.
+  the Enhanced look uses them.
 - **Resolution and display:** Options → VIDEO → RESOLUTION (the monitor's resolutions) and DISPLAY (fullscreen /
   borderless / windowed), applied with DONE and saved in `GameUserSettings.ini`. Borderless always uses the desktop
   resolution.
@@ -197,10 +197,10 @@ in the Classic look, which stays the default and renders exactly as before.
 - **Extra data step:** `build_data.bat ... remaster` (with `import`) runs `tools\make_remaster_maps.py` (2x/4x upscaled
   colour, normal and detail-mask maps made from your disc's textures into `converted\remaster`) and imports them into
   `Content/RemasterData`. Both are game data and git-ignored. To redo only this step: `python tools\make_remaster_maps.py`,
-  then the editor script `Scripts\import_remaster.py`. Without the maps the Remastered look still works, with flat detail.
+  then the editor script `Scripts\import_remaster.py`. Without the maps the Enhanced look still works, with flat detail.
 - **Fonts:** the same step runs `tools\make_remaster_fonts.py`: Exo 2 Black Italic for titles and
   Rajdhani SemiBold for menu and small text (`tools\fonts`, SIL Open Font License). The letters keep their shape in
-  stretched widescreen menus. Without these files the Remastered look uses the disc fonts.
+  stretched widescreen menus. Without these files the Enhanced look uses the disc fonts.
 - **What changes:** terrain and props become lit materials (the original lightmaps and vertex light stay in as the
   tint and ambient light, so every track keeps its colours); a sun from the track's own strongest light, a sky light,
   the track's point / spot lights as real lights, height fog towards the track's clear colour; riders are lit (the

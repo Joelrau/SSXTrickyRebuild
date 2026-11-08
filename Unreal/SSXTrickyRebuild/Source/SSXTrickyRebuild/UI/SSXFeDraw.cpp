@@ -299,7 +299,7 @@ namespace
 	TAutoConsoleVariable<int32> CVarUiWidescreen(TEXT("ssx.UI.Widescreen"), -1,
 		TEXT("UI with a 16:9 image (Options > Widescreen): 0 = the original's 640 x 480 frame stretched to the image width (as on ")
 		TEXT("a 16:9 TV), 1 = unstretched with the HUD anchored to the screen edges (deliberate difference), -1 = by look ")
-		TEXT("(Classic 0; Remastered: menus stretched, race HUD anchored)."));
+		TEXT("(Classic 0; Enhanced: menus stretched, race HUD anchored)."));
 }
 
 namespace

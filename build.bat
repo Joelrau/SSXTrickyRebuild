@@ -4,7 +4,7 @@ rem Usage:  build.bat ["path\to\SLUS-20326.iso"] [refs] [dev] [noremaster]
 rem   (no ISO path)  uses SSX_ISO from local_settings.bat, else .\SLUS-20326.iso
 rem   refs           also writes the test reference data (see build_data.bat)
 rem   dev            packages a Development build (Packaged-Dev\) instead of Shipping (Packaged\)
-rem   noremaster     skips the Remastered-look data (derived texture maps, Nanite); that look then lacks them
+rem   noremaster     skips the Enhanced-look data (derived texture maps, Nanite); that look then lacks them
 rem Runs build_data.bat <iso> [refs] import remaster, then package.bat [Development]. Stops at the first failure.
 rem Unreal Engine 5.8 is found by tools\find_ue.bat.
 
