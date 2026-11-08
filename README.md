@@ -172,7 +172,7 @@ in the Classic look, which stays the default and renders exactly as before.
 - **Quality:** Options → VIDEO → QUALITY, or `ssx.Render.Quality 0..3`: Low (no Lumen, screen-space reflections,
   67 % resolution with TSR upscaling), Medium (Lumen, 75 %), High (default: Lumen, volumetric fog, full resolution),
   Epic (highest shadow / GI / reflection quality). Only the Enhanced look uses it.
-- **Upscaling:** Options → VIDEO → UPSCALER (OFF = the full resolution with TSR anti-aliasing / UNREAL TSR / AMD FSR,
+- **Upscaling:** Options → VIDEO → UPSCALER (OFF, the default = the full resolution with TSR anti-aliasing / UNREAL TSR / AMD FSR,
   with the FSR plugin below) and UPSCALE QUALITY, the render resolution with an upscaler on (AUTO = the QUALITY
   preset's, named on the row: Low 67 %, Medium 75 %, High and Epic NATIVE; NATIVE, QUALITY 67 %, BALANCED 59 %,
   PERFORMANCE 50 %, ULTRA PERFORMANCE 33 %), or `ssx.Render.Upscaler 0..2` and `ssx.Render.UpscaleQuality 0..5`. Only

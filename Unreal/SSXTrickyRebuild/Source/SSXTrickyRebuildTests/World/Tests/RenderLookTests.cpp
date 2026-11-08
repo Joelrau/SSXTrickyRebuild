@@ -465,7 +465,7 @@ bool FSSXRenderUpscaleTest::RunTest(const FString&)
 	Set(ESSXRenderLook::Classic);
 	const float ClassicPct = Pct->GetFloat();
 	SetQuality(2);
-	SetUpscaler(DefaultUpscaler);
+	SetUpscaler(1);
 	SetUpscaleQuality(4);
 	const TConstArrayView<FCvarValue> Cvars = EnhancedCvars();
 	TestTrue(TEXT("r.ScreenPercentage comes last"), Cvars.Num() > 0 && FString(Cvars.Last().Name) == TEXT("r.ScreenPercentage"));
@@ -480,8 +480,7 @@ bool FSSXRenderUpscaleTest::RunTest(const FString&)
 	TestEqual(TEXT("Auto at Low renders at 67 %"), Pct->GetFloat(), 67.f);
 	SetUpscaler(0);
 	TestEqual(TEXT("no upscaler: the full resolution, whatever the quality"), Pct->GetFloat(), 100.f);
-	SetUpscaler(DefaultUpscaler);
-	TestEqual(TEXT("the default upscaler is Unreal TSR"), DefaultUpscaler, 1);
+	TestEqual(TEXT("the default upscaler is off"), DefaultUpscaler, 0);
 	Set(ESSXRenderLook::Classic);
 	TestEqual(TEXT("Classic keeps its own resolution"), Pct->GetFloat(), ClassicPct);
 	return true;

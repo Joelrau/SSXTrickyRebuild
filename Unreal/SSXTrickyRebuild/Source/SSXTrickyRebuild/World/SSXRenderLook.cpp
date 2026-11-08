@@ -50,8 +50,8 @@ namespace
 
 	// PC-only deviations (user request), like the Enhanced look itself.
 	TAutoConsoleVariable<int32> CVarUpscaler(TEXT("ssx.Render.Upscaler"), SSXRenderLook::DefaultUpscaler,
-		TEXT("Enhanced look upscaler (PC-only, user request): 0 = off (the full resolution, Unreal TSR anti-aliasing), ")
-		TEXT("1 = Unreal TSR (default), 2 = AMD FSR (with the optional FSR plugin; TSR without it). No effect on the Classic look."),
+		TEXT("Enhanced look upscaler (PC-only, user request): 0 = off (the full resolution, Unreal TSR anti-aliasing; ")
+		TEXT("default), 1 = Unreal TSR, 2 = AMD FSR (with the optional FSR plugin; TSR without it). No effect on the Classic look."),
 		FConsoleVariableDelegate::CreateStatic(&OnQualityCvar));
 
 	TAutoConsoleVariable<int32> CVarUpscaleQuality(TEXT("ssx.Render.UpscaleQuality"), 0,

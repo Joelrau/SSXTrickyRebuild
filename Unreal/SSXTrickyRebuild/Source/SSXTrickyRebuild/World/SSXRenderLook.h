@@ -46,10 +46,10 @@ namespace SSXRenderLook
 	/** Lumen GI and reflections at this preset (Low: none, screen-space reflections). */
 	SSXTRICKYREBUILD_API bool QualityUsesLumen(int32 Quality);
 
-	/** Upscaler of the Enhanced look (PC only, user request): 0 Off (the full resolution, TSR anti-aliasing), 1 Unreal
-	 *  TSR (default), 2 AMD FSR (TSR while the FSR plugin is not loaded). Classic ignores it. */
+	/** Upscaler of the Enhanced look (PC only, user request): 0 Off (default: the full resolution, TSR
+	 *  anti-aliasing), 1 Unreal TSR, 2 AMD FSR (TSR while the FSR plugin is not loaded). Classic ignores it. */
 	constexpr int32 NumUpscalers = 3;
-	constexpr int32 DefaultUpscaler = 1;
+	constexpr int32 DefaultUpscaler = 0;
 	SSXTRICKYREBUILD_API int32 GetUpscaler();
 	SSXTRICKYREBUILD_API void SetUpscaler(int32 Upscaler);
 	/** Render resolution of the Enhanced look with an upscaler on (PC only, user request): 0 Auto (the quality

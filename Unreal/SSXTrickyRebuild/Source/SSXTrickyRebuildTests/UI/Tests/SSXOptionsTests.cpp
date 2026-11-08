@@ -344,7 +344,7 @@ bool FSSXUIOptionsVideoTest::RunTest(const FString& Parameters)
 	SSXRenderLook::Set(ESSXRenderLook::Classic);
 	SSXRenderLook::SetQuality(2);
 	SSXRenderLook::SetUpscaleQuality(0);
-	SSXRenderLook::SetUpscaler(SSXRenderLook::DefaultUpscaler);
+	SSXRenderLook::SetUpscaler(1);
 	{
 		FOptFe F;
 		F.Press(ESSXFeKey::Square);
@@ -461,7 +461,7 @@ bool FSSXUIOptionsVideoTest::RunTest(const FString& Parameters)
 		const FSSXFeTextRec* Uq = F.Txt(TEXT("UPSCALE QUALITY"));
 		TestTrue(TEXT("UPSCALE QUALITY drawn grey"), Uq && Uq->Color.Equals(SSXFe::Grey));
 		F.Press(ESSXFeKey::Triangle);
-		TestEqual(TEXT("Back restores the upscaler"), SSXRenderLook::GetUpscaler(), SSXRenderLook::DefaultUpscaler);
+		TestEqual(TEXT("Back restores the upscaler"), SSXRenderLook::GetUpscaler(), 1);
 		TestEqual(TEXT("Back restores Classic"), int32(SSXRenderLook::Get()), int32(ESSXRenderLook::Classic));
 	}
 	{
