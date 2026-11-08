@@ -43,6 +43,7 @@
 #include "Misc/FileHelper.h"
 #include "World/SSXWorldLighting.h"
 #include "Particles/SSXLensFX.h"
+#include "Particles/SSXParticleWorld.h"
 #include "World/SSXWorldPresentation.h"
 #include "SnowboarderPawn.h"
 #include "UI/SSXFeRiderActor.h"
@@ -499,63 +500,55 @@ void USSXRemasterWorld::UpdateTrails()
 {
 	UWorld* W = GetWorld();
 	const APlayerController* PC = W ? W->GetFirstPlayerController() : nullptr;
-	if (!TrailMap || !TrailStamp || !TrailShift || !PC || !PC->PlayerCameraManager || !ASSXRaceManager::Find(W)) { return; }
+	const USSXParticleWorld* Fx = W ? W->GetSubsystem<USSXParticleWorld>() : nullptr;
+	if (!TrailMap || !TrailStamp || !Fx || !PC || !PC->PlayerCameraManager || !ASSXRaceManager::Find(W)) { return; }
 	using namespace SSXRemaster;
-	// The map follows the camera: once it is a quarter of the map away, shift the contents and recentre.
+	// The map is redrawn every frame around the camera from the riders' ground trails as the original draws them
+	// (0x1333C0): the live head, then the stored entries newest first, a break ending the strip after its pair. Each
+	// pair to the next is one quad; U runs across the trail (the groove profile), V carries the entry alpha.
 	const FVector Cam = PC->PlayerCameraManager->GetCameraLocation();
-	const FVector2D Cam2(Cam.X, Cam.Y);
-	if (FVector2D::Distance(Cam2, TrailOrigin) > TrailSize * 0.25)
+	const double Texel = TrailSize / TrailTexels;
+	TrailOrigin = FVector2D(FMath::RoundToDouble(Cam.X / Texel) * Texel, FMath::RoundToDouble(Cam.Y / Texel) * Texel);
+	SetTrailParams();
+	auto Px = [this](const FVector& P) { return ((FVector2D(P.X, P.Y) - TrailOrigin) / TrailSize + FVector2D(0.5, 0.5)) * TrailTexels; };
+	auto Vert = [&Px](FCanvasUVTri& T, int32 K, const FVector& P, double U, double Alpha)
 	{
-		const double Texel = TrailSize / TrailTexels;
-		const FVector2D NewOrigin(FMath::RoundToDouble(Cam2.X / Texel) * Texel, FMath::RoundToDouble(Cam2.Y / Texel) * Texel);
-		const FVector2D Delta = (NewOrigin - TrailOrigin) / TrailSize;
-		TrailShift->SetTextureParameterValue(TEXT("Prev"), TrailMap);
-		TrailShift->SetVectorParameterValue(TEXT("Offset"), FLinearColor(float(Delta.X), float(Delta.Y), 0.f, 0.f));
-		UKismetRenderingLibrary::DrawMaterialToRenderTarget(W, TrailScratch, TrailShift);
-		TrailShift->SetTextureParameterValue(TEXT("Prev"), TrailScratch);
-		TrailShift->SetVectorParameterValue(TEXT("Offset"), FLinearColor(0.f, 0.f, 0.f, 0.f));
-		UKismetRenderingLibrary::DrawMaterialToRenderTarget(W, TrailMap, TrailShift);
-		TrailOrigin = NewOrigin;
-		SetTrailParams();
-	}
-	UCanvas* Canvas = nullptr;
-	FVector2D CanvasSize;
-	FDrawToRenderTargetContext Ctx;
-	bool bDrawing = false;
-	const double PxPerCm = TrailTexels / TrailSize;
+		FVector2D& Pos = K == 0 ? T.V0_Pos : (K == 1 ? T.V1_Pos : T.V2_Pos);
+		FVector2D& Uv = K == 0 ? T.V0_UV : (K == 1 ? T.V1_UV : T.V2_UV);
+		Pos = Px(SSXSim::GameToUnreal(P));
+		Uv = FVector2D(U, FMath::Clamp(Alpha, 0.0, 1.0));
+	};
+	TArray<FCanvasUVTri> Tris;
+	TArray<const SSXParticles::FGroundTrail::FEntry*, TInlineAllocator<SSXParticles::FGroundTrail::Entries + 1>> Pairs;
 	for (TActorIterator<ASnowboarderPawn> It(W); It; ++It)
 	{
 		const FRiderSim* Sim = It->GetSim();
-		const USSXCharacterAppearance* App = It->GetAppearance();
-		const UStaticMeshComponent* Board = App ? App->GetBoardMesh() : nullptr;
-		if (!Sim || !Board || Sim->GetState().Motion != ERiderMotion::Ground)
+		const SSXParticles::FGroundTrail* Trail = Sim ? Fx->FindTrail(Sim) : nullptr;
+		if (!Trail || Trail->Num() < 2) { continue; }
+		Pairs.Reset();
+		if (Trail->HasLiveHead()) { Pairs.Add(&Trail->Get(0)); }
+		for (int32 J = 1; J < Trail->Num(); ++J) { Pairs.Add(&Trail->Get(J)); }
+		for (int32 K = 0; K + 1 < Pairs.Num(); ++K)
 		{
-			TrailLast.Remove(*It);
-			continue;
+			const SSXParticles::FGroundTrail::FEntry& E0 = *Pairs[K];
+			const SSXParticles::FGroundTrail::FEntry& E1 = *Pairs[K + 1];
+			if (E0.bBreak || (E0.Alpha <= 0.0 && E1.Alpha <= 0.0)) { continue; }
+			FCanvasUVTri T0, T1;
+			Vert(T0, 0, E0.A, 0.0, E0.Alpha); Vert(T0, 1, E0.B, 1.0, E0.Alpha); Vert(T0, 2, E1.A, 0.0, E1.Alpha);
+			Vert(T1, 0, E0.B, 1.0, E0.Alpha); Vert(T1, 1, E1.B, 1.0, E1.Alpha); Vert(T1, 2, E1.A, 0.0, E1.Alpha);
+			Tris.Add(T0);
+			Tris.Add(T1);
 		}
-		const FVector Now = Board->GetComponentLocation();
-		const FVector* Last = TrailLast.Find(*It);
-		const FVector From = Last && FVector::Dist(*Last, Now) < 500.0 ? *Last : Now;
-		const double Len = FVector::Dist(From, Now);
-		if (Last && Len < TrailStep) { continue; }
-		if (!bDrawing)
-		{
-			UKismetRenderingLibrary::BeginDrawCanvasToRenderTarget(W, TrailMap, Canvas, CanvasSize, Ctx);
-			bDrawing = Canvas != nullptr;
-			if (!bDrawing) { return; }
-		}
-		const int32 Steps = FMath::Max(1, FMath::CeilToInt(Len / TrailStep));
-		for (int32 S = 1; S <= Steps; ++S)
-		{
-			const FVector P = FMath::Lerp(From, Now, double(S) / Steps);
-			const FVector2D Uv = (FVector2D(P.X, P.Y) - TrailOrigin) / TrailSize + FVector2D(0.5, 0.5);
-			const FVector2D Px = Uv * TrailTexels;
-			const double R = TrailRadius * PxPerCm;
-			Canvas->K2_DrawMaterial(TrailStamp, Px - FVector2D(R, R), FVector2D(2 * R, 2 * R), FVector2D::ZeroVector);
-		}
-		TrailLast.Add(*It, Now);
 	}
-	if (bDrawing) { UKismetRenderingLibrary::EndDrawCanvasToRenderTarget(W, Ctx); }
+	UKismetRenderingLibrary::ClearRenderTarget2D(W, TrailMap, FLinearColor::Black);
+	if (Tris.IsEmpty()) { return; }
+	UCanvas* Canvas = nullptr;
+	FVector2D CanvasSize;
+	FDrawToRenderTargetContext Ctx;
+	UKismetRenderingLibrary::BeginDrawCanvasToRenderTarget(W, TrailMap, Canvas, CanvasSize, Ctx);
+	if (!Canvas) { return; }
+	Canvas->K2_DrawMaterialTriangle(TrailStamp, Tris);
+	UKismetRenderingLibrary::EndDrawCanvasToRenderTarget(W, Ctx);
 }
 
 void USSXRemasterWorld::UpdateDepthOfField()
@@ -1194,12 +1187,8 @@ void USSXRemasterWorld::Apply()
 			return Rt;
 		};
 		TrailMap = MakeRt();
-		TrailScratch = MakeRt();
 		UMaterialInterface* Stamp = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Remastered/M_RmTrailStamp.M_RmTrailStamp"));
-		UMaterialInterface* Shift = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Remastered/M_RmTrailShift.M_RmTrailShift"));
 		TrailStamp = Stamp ? UMaterialInstanceDynamic::Create(Stamp, this) : nullptr;
-		TrailShift = Shift ? UMaterialInstanceDynamic::Create(Shift, this) : nullptr;
-		TrailLast.Reset();
 		if (const APlayerController* PC = W->GetFirstPlayerController())
 		{
 			if (PC->PlayerCameraManager) { const FVector C = PC->PlayerCameraManager->GetCameraLocation(); TrailOrigin = FVector2D(C.X, C.Y); }
@@ -1552,8 +1541,6 @@ void USSXRemasterWorld::Revert()
 	}
 	TranslucentProps.Reset();
 	TrailMap = nullptr;
-	TrailScratch = nullptr;
-	TrailLast.Reset();
 	Remastered.Reset();   // the cached terrain twins point at the released trail map
 	SetTrailParams();
 }

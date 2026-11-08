@@ -15,9 +15,9 @@ the sky), glowing with their Classic colour as linear light; the post pass treat
 translucent in front of them (soft props, snowfall) blends in the same space.
 M_RmProp_Translucent: the soft edges of the soft props (the Classic M_SSXProp_Translucent pass: same alpha, soft-prop
 depth and draw distance), lit per pixel like their solid core; Lumen's front-layer reflections stay for glass and water.
-Snow trails: the terrain materials read the trail map (RmTrails, a render target the game stamps where riders carve,
-World/SSXRemasterWorld.cpp; MPC TrailX / TrailY / TrailSize place it in world space) as grooves: normals in world space
-and a little shade. M_RmTrailStamp / M_RmTrailShift draw into that map.
+Snow trails: the terrain materials read the trail map (RmTrails, a render target the game redraws every frame from the
+riders' ground trails, World/SSXRemasterWorld.cpp; MPC TrailX / TrailY / TrailSize place it in world space) as grooves:
+normals in world space and a little shade. M_RmTrailStamp draws the trail quads into that map.
 M_RmParticleAdd / M_RmParticleAlpha: the Classic sprite colours (GsSprite) as linear light, faded softly where they
 meet geometry, with the Classic soft-prop depth test.
 PP_RmScene replaces the tonemapper in the Remastered look (it adds the engine's bloom itself): unlit pixels nearer than
@@ -88,15 +88,17 @@ SURF_NORMAL = ("return Surface > 3.5 ? float3(0.0, 0.0, 1.0) : ((Surface > 0.5 &
 # Glass / water layers: the Classic blend alpha, more opaque at grazing angles where the reflection takes over.
 GLASS_OPACITY = "return A > 0.0 ? lerp(A, 1.0, F * 0.75) : 0.0;"
 # Snow trails: groove depth h from the trail map around (TX, TY), TS wide; world-space normal tilted by its gradient
-# (the surface sinks where h is high); .a = h for the shade. Not on ice or slush.
+# (the surface sinks where h is high); .a = h for the shade. Ice keeps a shallow scratch (the original draws its trail
+# there too); none on slush. Fades out over the outer 5 % of the map.
 TRAIL = """
 float2 uv = (WP.xy - float2(TX, TY)) / TS + 0.5;
-if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0 || (Surface > 0.5 && Surface < 1.5) || Surface > 2.5) return float4(N, 0.0);
+if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0 || Surface > 2.5) return float4(N, 0.0);
+float k = (Surface > 0.5 && Surface < 1.5 ? 0.35 : 1.0) * saturate((0.5 - max(abs(uv.x - 0.5), abs(uv.y - 0.5))) * 20.0);
 float e = 1.0 / 2048.0;
-float h = saturate(Trails.SampleLevel(TrailsSampler, uv, 0).r);
+float h = saturate(Trails.SampleLevel(TrailsSampler, uv, 0).r) * k;
 float hx = Trails.SampleLevel(TrailsSampler, uv + float2(e, 0.0), 0).r - Trails.SampleLevel(TrailsSampler, uv - float2(e, 0.0), 0).r;
 float hy = Trails.SampleLevel(TrailsSampler, uv + float2(0.0, e), 0).r - Trails.SampleLevel(TrailsSampler, uv - float2(0.0, e), 0).r;
-return float4(normalize(N + float3(hx, hy, 0.0) * 2.5), h);
+return float4(normalize(N + float3(hx, hy, 0.0) * 2.5 * k), h);
 """
 # Fine grain on snow and powder near the camera, over the trail shade.
 TRAIL_SHADE = """
@@ -148,8 +150,8 @@ float facing = saturate(abs(dot(normalize(N), normalize(V))) * 2.0);
 float nearby = saturate((Depth - 150.0) / 800.0);
 return float3(1.0, 0.9, 0.75) * 0.6 * streak * along * facing * nearby * Soft;
 """
-STAMP = "float r = length(UV - 0.5) * 2.0; return saturate(1.0 - r * r) * Strength;"
-SHIFT = "float2 uv = UV + Offset; return (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) ? 0.0 : Prev.SampleLevel(PrevSampler, uv, 0).r;"
+# A trail quad: U across the trail (the groove profile), V the trail entry's alpha.
+STAMP = "float r = abs(UV.x - 0.5) * 2.0; return saturate(1.0 - r * r) * saturate(UV.y) * Strength;"
 # Snow sparkle: sparse view-dependent glints on bright, desaturated texels (mask G), lit by the baked light.
 GLINT = f"""
 if (Surface > 0.5 && Surface < 1.5) return float3(0.0, 0.0, 0.0);
@@ -946,22 +948,9 @@ finish(m)
 m = recreate("M_RmTrailStamp", unreal.Material, unreal.MaterialFactoryNew())
 m.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_UNLIT)
 m.set_editor_property("blend_mode", unreal.BlendMode.BLEND_ADDITIVE)
-strength = expr(m, unreal.MaterialExpressionScalarParameter, -700, 100, parameter_name="Strength", default_value=0.35)
+strength = expr(m, unreal.MaterialExpressionScalarParameter, -700, 100, parameter_name="Strength", default_value=1.0)
 connect_prop(custom(m, -300, 0, STAMP, F1, [("UV", (expr(m, unreal.MaterialExpressionTextureCoordinate, -700, 0), "")),
                                            ("Strength", (strength, ""))], "TrailStamp"), "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
-finish(m)
-
-m = recreate("M_RmTrailShift", unreal.Material, unreal.MaterialFactoryNew())
-m.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_UNLIT)
-prev = expr(m, unreal.MaterialExpressionTextureObjectParameter, -700, 100, parameter_name="Prev")
-prev.set_editor_property("texture", unreal.load_asset("/Engine/EngineResources/Black"))
-prev.set_editor_property("sampler_type", unreal.MaterialSamplerType.SAMPLERTYPE_LINEAR_GRAYSCALE)
-off = expr(m, unreal.MaterialExpressionVectorParameter, -700, 200, parameter_name="Offset", default_value=unreal.LinearColor(0, 0, 0, 0))
-offm = expr(m, unreal.MaterialExpressionComponentMask, -500, 200, r=True, g=True, b=False, a=False)
-connect(off, "", offm, "")
-connect_prop(custom(m, -300, 0, SHIFT, F1, [("UV", (expr(m, unreal.MaterialExpressionTextureCoordinate, -700, 0), "")),
-                                           ("Offset", (offm, "")), ("Prev", (prev, ""))], "TrailShift"), "",
-             unreal.MaterialProperty.MP_EMISSIVE_COLOR)
 finish(m)
 
 # Lens halos / sun flare (SSXLensFX): the Classic additive materials output display values, which added in linear light

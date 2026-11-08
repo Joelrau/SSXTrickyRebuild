@@ -118,11 +118,9 @@ namespace SSXRemaster
 	/** Height fog for a draw distance (cm) x scale: starts at 40 %, about 89 % at the end; no fog past the cutoff. */
 	struct FFogSetup { float Start = 0.f; float Density = 0.f; float Cutoff = 0.f; };
 	SSXTRICKYREBUILD_API FFogSetup FogFor(double DrawDistance, float Scale, float Strength);
-	constexpr double SkyDistance = 60000.0;
+	constexpr double SkyDistance = 60000.0;   // cm: the sky dome (<= 17.5 m x 50) and beyond become the sky light
 	constexpr int32 TrailTexels = 2048;
 	constexpr double TrailSize = 8000.0;    // cm covered by the trail map
-	constexpr double TrailRadius = 22.0;    // cm, board groove half width
-	constexpr double TrailStep = 10.0;      // cm between stamps   // cm: the sky dome (<= 17.5 m x 50) and beyond become the sky light
 }
 
 UCLASS()
@@ -151,6 +149,8 @@ public:
 	int32 NumSwapped() const { return Swaps.Num(); }
 	/** Riders' Classic instances -> the Remastered twins (every tick while applied; tests call it directly). */
 	void SwapRiders();
+	/** Enhanced look: the riders' ground trails are pressed into the snow (UpdateTrails) instead of drawn as strips. */
+	bool HasTrailGrooves() const { return TrailMap != nullptr && TrailStamp != nullptr; }
 
 private:
 	void SwapLevel(ULevel& Level);
@@ -189,15 +189,13 @@ private:
 	/** Depth of field on the rider nearest the view centre in the front end and replays (never while racing). */
 	void UpdateDepthOfField();
 	void UpdateSpeedFx(float DeltaTime);
-	/** Snow trails: grounded riders' boards stamp the trail map around the camera, which follows the camera. */
+	/** Snow trails: the riders' ground trails (0x132648) redrawn every frame into the trail map around the camera, which
+	 *  the terrain shows as grooves. */
 	void UpdateTrails();
 	void SetTrailParams();
 	UPROPERTY(Transient) TObjectPtr<class UTextureRenderTarget2D> TrailMap;
-	UPROPERTY(Transient) TObjectPtr<class UTextureRenderTarget2D> TrailScratch;
 	UPROPERTY(Transient) TObjectPtr<UMaterialInstanceDynamic> TrailStamp;
-	UPROPERTY(Transient) TObjectPtr<UMaterialInstanceDynamic> TrailShift;
 	FVector2D TrailOrigin = FVector2D::ZeroVector;
-	TMap<TWeakObjectPtr<AActor>, FVector> TrailLast;   // each rider's last stamped board position
 	TMap<TWeakObjectPtr<AActor>, TWeakObjectPtr<AActor>> FrontEndSpots;   // carousel rider -> its stage spotlight
 	TArray<TWeakObjectPtr<APostProcessVolume>> DisabledVolumes;
 	TArray<FSwap> RiderSwaps;

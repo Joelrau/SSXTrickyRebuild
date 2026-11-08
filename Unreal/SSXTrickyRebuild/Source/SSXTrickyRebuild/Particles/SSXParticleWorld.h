@@ -150,6 +150,8 @@ public:
 	};
 	void SaveReplay(FReplayKeyframe& Out) const { Out.bValid = true; Out.Emitters = Emitters; }
 	void LoadReplay(const FReplayKeyframe& In) { if (In.bValid) { Emitters = In.Emitters; } }
+	/** The rider's ground trail (0x132648), or null. */
+	const SSXParticles::FGroundTrail* FindTrail(const FRiderSim* Sim) const;
 private:
 	SSXParticles::FSnowfall Snow;
 	bool bSnow = false;

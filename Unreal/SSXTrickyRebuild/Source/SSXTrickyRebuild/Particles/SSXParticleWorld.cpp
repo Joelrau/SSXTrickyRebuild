@@ -306,6 +306,12 @@ USSXParticleWorld::FRiderFx* USSXParticleWorld::FindRider(const FRiderSim* Sim)
 	return Riders.FindByPredicate([&](const FRiderFx& R) { return R.Pawn.IsValid() && R.Pawn->GetSim() == Sim; });
 }
 
+const FGroundTrail* USSXParticleWorld::FindTrail(const FRiderSim* Sim) const
+{
+	const FRiderFx* R = Riders.FindByPredicate([&](const FRiderFx& X) { return X.Pawn.IsValid() && X.Pawn->GetSim() == Sim; });
+	return R ? &R->Trail : nullptr;
+}
+
 bool USSXParticleWorld::UpdatePoseBones(const ASnowboarderPawn& Pawn, FVector Out[19])
 {
 	static_assert(FRiderState::FxPoseBoneCount == 19, "UpdatePoseBones array size");
@@ -836,6 +842,8 @@ void USSXParticleWorld::Render()
 	FBatcher Bt{ Batches };
 	const bool bOn = CVarParticles.GetValueOnGameThread() != 0;
 	const bool bDenseSpray = SSXRenderLook::Get() == ESSXRenderLook::Remastered;
+	const USSXRemasterWorld* Rm = GetWorld()->GetSubsystem<USSXRemasterWorld>();
+	const bool bTrailGrooves = SSXRenderLook::Get() == ESSXRenderLook::Remastered && Rm && Rm->HasTrailGrooves();
 	auto Burst = [&](const FParticleBurst& B, bool bDense = false)
 	{
 		FSSXSpriteBatch* Out = Bt.For(SpriteMaterial(B.Texture, B.BlendMode));
@@ -956,7 +964,8 @@ void USSXParticleWorld::Render()
 			if (CVarTrails.GetValueOnGameThread() != 0)
 			{
 				auto For = [&](int32 Img, int32 Bl) { return Bt.For(SpriteMaterial(Img, Bl)); };
-				DrawTrail(For, R.Trail);
+				// Enhanced look: the trail is a groove in the snow instead (USSXRemasterWorld::UpdateTrails).
+				if (!bTrailGrooves) { DrawTrail(For, R.Trail); }
 				DrawRibbons(For, R);
 			}
 			// 0x1356F8 / 0x1D9700
