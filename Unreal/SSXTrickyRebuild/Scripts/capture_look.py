@@ -1,10 +1,10 @@
-"""Editor script (development): offscreen captures of a track map in the Classic and Remastered looks.
+"""Editor script (development): offscreen captures of a track map in the Classic and Enhanced looks.
 
     UnrealEditor-Cmd <uproject> -run=pythonscript -script="<abs>/capture_look.py <Map> <out dir> [x y z pitch yaw]"
         -unattended -AllowCommandletRendering -RenderOffscreen
 
-Never starts the game: the map is loaded as an editor world, the Remastered look is applied with
-USSXRemasterLibrary.SetRemasteredInWorld and a SceneCapture2D renders <out>/<Map>_classic.png and _remastered.png
+Never starts the game: the map is loaded as an editor world, the Enhanced look is applied with
+USSXEnhancedLibrary.SetEnhancedInWorld and a SceneCapture2D renders <out>/<Map>_classic.png and _enhanced.png
 (final colour, post-process volumes included). Without a camera pose the shot looks at the terrain from above its
 highest corner (the front end: from the side of all its meshes). Editor worlds have no track presentation (MPC values, LOD terrain), so Classic here is an approximation.
 """
@@ -39,7 +39,7 @@ def main():
     os.makedirs(out, exist_ok=True)
     unreal.EditorLoadingAndSavingUtils.load_map(f"/Game/Maps/{name}")
     world = unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem).get_editor_world()
-    unreal.SSXRemasterLibrary.finish_loading_for_capture()
+    unreal.SSXEnhancedLibrary.finish_loading_for_capture()
 
     if len(args) >= 7:
         loc = unreal.Vector(*(float(v) for v in args[2:5]))
@@ -88,15 +88,15 @@ def main():
     comp.set_editor_property("always_persist_rendering_state", True)
     comp.set_editor_property("fov_angle", 75.0)
 
-    for look, remastered in (("classic", False), ("remastered", True)):
-        n = unreal.SSXRemasterLibrary.set_remastered_in_world(world, remastered)
-        unreal.SystemLibrary.execute_console_command(world, f"ssx.Render.Look {1 if remastered else 0}")
-        unreal.SSXRemasterLibrary.finish_loading_for_capture()
+    for look, enhanced in (("classic", False), ("enhanced", True)):
+        n = unreal.SSXEnhancedLibrary.set_enhanced_in_world(world, enhanced)
+        unreal.SystemLibrary.execute_console_command(world, f"ssx.Render.Look {1 if enhanced else 0}")
+        unreal.SSXEnhancedLibrary.finish_loading_for_capture()
         for _ in range(FRAMES):
             comp.capture_scene()
         unreal.RenderingLibrary.export_render_target(world, rt, out, f"{name}_{look}.png")
         unreal.log(f"[ssx] captured {name} {look} ({n} material slots switched)")
-    unreal.SSXRemasterLibrary.set_remastered_in_world(world, False)
+    unreal.SSXEnhancedLibrary.set_enhanced_in_world(world, False)
     unreal.SystemLibrary.execute_console_command(world, "ssx.Render.Look 0")
 
 

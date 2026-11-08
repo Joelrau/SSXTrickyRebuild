@@ -61,6 +61,7 @@ build.bat "C:\path\to\your image.iso"
   sets `SSX_ISO` (see step 1).
 - Add `dev` for a Development build with logging (`Packaged-Dev\`) instead of the normal Shipping build.
 - Add `refs` to also write the test reference data (see step 5).
+- Add `noenhanced` to skip the Enhanced-look data (see [Enhanced look](#enhanced-look)); that look then has flat detail.
 
 It stops at the first error and says which step failed. At the end it prints the time taken and where the game is:
 `Packaged\Windows\SSXTricky.exe` (or `Packaged-Dev\Windows\SSXTricky.exe` with `dev`). The full run takes a long
@@ -194,11 +195,11 @@ in the Classic look, which stays the default and renders exactly as before.
 
   Frame generation and FSR upscaling are off by default (`r.FidelityFX.FI.Enabled`, `r.FidelityFX.FSR.Enabled` in
   `DefaultEngine.ini`); the Classic look always keeps TSR anti-aliasing.
-- **Extra data step:** `build_data.bat ... remaster` (with `import`) runs `tools\make_remaster_maps.py` (2x/4x upscaled
-  colour, normal and detail-mask maps made from your disc's textures into `converted\remaster`) and imports them into
-  `Content/RemasterData`. Both are game data and git-ignored. To redo only this step: `python tools\make_remaster_maps.py`,
-  then the editor script `Scripts\import_remaster.py`. Without the maps the Enhanced look still works, with flat detail.
-- **Fonts:** the same step runs `tools\make_remaster_fonts.py`: Exo 2 Black Italic for titles and
+- **Extra data step:** `build_data.bat ... enhanced` (with `import`) runs `tools\make_enhanced_maps.py` (2x/4x upscaled
+  colour, normal and detail-mask maps made from your disc's textures into `converted\enhanced`) and imports them into
+  `Content/EnhancedData`. Both are game data and git-ignored. To redo only this step: `python tools\make_enhanced_maps.py`,
+  then the editor script `Scripts\import_enhanced.py`. Without the maps the Enhanced look still works, with flat detail.
+- **Fonts:** the same step runs `tools\make_enhanced_fonts.py`: Exo 2 Black Italic for titles and
   Rajdhani SemiBold for menu and small text (`tools\fonts`, SIL Open Font License). The letters keep their shape in
   stretched widescreen menus. Without these files the Enhanced look uses the disc fonts.
 - **What changes:** terrain and props become lit materials (the original lightmaps and vertex light stay in as the
@@ -209,8 +210,8 @@ in the Classic look, which stays the default and renders exactly as before.
   highlights (lamps, neon, sun glints) bloom. Surfaces follow the sim's surface types (glossy ice, rough powder,
   sparkling snow), riders and particles use the upscaled textures, riders carve grooves into the snow, and the front
   end and replays get depth of field (Epic adds gentle motion blur; a subtle vignette grows with speed). Night and indoor tracks have
-  their own tuning (`SSXRemaster::TuningFor`).
-- **Materials:** `Scripts\make_remaster_materials.py` creates `Content/Remastered` (no game data; committed).
+  their own tuning (`SSXEnhanced::TuningFor`).
+- **Materials:** `Scripts\make_enhanced_materials.py` creates `Content/Enhanced` (no game data; committed).
 - **Checking it without running the game:** `Scripts\capture_look.py <Map> <out dir>` renders the map offscreen in
   both looks (editor world, `-AllowCommandletRendering -RenderOffscreen`); the test `SSX.Replay.InGameLookSwitch` races
   with the look flipping every 97 frames and requires the race and its replays to match the Classic race bit for bit.

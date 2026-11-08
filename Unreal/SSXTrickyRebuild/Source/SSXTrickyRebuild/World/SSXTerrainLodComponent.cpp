@@ -423,9 +423,9 @@ int32 USSXTerrainLodComponent::AttachToTerrain(UWorld& World, TArray<TWeakObject
 
 void USSXTerrainLodComponent::ApplyCVar(TConstArrayView<TWeakObjectPtr<USSXTerrainLodComponent>> Attached)
 {
-	// The Remastered look draws the full-detail (Nanite) terrain: the mesh that casts its sun shadow, so a coarser LOD
+	// The Enhanced look draws the full-detail (Nanite) terrain: the mesh that casts its sun shadow, so a coarser LOD
 	// surface never sits inside that shadow.
-	const bool bOn = CVarTerrainLod.GetValueOnGameThread() != 0 && SSXRenderLook::Get() != ESSXRenderLook::Remastered;
+	const bool bOn = CVarTerrainLod.GetValueOnGameThread() != 0 && SSXRenderLook::Get() != ESSXRenderLook::Enhanced;
 	for (const TWeakObjectPtr<USSXTerrainLodComponent>& W : Attached)
 	{
 		USSXTerrainLodComponent* Lod = W.Get();

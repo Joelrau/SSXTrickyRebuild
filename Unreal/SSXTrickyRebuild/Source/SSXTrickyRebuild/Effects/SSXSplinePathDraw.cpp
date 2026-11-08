@@ -4,7 +4,7 @@
 #include "Effects/SSXSplineLineComponent.h"
 #include "Materials/MaterialParameterCollection.h"
 #include "Materials/MaterialParameterCollectionInstance.h"
-#include "World/SSXRemasterWorld.h"
+#include "World/SSXEnhancedWorld.h"
 #include "World/SSXRenderLook.h"
 #include "World/SSXWorldPresentation.h"
 #include "Components/StaticMeshComponent.h"
@@ -169,9 +169,9 @@ void USSXTrackEffects::SyncSplinePaths()
 			Inst->GetScalarParameterValue(TEXT("DrawDistance"), Far);
 		}
 	}
-	if (SSXRenderLook::Get() == ESSXRenderLook::Remastered)
+	if (SSXRenderLook::Get() == ESSXRenderLook::Enhanced)
 	{
-		Far = SSXRemaster::LineFarDistance(Far, SSXRenderLook::GetQuality());
+		Far = SSXEnhanced::LineFarDistance(Far, SSXRenderLook::GetQuality());
 	}
 	for (const FEmitter& E : World.GetEmitters())
 	{

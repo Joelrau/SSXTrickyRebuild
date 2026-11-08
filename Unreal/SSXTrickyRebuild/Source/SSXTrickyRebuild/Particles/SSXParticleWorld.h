@@ -29,9 +29,9 @@ class SSXTRICKYREBUILD_API USSXParticleWorld : public UTickableWorldSubsystem
 
 public:
 	static constexpr const TCHAR* AddMaterialPath = TEXT("/Game/Particles/M_SSXParticleAdd.M_SSXParticleAdd");
-	/** Remastered look (World/SSXRenderLook.h): linear, soft-faded counterparts of the additive and alpha sprites. */
-	static constexpr const TCHAR* RemasteredAddMaterialPath = TEXT("/Game/Remastered/M_RmParticleAdd.M_RmParticleAdd");
-	static constexpr const TCHAR* RemasteredAlphaMaterialPath = TEXT("/Game/Remastered/M_RmParticleAlpha.M_RmParticleAlpha");
+	/** Enhanced look (World/SSXRenderLook.h): linear, soft-faded counterparts of the additive and alpha sprites. */
+	static constexpr const TCHAR* EnhancedAddMaterialPath = TEXT("/Game/Enhanced/M_EnParticleAdd.M_EnParticleAdd");
+	static constexpr const TCHAR* EnhancedAlphaMaterialPath = TEXT("/Game/Enhanced/M_EnParticleAlpha.M_EnParticleAlpha");
 	static constexpr const TCHAR* AlphaMaterialPath = TEXT("/Game/Particles/M_SSXParticleAlpha.M_SSXParticleAlpha");
 	static constexpr const TCHAR* DarkenMaterialPath = TEXT("/Game/Particles/M_SSXParticleDarken.M_SSXParticleDarken");
 	static constexpr const TCHAR* ShadowMaterialPath = TEXT("/Game/Particles/M_SSXShadowProject.M_SSXShadowProject");
@@ -42,9 +42,9 @@ public:
 	/** Lens FX: textured `lens` elements and the untextured glare fan, additive, no depth test, with z-buffer block occlusion in the material. */
 	static constexpr const TCHAR* LensSpriteMaterialPath = TEXT("/Game/Particles/M_SSXLensSprite.M_SSXLensSprite");
 	static constexpr const TCHAR* LensFanMaterialPath = TEXT("/Game/Particles/M_SSXLensFan.M_SSXLensFan");
-	/** Remastered look: the lens materials with their display colour decoded to linear light. */
-	static constexpr const TCHAR* RmLensSpriteMaterialPath = TEXT("/Game/Remastered/M_RmLensSprite.M_RmLensSprite");
-	static constexpr const TCHAR* RmLensFanMaterialPath = TEXT("/Game/Remastered/M_RmLensFan.M_RmLensFan");
+	/** Enhanced look: the lens materials with their display colour decoded to linear light. */
+	static constexpr const TCHAR* EnLensSpriteMaterialPath = TEXT("/Game/Enhanced/M_EnLensSprite.M_EnLensSprite");
+	static constexpr const TCHAR* EnLensFanMaterialPath = TEXT("/Game/Enhanced/M_EnLensFan.M_EnLensFan");
 	static constexpr int32 TrailLayerFlag = 0x100;
 	/** Added to a blend mode: the texture with REPEAT addressing (renderer slot 63 = 0; the splash sheets and the carve curtain). */
 	static constexpr int32 RepeatFlag = 0x200;
@@ -134,8 +134,8 @@ private:
 	FRiderFx* FindRider(const FRiderSim* Sim);
 	void SyncRiders();
 
-	/** bRemastered: the upscaled image from tools/make_remaster_maps.py (converted/remaster/...), else the original. */
-	UTexture2D* Texture(int32 Handle, bool bRepeat = false, bool bRemastered = false);
+	/** bEnhanced: the upscaled image from tools/make_enhanced_maps.py (converted/enhanced/...), else the original. */
+	UTexture2D* Texture(int32 Handle, bool bRepeat = false, bool bEnhanced = false);
 	UMaterialInterface* SpriteMaterial(int32 Handle, int32 BlendMode);
 
 	TArray<FTrackEmitter> Emitters;
@@ -169,8 +169,8 @@ private:
 	FLensStats LensStats;
 	UPROPERTY(Transient) TObjectPtr<UMaterialInterface> LensFanMaterial;
 	UPROPERTY(Transient) TObjectPtr<UMaterialInstanceDynamic> LensSpriteMid;
-	UPROPERTY(Transient) TObjectPtr<UMaterialInterface> RmLensFanMaterial;
-	UPROPERTY(Transient) TObjectPtr<UMaterialInstanceDynamic> RmLensSpriteMid;
+	UPROPERTY(Transient) TObjectPtr<UMaterialInterface> EnLensFanMaterial;
+	UPROPERTY(Transient) TObjectPtr<UMaterialInstanceDynamic> EnLensSpriteMid;
 
 	UPROPERTY(Transient) TObjectPtr<AActor> RenderActor;
 	UPROPERTY(Transient) TObjectPtr<USSXSpriteRenderComponent> Renderer;

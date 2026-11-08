@@ -26,7 +26,7 @@ namespace SSXFe
 	constexpr float TitleScaleX = 1.4f, TitleScaleY = 1.3f;
 	constexpr float MenuScaleX = 1.8f, MenuScaleY = 1.4f;
 	constexpr float ShadowOffset = 2.f;       // FUN_0019d3f0
-	constexpr float SharpShadowOffset = 1.1f;   // Remastered fonts, x the text scale: the thinner letters need a closer shadow
+	constexpr float SharpShadowOffset = 1.1f;   // Enhanced fonts, x the text scale: the thinner letters need a closer shadow
 
 	constexpr float ListX = 320.f;
 	// 0x2B5EF0 / 0x2B5668 / 0x26DD60 / 0x26DF58

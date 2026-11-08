@@ -104,9 +104,9 @@ bool FSSXUIWidescreenTest::RunTest(const FString&)
 	TestFalse(TEXT("Classic look: the HUD is stretched too"), SSXFeWide::Anchored(true));
 	{
 		const ESSXRenderLook Prev = SSXRenderLook::Get();
-		SSXRenderLook::Set(ESSXRenderLook::Remastered);
-		TestFalse(TEXT("Remastered look: the menus keep the stretched frame"), SSXFeWide::Anchored(false));
-		TestTrue(TEXT("Remastered look: the race HUD is anchored"), SSXFeWide::Anchored(true));
+		SSXRenderLook::Set(ESSXRenderLook::Enhanced);
+		TestFalse(TEXT("Enhanced look: the menus keep the stretched frame"), SSXFeWide::Anchored(false));
+		TestTrue(TEXT("Enhanced look: the race HUD is anchored"), SSXFeWide::Anchored(true));
 		SSXRenderLook::Set(Prev);
 	}
 	SSXFeWide::SetImageAspect(4.f / 3.f);
@@ -120,8 +120,8 @@ bool FSSXUIWidescreenTest::RunTest(const FString&)
 		const ESSXRenderLook Prev = SSXRenderLook::Get();
 		SSXRenderLook::Set(ESSXRenderLook::Classic);
 		TestTrue(TEXT("Classic look: the disc font"), A.Font(SSXFe::EFont::Menu) == A.Menu.Get());
-		SSXRenderLook::Set(ESSXRenderLook::Remastered);
-		TestTrue(TEXT("Remastered look: the high-resolution font"), A.Font(SSXFe::EFont::Menu) == A.MenuHi.Get());
+		SSXRenderLook::Set(ESSXRenderLook::Enhanced);
+		TestTrue(TEXT("Enhanced look: the high-resolution font"), A.Font(SSXFe::EFont::Menu) == A.MenuHi.Get());
 		TestEqual(TEXT("its X scale cancels the stretch (none with a 4:3 image)"), A.MenuHi->ScaleX, 1.8f);
 		{
 			FSSXBitmapGlyph G;
@@ -141,10 +141,10 @@ bool FSSXUIWidescreenTest::RunTest(const FString&)
 			TestEqual(TEXT("sharp font, black text (DVD menu): no doubled shadow"), Quads(FLinearColor::Black), 1);
 			SSXRenderLook::Set(ESSXRenderLook::Classic);
 			TestEqual(TEXT("disc font, black text: as the original"), Quads(FLinearColor::Black), 2);
-			SSXRenderLook::Set(ESSXRenderLook::Remastered);
+			SSXRenderLook::Set(ESSXRenderLook::Enhanced);
 		}
 		A.MenuHi.Reset();
-		TestTrue(TEXT("Remastered look without the built fonts: the disc font"), A.Font(SSXFe::EFont::Menu) == A.Menu.Get());
+		TestTrue(TEXT("Enhanced look without the built fonts: the disc font"), A.Font(SSXFe::EFont::Menu) == A.Menu.Get());
 		SSXRenderLook::Set(Prev);
 	}
 	FVector2f P0(-50.f, 10.f), P1(30.f, 20.f);

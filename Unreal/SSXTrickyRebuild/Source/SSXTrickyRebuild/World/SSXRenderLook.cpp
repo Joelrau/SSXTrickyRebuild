@@ -21,7 +21,7 @@ namespace
 	}
 #endif
 
-	ESSXRenderLook FromInt(int32 V) { return V > 0 ? ESSXRenderLook::Remastered : ESSXRenderLook::Classic; }
+	ESSXRenderLook FromInt(int32 V) { return V > 0 ? ESSXRenderLook::Enhanced : ESSXRenderLook::Classic; }
 
 	ESSXRenderLook GApplied = SSXRenderLook::Default;
 	TMap<FString, FString> GClassicValues;
@@ -31,15 +31,15 @@ namespace
 		const ESSXRenderLook Look = SSXRenderLook::Get();
 		if (Look == GApplied) { return; }
 		GApplied = Look;
-		SSXRenderLook::ApplyCvars(SSXRenderLook::RemasteredCvars(), Look);
+		SSXRenderLook::ApplyCvars(SSXRenderLook::EnhancedCvars(), Look);
 		SSXRenderLook::OnChanged().Broadcast(Look);
 	}
 
 	void OnQualityCvar(IConsoleVariable* Var)
 	{
-		if (GApplied == ESSXRenderLook::Remastered)
+		if (GApplied == ESSXRenderLook::Enhanced)
 		{
-			SSXRenderLook::ApplyCvars(SSXRenderLook::RemasteredCvars(), ESSXRenderLook::Remastered);
+			SSXRenderLook::ApplyCvars(SSXRenderLook::EnhancedCvars(), ESSXRenderLook::Enhanced);
 		}
 	}
 
@@ -48,7 +48,7 @@ namespace
 		TEXT("No effect on the Classic look."),
 		FConsoleVariableDelegate::CreateStatic(&OnQualityCvar));
 
-	// PC-only deviations (user request), like the Remastered look itself.
+	// PC-only deviations (user request), like the Enhanced look itself.
 	TAutoConsoleVariable<int32> CVarUpscaler(TEXT("ssx.Render.Upscaler"), SSXRenderLook::DefaultUpscaler,
 		TEXT("Enhanced look upscaler (PC-only, user request): 0 = off (the full resolution, Unreal TSR anti-aliasing), ")
 		TEXT("1 = Unreal TSR (default), 2 = AMD FSR (with the optional FSR plugin; TSR without it). No effect on the Classic look."),
@@ -60,7 +60,7 @@ namespace
 		TEXT("No effect on the Classic look."),
 		FConsoleVariableDelegate::CreateStatic(&OnQualityCvar));
 
-	// PC-only deviation (user request): Remastered is not part of the original game.
+	// PC-only deviation (user request): Enhanced is not part of the original game.
 	TAutoConsoleVariable<int32> CVarLook(TEXT("ssx.Render.Look"), int32(SSXRenderLook::Default),
 		TEXT("Render look: 0 = Classic, the PS2-faithful presentation (default); 1 = Enhanced (PC-only deviation: ")
 		TEXT("modern lighting, materials and post; gameplay, audio, HUD and replays unchanged)."),
@@ -129,7 +129,7 @@ namespace SSXRenderLook
 		return !IsClassicOnly() && Plugin.IsValid() && Plugin->IsEnabled();
 	}
 
-	TConstArrayView<FCvarValue> RemasteredCvars()
+	TConstArrayView<FCvarValue> EnhancedCvars()
 	{
 		// GI 1 / reflections 1 = Lumen, reflections 2 = screen space. Epic: Lumen on hardware ray tracing (needs
 		// r.RayTracing in DefaultEngine.ini and an RT GPU; Lumen falls back to software tracing otherwise). Nanite: the track
@@ -195,7 +195,7 @@ namespace SSXRenderLook
 		{
 			IConsoleVariable* Var = IConsoleManager::Get().FindConsoleVariable(C.Name);
 			if (!Var) { continue; }
-			if (Look == ESSXRenderLook::Remastered)
+			if (Look == ESSXRenderLook::Enhanced)
 			{
 				if (!GClassicValues.Contains(C.Name)) { GClassicValues.Add(C.Name, Var->GetString()); }
 				Var->Set(C.Value, ECVF_SetByCode);

@@ -231,7 +231,7 @@ const FSSXBitmapFont* FSSXFeAssets::Font(SSXFe::EFont F, bool bHud) const
 {
 	const TSharedPtr<FSSXBitmapFont>& Classic = F == SSXFe::EFont::Title ? Title : (F == SSXFe::EFont::Menu ? Menu : Small);
 	const TSharedPtr<FSSXBitmapFont>& Hi = F == SSXFe::EFont::Title ? TitleHi : (F == SSXFe::EFont::Menu ? MenuHi : SmallHi);
-	if (Hi.IsValid() && Classic.IsValid() && SSXRenderLook::Get() == ESSXRenderLook::Remastered)
+	if (Hi.IsValid() && Classic.IsValid() && SSXRenderLook::Get() == ESSXRenderLook::Enhanced)
 	{
 		Hi->ScaleX = Classic->ScaleX / SSXFeWide::StretchX(bHud);
 		return Hi.Get();
@@ -312,9 +312,9 @@ namespace
 void SSXFeDrawHiRes::Register(const UTexture* Classic, const FString& SharpPath)
 {
 	GSharpPaths.Add(Classic, SharpPath);
-	// Remastered: the sharper copy decodes on a worker now, so its first draw only uploads it. The trick book's pages
+	// Enhanced: the sharper copy decodes on a worker now, so its first draw only uploads it. The trick book's pages
 	// (three quarters of the art, shown one at a time) decode when first drawn.
-	if (SSXRenderLook::Get() != ESSXRenderLook::Remastered || SharpPath.Contains(TEXT("/TB_")) || GSharpDecodes.Contains(Classic))
+	if (SSXRenderLook::Get() != ESSXRenderLook::Enhanced || SharpPath.Contains(TEXT("/TB_")) || GSharpDecodes.Contains(Classic))
 	{
 		return;
 	}
@@ -338,7 +338,7 @@ void SSXFeDrawHiRes::Register(const UTexture* Classic, const FString& SharpPath)
 
 UTexture* SSXFeDrawHiRes::For(UTexture* Classic)
 {
-	if (!Classic || SSXRenderLook::Get() != ESSXRenderLook::Remastered) { return Classic; }
+	if (!Classic || SSXRenderLook::Get() != ESSXRenderLook::Enhanced) { return Classic; }
 	if (UTexture* const* Loaded = GSharpArt.Find(Classic)) { return *Loaded ? *Loaded : Classic; }
 	const FString* Path = GSharpPaths.Find(Classic);
 	if (!Path) { return Classic; }
@@ -381,7 +381,7 @@ float SSXFeWide::VisibleExtra(float ImageAspect, float WindowAspect)
 bool SSXFeWide::Anchored(bool bHud)
 {
 	const int32 Mode = CVarUiWidescreen.GetValueOnAnyThread();
-	return Mode < 0 ? bHud && SSXRenderLook::Get() == ESSXRenderLook::Remastered : Mode != 0;
+	return Mode < 0 ? bHud && SSXRenderLook::Get() == ESSXRenderLook::Enhanced : Mode != 0;
 }
 
 static float CurrentExtra()

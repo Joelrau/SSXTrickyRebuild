@@ -9,7 +9,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Misc/Paths.h"
 #include "SSXTrickyRebuild.h"
-#include "World/SSXRemasterWorld.h"
+#include "World/SSXEnhancedWorld.h"
 #include "UI/SSXFrontEndData.h"
 
 namespace
@@ -116,7 +116,7 @@ void USSXPropAnimation::ApplyFlipbooks()
 					{
 						for (int32 Slot = 0; Slot < Comp->GetNumMaterials(); ++Slot)
 						{
-							UMaterialInterface* Mat = SSXRemaster::ClassicMaterial(*Comp, Slot);
+							UMaterialInterface* Mat = SSXEnhanced::ClassicMaterial(*Comp, Slot);
 							UTexture* Own = nullptr;
 							if (!Mat || !Mat->GetTextureParameterValue(FHashedMaterialParameterInfo(BaseTexParam), Own))
 							{
@@ -127,7 +127,7 @@ void USSXPropAnimation::ApplyFlipbooks()
 							{
 								continue;
 							}
-							if (UMaterialInstanceDynamic* Mid = SSXRemaster::ClassicMid(*Comp, Slot))
+							if (UMaterialInstanceDynamic* Mid = SSXEnhanced::ClassicMid(*Comp, Slot))
 							{
 								Slots->Add({ Mid, Base, Own });
 							}

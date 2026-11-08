@@ -1,7 +1,7 @@
 #include "Particles/SSXParticleWorld.h"
 
 #include "Race/GameRng.h"
-#include "World/SSXRemasterWorld.h"
+#include "World/SSXEnhancedWorld.h"
 #include "World/SSXRenderLook.h"
 
 #include "Camera/PlayerCameraManager.h"
@@ -140,18 +140,18 @@ void USSXParticleWorld::OnWorldBeginPlay(UWorld& InWorld)
 	}
 	LensFanMaterial = LoadObject<UMaterialInterface>(nullptr, LensFanMaterialPath);
 	if (LensFanMaterial) { BaseMaterials.Add(LensFanMaterial); }
-	const bool bRmLens = !SSXRenderLook::IsClassicOnly();
-	if (UMaterialInterface* RmSprite = bRmLens ? LoadObject<UMaterialInterface>(nullptr, RmLensSpriteMaterialPath) : nullptr)
+	const bool bEnLens = !SSXRenderLook::IsClassicOnly();
+	if (UMaterialInterface* EnSprite = bEnLens ? LoadObject<UMaterialInterface>(nullptr, EnLensSpriteMaterialPath) : nullptr)
 	{
 		if (LensSpriteMid)
 		{
-			RmLensSpriteMid = UMaterialInstanceDynamic::Create(RmSprite, this);
-			RmLensSpriteMid->CopyParameterOverrides(LensSpriteMid);
+			EnLensSpriteMid = UMaterialInstanceDynamic::Create(EnSprite, this);
+			EnLensSpriteMid->CopyParameterOverrides(LensSpriteMid);
 		}
-		BaseMaterials.Add(RmSprite);
+		BaseMaterials.Add(EnSprite);
 	}
-	RmLensFanMaterial = bRmLens ? LoadObject<UMaterialInterface>(nullptr, RmLensFanMaterialPath) : nullptr;
-	if (RmLensFanMaterial) { BaseMaterials.Add(RmLensFanMaterial); }
+	EnLensFanMaterial = bEnLens ? LoadObject<UMaterialInterface>(nullptr, EnLensFanMaterialPath) : nullptr;
+	if (EnLensFanMaterial) { BaseMaterials.Add(EnLensFanMaterial); }
 	if (!LensSpriteMid || !LensFanMaterial)
 	{
 		UE_LOG(LogSSX, Warning, TEXT("[particles] lens FX materials missing (Scripts/make_particle_materials.py): no halos / sun flare"));
@@ -186,7 +186,7 @@ void USSXParticleWorld::OnWorldBeginPlay(UWorld& InWorld)
 	RenderActor->SetRootComponent(Renderer);
 	Renderer->RegisterComponent();
 	bActive = true;
-	if (SSXRenderLook::Get() == ESSXRenderLook::Remastered)
+	if (SSXRenderLook::Get() == ESSXRenderLook::Enhanced)
 	{
 		// the sharper sprite art (larger files) is decoded while the world starts, not at its first use in the race
 		for (int32 Handle = 0; Handle < SSXParticles::NumTextures; ++Handle) { Texture(Handle, false, true); }
@@ -612,7 +612,7 @@ void USSXParticleWorld::Tick(float DeltaTime)
 	Render();
 }
 
-UTexture2D* USSXParticleWorld::Texture(int32 Handle, bool bRepeat, bool bRemastered)
+UTexture2D* USSXParticleWorld::Texture(int32 Handle, bool bRepeat, bool bEnhanced)
 {
 	// 0x1CAEF8
 	const int32 Image = SSXParticles::ImageOfHandle(Handle);
@@ -620,7 +620,7 @@ UTexture2D* USSXParticleWorld::Texture(int32 Handle, bool bRepeat, bool bRemaste
 	{
 		return nullptr;
 	}
-	const int32 TexKey = Image + (bRepeat ? 0x10000 : 0) + (bRemastered ? 0x20000 : 0);
+	const int32 TexKey = Image + (bRepeat ? 0x10000 : 0) + (bEnhanced ? 0x20000 : 0);
 	if (TObjectPtr<UTexture2D>* T = Textures.Find(TexKey))
 	{
 		return *T;
@@ -633,9 +633,9 @@ UTexture2D* USSXParticleWorld::Texture(int32 Handle, bool bRepeat, bool bRemaste
 	TArray<FString> Found;
 	IFileManager::Get().FindFiles(Found, *FPaths::Combine(Dir, FString::Printf(TEXT("%03d_*.png"), Image)), true, false);
 	FString File = Found.Num() ? FPaths::Combine(Dir, Found[0]) : FString();
-	if (bRemastered && Found.Num())
+	if (bEnhanced && Found.Num())
 	{
-		const FString Up = FPaths::Combine(SSXFrontEnd::RepoRoot(), TEXT("converted"), TEXT("remaster"), TEXT("textures"), TEXT("TEXTURES"),
+		const FString Up = FPaths::Combine(SSXFrontEnd::RepoRoot(), TEXT("converted"), TEXT("enhanced"), TEXT("textures"), TEXT("TEXTURES"),
 			TEXT("PARTICLE"), FPaths::GetBaseFilename(Found[0]) + TEXT("_C.png"));
 		if (FPaths::FileExists(Up)) { File = Up; }
 	}
@@ -675,27 +675,27 @@ UMaterialInterface* USSXParticleWorld::SpriteMaterial(int32 Handle, int32 BlendM
 		Base = BaseIndexFor(BlendMode & ~TrailLayerFlag);
 	}
 	UMaterialInterface* Parent = BaseMaterials.IsValidIndex(Base) ? BaseMaterials[Base].Get() : nullptr;
-	bool bRemastered = false;
-	if (SSXRenderLook::Get() == ESSXRenderLook::Remastered && (Base == 0 || Base == 1))
+	bool bEnhanced = false;
+	if (SSXRenderLook::Get() == ESSXRenderLook::Enhanced && (Base == 0 || Base == 1))
 	{
 		static TWeakObjectPtr<UMaterialInterface> Loaded[2];
 		if (!Loaded[Base].IsValid())
 		{
-			Loaded[Base] = LoadObject<UMaterialInterface>(nullptr, Base == 0 ? RemasteredAddMaterialPath : RemasteredAlphaMaterialPath);
+			Loaded[Base] = LoadObject<UMaterialInterface>(nullptr, Base == 0 ? EnhancedAddMaterialPath : EnhancedAlphaMaterialPath);
 		}
 		if (UMaterialInterface* R = Loaded[Base].Get())
 		{
 			Parent = R;
-			bRemastered = true;
+			bEnhanced = true;
 			Keep.AddUnique(R);
 		}
 	}
-	const int32 Key = (Handle * 16 + Base) | (bRepeat ? 0x1000000 : 0) | (bRemastered ? 0x2000000 : 0);
+	const int32 Key = (Handle * 16 + Base) | (bRepeat ? 0x1000000 : 0) | (bEnhanced ? 0x2000000 : 0);
 	if (TObjectPtr<UMaterialInstanceDynamic>* M = SpriteMids.Find(Key))
 	{
 		return *M;
 	}
-	UTexture2D* Tex = Texture(Handle, bRepeat, bRemastered);
+	UTexture2D* Tex = Texture(Handle, bRepeat, bEnhanced);
 	if (!Tex || !Parent)
 	{
 		return nullptr;
@@ -841,9 +841,9 @@ void USSXParticleWorld::Render()
 	TArray<FSSXSpriteBatch> Batches;
 	FBatcher Bt{ Batches };
 	const bool bOn = CVarParticles.GetValueOnGameThread() != 0;
-	const bool bDenseSpray = SSXRenderLook::Get() == ESSXRenderLook::Remastered;
-	const USSXRemasterWorld* Rm = GetWorld()->GetSubsystem<USSXRemasterWorld>();
-	const bool bTrailGrooves = SSXRenderLook::Get() == ESSXRenderLook::Remastered && Rm && Rm->HasTrailGrooves();
+	const bool bDenseSpray = SSXRenderLook::Get() == ESSXRenderLook::Enhanced;
+	const USSXEnhancedWorld* En = GetWorld()->GetSubsystem<USSXEnhancedWorld>();
+	const bool bTrailGrooves = SSXRenderLook::Get() == ESSXRenderLook::Enhanced && En && En->HasTrailGrooves();
 	auto Burst = [&](const FParticleBurst& B, bool bDense = false)
 	{
 		FSSXSpriteBatch* Out = Bt.For(SpriteMaterial(B.Texture, B.BlendMode));
@@ -964,7 +964,7 @@ void USSXParticleWorld::Render()
 			if (CVarTrails.GetValueOnGameThread() != 0)
 			{
 				auto For = [&](int32 Img, int32 Bl) { return Bt.For(SpriteMaterial(Img, Bl)); };
-				// Enhanced look: the trail is a groove in the snow instead (USSXRemasterWorld::UpdateTrails).
+				// Enhanced look: the trail is a groove in the snow instead (USSXEnhancedWorld::UpdateTrails).
 				if (!bTrailGrooves) { DrawTrail(For, R.Trail); }
 				DrawRibbons(For, R);
 			}
@@ -1158,7 +1158,7 @@ void USSXParticleWorld::DrawLensFX(TArray<FSSXSpriteBatch>& Batches)
 	if (F.Sprites.Num() || F.Streaks.Num())
 	{
 		FSSXSpriteBatch& B = Batches.AddDefaulted_GetRef();
-		B.Material = SSXRenderLook::Get() == ESSXRenderLook::Remastered && RmLensSpriteMid ? RmLensSpriteMid.Get() : LensSpriteMid.Get();
+		B.Material = SSXRenderLook::Get() == ESSXRenderLook::Enhanced && EnLensSpriteMid ? EnLensSpriteMid.Get() : LensSpriteMid.Get();
 		B.bOcclusion = true;
 		for (const SSXLensFX::FSprite& S : F.Sprites)
 		{
@@ -1189,7 +1189,7 @@ void USSXParticleWorld::DrawLensFX(TArray<FSSXSpriteBatch>& Batches)
 	if (F.Fan.Num())
 	{
 		FSSXSpriteBatch& B = Batches.AddDefaulted_GetRef();
-		B.Material = SSXRenderLook::Get() == ESSXRenderLook::Remastered && RmLensFanMaterial ? RmLensFanMaterial.Get() : LensFanMaterial.Get();
+		B.Material = SSXRenderLook::Get() == ESSXRenderLook::Enhanced && EnLensFanMaterial ? EnLensFanMaterial.Get() : LensFanMaterial.Get();
 		B.bOcclusion = true;
 		for (const SSXLensFX::FTri& T : F.Fan)
 		{
@@ -1216,9 +1216,9 @@ void USSXParticleWorld::UpdateShadow(FRiderFx& R, int32 Racers)
 #else
 	constexpr int32 Mode = 0;   // subtractive (the original's)
 #endif
-	// Where the Remastered look has a real sun the riders cast real shadows instead (World/SSXRemasterWorld.h).
+	// Where the Enhanced look has a real sun the riders cast real shadows instead (World/SSXEnhancedWorld.h).
 	const bool bOn = Pawn && ShadowMaterial && Mode >= 0 && CVarParticles.GetValueOnGameThread() != 0 && R.bHaveInput && R.RenderAlpha > 0.0
-		&& !SSXRemaster::RealRiderShadows(*GetWorld());
+		&& !SSXEnhanced::RealRiderShadows(*GetWorld());
 	USSXCharacterAppearance* App = Pawn ? Pawn->GetAppearance() : nullptr;
 	UPoseableMeshComponent* Mesh = App ? App->GetRiderMesh() : nullptr;
 	if (!bOn || !Mesh || !Mesh->IsVisible())

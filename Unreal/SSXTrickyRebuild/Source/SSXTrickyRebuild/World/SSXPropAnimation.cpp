@@ -1,5 +1,5 @@
 #include "World/SSXPropAnimation.h"
-#include "World/SSXRemasterWorld.h"
+#include "World/SSXEnhancedWorld.h"
 #include "Sim/SimCoords.h"
 #include "Race/GameRng.h"
 #include "Race/SSXRaceManager.h"
@@ -1119,7 +1119,7 @@ void USSXPropAnimation::ApplyGems()
 				A->SetActorTransform(FTransform(FQuat(FVector::UpVector, Angle)) * R.Initial);
 			}
 			TInlineComponentArray<UMeshComponent*> Meshes(A);
-			for (UMeshComponent* M : Meshes) { SSXRemaster::SetGlow(*M, Glow); }
+			for (UMeshComponent* M : Meshes) { SSXEnhanced::SetGlow(*M, Glow); }
 		}
 	}
 }
@@ -1251,7 +1251,7 @@ void USSXPropAnimation::ApplyRender()
 					{
 						for (int32 Slot = 0; Slot < Comp->GetNumMaterials(); ++Slot)
 						{
-							if (UMaterialInstanceDynamic* MID = SSXRemaster::ClassicMid(*Comp, Slot))
+							if (UMaterialInstanceDynamic* MID = SSXEnhanced::ClassicMid(*Comp, Slot))
 							{
 								MIDs->Add(MID);
 							}
@@ -1356,7 +1356,7 @@ void USSXPropAnimation::ApplyCrowd()
 				{
 					UMaterialInstanceDynamic* Mid = UMaterialInstanceDynamic::Create(CrowdMaterial, this);
 					Mid->SetTextureParameterValue(TEXT("BaseTex"), Tex);
-					for (int32 Slot = 0; Slot < Comp->GetNumMaterials(); ++Slot) { SSXRemaster::SetClassicMaterial(*Comp, Slot, Mid); }
+					for (int32 Slot = 0; Slot < Comp->GetNumMaterials(); ++Slot) { SSXEnhanced::SetClassicMaterial(*Comp, Slot, Mid); }
 					Mids.Add(Mid);
 				}
 			}

@@ -1,6 +1,6 @@
 using UnrealBuildTool;
 
-// The game with no Remastered look or its PC additions (SSXRenderLook::IsClassicOnly): package.bat Classic.
+// The game with no Enhanced look or its PC additions (SSXRenderLook::IsClassicOnly): package.bat Classic.
 public class SSXTrickyClassicTarget : TargetRules
 {
 	public SSXTrickyClassicTarget(TargetInfo Target) : base(Target)

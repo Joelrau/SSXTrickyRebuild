@@ -152,12 +152,12 @@ UTexture2D* USSXFrontEndSubsystem::LoadPng(const FString& Path)
 	Textures.Add(Path, Tex);
 	if (!SSXRenderLook::IsClassicOnly())
 	{
-		// The Remastered look draws the sharper copy of UI art (tools/make_remaster_maps.py) when there is one.
+		// The Enhanced look draws the sharper copy of UI art (tools/make_enhanced_maps.py) when there is one.
 		FString Rel = Path;
 		const FString Root = FPaths::Combine(SSXFrontEnd::RepoRoot(), TEXT("converted"), TEXT("textures"));
 		if (FPaths::MakePathRelativeTo(Rel, *(Root + TEXT("/"))) && !Rel.StartsWith(TEXT("..")))
 		{
-			const FString Up = FPaths::Combine(SSXFrontEnd::RepoRoot(), TEXT("converted"), TEXT("remaster"), TEXT("textures"),
+			const FString Up = FPaths::Combine(SSXFrontEnd::RepoRoot(), TEXT("converted"), TEXT("enhanced"), TEXT("textures"),
 				FPaths::GetPath(Rel), FPaths::GetBaseFilename(Rel) + TEXT("_C.png"));
 			if (FPaths::FileExists(Up)) { SSXFeDrawHiRes::Register(Tex, Up); }
 		}
@@ -190,7 +190,7 @@ const FSSXFeAssets& USSXFrontEndSubsystem::Assets()
 	A.Small = Font(TEXT("SMLFONT"), 1.f, 1.f);
 	auto HiFont = [this](const TCHAR* Name, const TSharedPtr<FSSXBitmapFont>& Classic) -> TSharedPtr<FSSXBitmapFont>
 	{
-		const FString Base = FPaths::Combine(SSXFrontEnd::FontDir(), TEXT("remaster"), Name);
+		const FString Base = FPaths::Combine(SSXFrontEnd::FontDir(), TEXT("enhanced"), Name);
 		TSharedPtr<FSSXBitmapFont> F = Classic.IsValid() && FPaths::FileExists(Base + TEXT(".json"))
 			? FSSXBitmapFont::Load(Base + TEXT(".json"), LoadPng(Base + TEXT(".png")), FPaths::Combine(SSXFrontEnd::SfnDir(), FString(Name) + TEXT(".SFN")))
 			: nullptr;

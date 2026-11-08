@@ -87,7 +87,7 @@ public:
 	static void ApplyRiderDepth(UMaterialInstanceDynamic& Mid, double Pull, const FVector& Root, double Near,
 		const FVector2D& Guard = FVector2D(SSXRiderDepth::GuardSpanX / SSXRiderDepth::FrameW, SSXRiderDepth::GuardSpanY / SSXRiderDepth::FrameH));
 
-	/** Remastered look (World/SSXRemasterWorld.h): Displayed is drawn in the slot instead of the Classic rider instance;
+	/** Enhanced look (World/SSXEnhancedWorld.h): Displayed is drawn in the slot instead of the Classic rider instance;
 	 *  the per-frame rider values still go to Classic and are copied to Displayed. Null Displayed removes the pair. */
 	void SetDisplayedRiderMaterial(UMaterialInstanceDynamic* Classic, UMaterialInstanceDynamic* Displayed);
 	/** M is a rider instance this subsystem drives (parent M_SSXRiderLit(_Masked) or a chrome rider material). */

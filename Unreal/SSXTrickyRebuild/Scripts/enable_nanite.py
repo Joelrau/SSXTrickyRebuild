@@ -1,9 +1,9 @@
-"""Editor script: turn Nanite on for the imported track meshes (/Game/Tracks/<Map>), for the Remastered look.
+"""Editor script: turn Nanite on for the imported track meshes (/Game/Tracks/<Map>), for the Enhanced look.
 
     UnrealEditor-Cmd <uproject> -run=pythonscript -script="<abs>/enable_nanite.py [Map ...]" -unattended
 
 The fallback mesh keeps every triangle (FallbackPercentTriangles 1.0): the Classic look renders with r.Nanite 0, i.e.
-the fallback, so its geometry stays the original's. Only the Remastered look sets r.Nanite 1 (World/SSXRenderLook.cpp).
+the fallback, so its geometry stays the original's. Only the Enhanced look sets r.Nanite 1 (World/SSXRenderLook.cpp).
 The track meshes are local imports (git-ignored); rerun after re-importing a track.
 """
 import sys
@@ -15,7 +15,7 @@ assets = unreal.EditorAssetLibrary
 
 
 def flag_classic_materials():
-    """The Classic base materials stay on the Nanite meshes wherever the Remastered look keeps them: without the usage
+    """The Classic base materials stay on the Nanite meshes wherever the Enhanced look keeps them: without the usage
     flag those slots draw the default (checker) material. The flag only adds a shader permutation; Classic (r.Nanite 0)
     draws as before."""
     for path in assets.list_assets("/Game/World", recursive=False, include_folder=False):
@@ -35,7 +35,7 @@ NANITE_MAX_SECTIONS = 64
 
 def build_terrain_shadow(path, mesh):
     """A terrain past Nanite's section limit builds no Nanite data; its shadow-only copy (/Game/TerrainShadow/<mesh>_Shadow,
-    opaque sections merged, git-ignored) casts the Remastered sun shadow instead (USSXRemasterWorld::MakeTerrainShadowTwin)."""
+    opaque sections merged, git-ignored) casts the Enhanced sun shadow instead (USSXEnhancedWorld::MakeTerrainShadowTwin)."""
     shadow_pkg = f"/Game/TerrainShadow/{path.split('/')[-1].split('.')[0]}_Shadow"
     if mesh.get_num_sections(0) <= NANITE_MAX_SECTIONS:
         if assets.does_asset_exist(shadow_pkg):
@@ -43,7 +43,7 @@ def build_terrain_shadow(path, mesh):
         return
     if assets.does_asset_exist(shadow_pkg):
         assets.delete_asset(shadow_pkg)
-    out = unreal.SSXRemasterLibrary.build_terrain_shadow_mesh(mesh, shadow_pkg)
+    out = unreal.SSXEnhancedLibrary.build_terrain_shadow_mesh(mesh, shadow_pkg)
     if out:
         assets.save_asset(shadow_pkg, only_if_is_dirty=False)
         unreal.log(f"[ssx] terrain shadow {shadow_pkg}: {mesh.get_num_sections(0)} sections -> {out.get_num_sections(0)}")
@@ -53,8 +53,8 @@ def build_terrain_shadow(path, mesh):
 
 def flag_translucent_components(name):
     """A component with a translucent slot never draws as Nanite (Nanite draws opaque / masked only): Disallow Nanite in
-    the map, so the engine logs no invalid-material warning for it. Its mesh keeps the Nanite data for the Remastered
-    shadow twin (USSXRemasterWorld::ApplyTranslucentProps)."""
+    the map, so the engine logs no invalid-material warning for it. Its mesh keeps the Nanite data for the Enhanced
+    shadow twin (USSXEnhancedWorld::ApplyTranslucentProps)."""
     path = f"/Game/Maps/{name}"
     if not assets.does_asset_exist(path):
         return

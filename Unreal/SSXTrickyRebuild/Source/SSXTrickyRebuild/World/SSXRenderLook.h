@@ -1,6 +1,6 @@
-// Render look: Classic = the PS2-faithful presentation (default), Remastered = modern lighting, materials and post
+// Render look: Classic = the PS2-faithful presentation (default), Enhanced = modern lighting, materials and post
 // (PC-only deviation, user request). Render-only: nothing behind the switch writes sim, audio, HUD or replay state or
-// draws from FGameRng (Remastered effects use their own random numbers).
+// draws from FGameRng (Enhanced effects use their own random numbers).
 #pragma once
 
 #include "CoreMinimal.h"
@@ -11,21 +11,21 @@ UENUM()
 enum class ESSXRenderLook : uint8
 {
 	Classic = 0,
-	Remastered = 1,
+	Enhanced = 1,
 };
 
 namespace SSXRenderLook
 {
 	constexpr ESSXRenderLook Default = ESSXRenderLook::Classic;
 
-	/** No remaster feature exists: the SSXTrickyClassic target (package.bat Classic), or -classiconly outside Shipping.
+	/** No enhanced feature exists: the SSXTrickyClassic target (package.bat Classic), or -classiconly outside Shipping.
 	 *  The look stays Classic, and the VIDEO page, device prompts, fonts and every other PC addition of the look are off. */
 	SSXTRICKYREBUILD_API bool IsClassicOnly();
 #if !UE_BUILD_SHIPPING
 	SSXTRICKYREBUILD_API void SetClassicOnlyForTest(bool bClassicOnly);
 #endif
 
-	/** ssx.Render.Look: 0 Classic, anything above 0 Remastered. */
+	/** ssx.Render.Look: 0 Classic, anything above 0 Enhanced. */
 	SSXTRICKYREBUILD_API ESSXRenderLook Get();
 	/** Set ssx.Render.Look; OnChanged fires when the look changes. */
 	SSXTRICKYREBUILD_API void Set(ESSXRenderLook Look);
@@ -38,7 +38,7 @@ namespace SSXRenderLook
 		const TCHAR* Name;
 		const TCHAR* Value;
 	};
-	/** Remastered quality preset (ssx.Render.Quality): 0 Low, 1 Medium, 2 High (default), 3 Epic. Classic ignores it. */
+	/** Enhanced quality preset (ssx.Render.Quality): 0 Low, 1 Medium, 2 High (default), 3 Epic. Classic ignores it. */
 	constexpr int32 NumQualities = 4;
 	constexpr int32 DefaultQuality = 2;
 	SSXTRICKYREBUILD_API int32 GetQuality();
@@ -46,13 +46,13 @@ namespace SSXRenderLook
 	/** Lumen GI and reflections at this preset (Low: none, screen-space reflections). */
 	SSXTRICKYREBUILD_API bool QualityUsesLumen(int32 Quality);
 
-	/** Upscaler of the Remastered look (PC only, user request): 0 Off (the full resolution, TSR anti-aliasing), 1 Unreal
+	/** Upscaler of the Enhanced look (PC only, user request): 0 Off (the full resolution, TSR anti-aliasing), 1 Unreal
 	 *  TSR (default), 2 AMD FSR (TSR while the FSR plugin is not loaded). Classic ignores it. */
 	constexpr int32 NumUpscalers = 3;
 	constexpr int32 DefaultUpscaler = 1;
 	SSXTRICKYREBUILD_API int32 GetUpscaler();
 	SSXTRICKYREBUILD_API void SetUpscaler(int32 Upscaler);
-	/** Render resolution of the Remastered look with an upscaler on (PC only, user request): 0 Auto (the quality
+	/** Render resolution of the Enhanced look with an upscaler on (PC only, user request): 0 Auto (the quality
 	 *  preset's), 1 Native, 2 Quality, 3 Balanced, 4 Performance, 5 Ultra Performance. Classic ignores it. */
 	constexpr int32 NumUpscaleQualities = 6;
 	SSXTRICKYREBUILD_API int32 GetUpscaleQuality();
@@ -62,10 +62,10 @@ namespace SSXRenderLook
 	/** The optional AMD FSR plugin is loaded (its console variables exist without it in a packaged game). */
 	SSXTRICKYREBUILD_API bool FsrLoaded();
 
-	/** Engine cvars the Remastered look sets at the current quality and upscaler (the same names all session), with
+	/** Engine cvars the Enhanced look sets at the current quality and upscaler (the same names all session), with
 	 *  r.ScreenPercentage last; Classic puts back the values they had before (the project settings). */
-	SSXTRICKYREBUILD_API TConstArrayView<FCvarValue> RemasteredCvars();
-	/** Remastered: remember each cvar's current value (once) and set the new one. Classic: restore every remembered value.
+	SSXTRICKYREBUILD_API TConstArrayView<FCvarValue> EnhancedCvars();
+	/** Enhanced: remember each cvar's current value (once) and set the new one. Classic: restore every remembered value.
 	 *  Unknown cvars are skipped. */
 	SSXTRICKYREBUILD_API void ApplyCvars(TConstArrayView<FCvarValue> Cvars, ESSXRenderLook Look);
 

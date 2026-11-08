@@ -15,9 +15,9 @@ Content/Characters/
 Content/FrontEnd/
 # Audio imported from converted/audio by Scripts/import_audio.py (game data, never committed)
 Content/Audio/
-# Remastered-look maps made from the disc textures by tools/make_remaster_maps.py (game data, never committed)
-Content/RemasterData/
-# Remastered-look terrain shadow meshes built from the imported tracks by Scripts/enable_nanite.py (game data)
+# Enhanced-look maps made from the disc textures by tools/make_enhanced_maps.py (game data, never committed)
+Content/EnhancedData/
+# Enhanced-look terrain shadow meshes built from the imported tracks by Scripts/enable_nanite.py (game data)
 Content/TerrainShadow/
 Build/
 # Exe icon made from the game logo by tools/make_icon.py (game data, never committed)

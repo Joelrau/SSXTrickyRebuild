@@ -120,7 +120,7 @@ private:
 
 	void BuildActors();
 	/** The Showoff snow-crystal multipliers (slot-1 effect with op 14): spin while their cell is inactive, glow in the
-	 *  Remastered look (ssx.World.GemSpinAlways, ssx.Render.GemGlow). Render only. */
+	 *  Enhanced look (ssx.World.GemSpinAlways, ssx.Render.GemGlow). Render only. */
 	void ApplyGems();
 	void TickNode(FNode& N);
 	void MovingObjects(FRiderSim& Sim, const FRiderSphereSet& Shape, SSXAnim::FRiderAnimChannel* Anim);

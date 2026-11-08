@@ -64,7 +64,7 @@ public:
 struct SSXTRICKYREBUILD_API FSSXFeAssets
 {
 	TSharedPtr<FSSXBitmapFont> Title, Menu, Small;
-	/** Remastered look: high-resolution fonts (tools/make_remaster_fonts.py) in the same layout units; null if not built. */
+	/** Enhanced look: high-resolution fonts (tools/make_enhanced_fonts.py) in the same layout units; null if not built. */
 	TSharedPtr<FSSXBitmapFont> TitleHi, MenuHi, SmallHi;
 	const FSSXSpriteTable* FeSprites = nullptr;
 	/** HUD-sheet sprite records (hudgame / hudtrick): ids 0..0x89 {w, h, u0, v0, u1, v1}, built by 0x1F4440 from the overlay-manager ctor 0x1A6FB8 (exported to hud_sprites.json). In-race icons resolve here. */
@@ -72,7 +72,7 @@ struct SSXTRICKYREBUILD_API FSSXFeAssets
 	TMap<FName, UTexture*> Pages;
 	UTexture* White = nullptr;
 
-	/** The font to draw with. Remastered look: the high-resolution one, its X scale cancelling the frame's widescreen
+	/** The font to draw with. Enhanced look: the high-resolution one, its X scale cancelling the frame's widescreen
 	 *  stretch of the layer (bHud: the race HUD) so the letters keep their shape. */
 	const FSSXBitmapFont* Font(SSXFe::EFont F, bool bHud = false) const;
 };
@@ -84,7 +84,7 @@ namespace SSXFeDrawHud
 	SSXTRICKYREBUILD_API const FSSXSpriteTable* GetSheet();
 }
 
-/** The Remastered look's sharper copies of UI art; the sprite UVs are fractions of the sheet, so they fit both. */
+/** The Enhanced look's sharper copies of UI art; the sprite UVs are fractions of the sheet, so they fit both. */
 namespace SSXFeDrawHiRes
 {
 	SSXTRICKYREBUILD_API void Register(const UTexture* Classic, const FString& SharpPath);
@@ -95,7 +95,7 @@ namespace SSXFeDrawHiRes
 /** Widescreen with a 16:9 image (Options > Widescreen). The original's UI is one 640 x 480 frame, which a 16:9 TV
  *  stretches with the anamorphic picture. The 16:9 mode gives the same shape: its viewport clamps to the 640 x 336 band
  *  (0x1E89C0) and the 2D projection maps the frame onto the viewport (0x1DCE08). So the frame stretches to the image
- *  (StretchX). The Remastered race HUD (deliberate difference, ssx.UI.Widescreen) stays unstretched with the screen
+ *  (StretchX). The Enhanced race HUD (deliberate difference, ssx.UI.Widescreen) stays unstretched with the screen
  *  extending ExtraX() units past each side and the HUD anchored to the edges. */
 namespace SSXFeWide
 {
@@ -105,7 +105,7 @@ namespace SSXFeWide
 	 *  never negative. */
 	SSXTRICKYREBUILD_API float VisibleExtra(float ImageAspect, float WindowAspect);
 	/** The anchored layout is in use for the race HUD (bHud) or the menus (ssx.UI.Widescreen; by default the HUD in the
-	 *  Remastered look, the menus never). */
+	 *  Enhanced look, the menus never). */
 	SSXTRICKYREBUILD_API bool Anchored(bool bHud = false);
 	/** Anchored layout: the visible width past each side of the frame; 0 otherwise. */
 	SSXTRICKYREBUILD_API float ExtraX(bool bHud = false);

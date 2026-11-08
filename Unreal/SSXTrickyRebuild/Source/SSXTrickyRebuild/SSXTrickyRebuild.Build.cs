@@ -13,7 +13,7 @@ public class SSXTrickyRebuild : ModuleRules
 		PrivateDependencyModuleNames.AddRange(new string[] { "RenderCore", "RHI" });   // Particles/SSXSpriteRenderer scene proxy
 		PrivateDependencyModuleNames.Add("ImageCore");
 		PrivateDependencyModuleNames.Add("Projects");   // World/SSXRenderLook FSR plugin version
-		PrivateDependencyModuleNames.AddRange(new string[] { "MeshDescription", "StaticMeshDescription" });   // World/SSXRemasterWorld terrain shadow meshes (editor)   // World/SSXPropAnimation crowd atlas (FImage)
+		PrivateDependencyModuleNames.AddRange(new string[] { "MeshDescription", "StaticMeshDescription" });   // World/SSXEnhancedWorld terrain shadow meshes (editor)   // World/SSXPropAnimation crowd atlas (FImage)
 		// Packaged game: stage the data read from disk at run time as loose files. SimData/ stays at <Package>/SSXTrickyRebuild/SimData; the repo-root folders (converted/, extracted/, unpacked/) go under <Package>/SSXTrickyRebuild/GameData/, which SSXFrontEnd::RepoRoot() returns in cooked builds. The data comes from the user's own disc and is never committed.
 		if (Target.Type == TargetType.Game)
 		{
@@ -45,7 +45,7 @@ public class SSXTrickyRebuild : ModuleRules
 				"converted/frontend/video/*.m2ts",  // FMV (Media Framework) + its separate audio track
 				"converted/frontend/video/*.wav",
 				"converted/textures/...",           // FE sprites, portraits, particles, crowd, prop flipbooks, rider textures
-				"converted/remaster/textures/...",  // Remastered look: upscaled particle images (build_data.bat remaster)
+				"converted/enhanced/textures/...",  // Enhanced look: upscaled particle images (build_data.bat enhanced)
 				"converted/characters/envr.png",    // rider chrome (the per-rider glTF folders are editor-import inputs)
 				"converted/characters/specmap/...", // rider specular maps
 				"converted/hud/...",
@@ -62,18 +62,18 @@ public class SSXTrickyRebuild : ModuleRules
 				string SourceDir = Path.Combine(Repo, Path.GetDirectoryName(Rel.Replace("/...", "/x")));
 				if (bClassicOnly && (Rel == "converted/frontend/*.json" || Rel == "converted/frontend/fonts/..."))
 				{
-					// One by one: these wildcards reach into fonts/remaster, the high-resolution fonts.
+					// One by one: these wildcards reach into fonts/enhanced, the high-resolution fonts.
 					string Pattern = Rel.EndsWith("*.json") ? "*.json" : "*";
 					foreach (string File in Directory.Exists(SourceDir) ? Directory.GetFiles(SourceDir, Pattern, SearchOption.AllDirectories) : new string[0])
 					{
 						string Under = File.Substring(Repo.Length + 1).Replace(Path.DirectorySeparatorChar, '/');
-						if (!Under.StartsWith("converted/frontend/fonts/remaster/"))
+						if (!Under.StartsWith("converted/frontend/fonts/enhanced/"))
 						{
 							RuntimeDependencies.Add("$(ProjectDir)/GameData/" + Under, File, StagedFileType.NonUFS);
 						}
 					}
 				}
-				else if (Directory.Exists(SourceDir) && !(bClassicOnly && Rel.StartsWith("converted/remaster/")))
+				else if (Directory.Exists(SourceDir) && !(bClassicOnly && Rel.StartsWith("converted/enhanced/")))
 				{
 					RuntimeDependencies.Add("$(ProjectDir)/GameData/" + Rel, Path.Combine(Repo, Rel), StagedFileType.NonUFS);
 				}

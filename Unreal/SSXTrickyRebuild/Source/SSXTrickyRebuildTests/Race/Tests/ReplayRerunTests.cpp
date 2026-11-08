@@ -247,7 +247,7 @@ namespace SSXReplayRerun
 				{
 					const bool bPlay = Rp.GetState() == SSXReplay::Play;
 					const uint32 F = (bPlay ? Rp.GetPlayFrame() : Rp.GetRecordFrame()) + (bPlay ? P / 2 : 0);
-					SSXRenderLook::Set((F / P) % 2 ? ESSXRenderLook::Remastered : ESSXRenderLook::Classic);
+					SSXRenderLook::Set((F / P) % 2 ? ESSXRenderLook::Enhanced : ESSXRenderLook::Classic);
 				}
 				if (Rp.GetState() == SSXReplay::Record && Rp.GetRecordFrame() > 0)
 				{

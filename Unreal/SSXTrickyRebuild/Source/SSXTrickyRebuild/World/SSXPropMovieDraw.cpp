@@ -10,7 +10,7 @@
 #include "GameFramework/Actor.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "SSXTrickyRebuild.h"
-#include "World/SSXRemasterWorld.h"
+#include "World/SSXEnhancedWorld.h"
 #include "TextureResource.h"
 
 namespace
@@ -107,18 +107,18 @@ void USSXPropAnimation::ApplyMovies()
 				{
 					for (int32 Slot = 0; Slot < Comp->GetNumMaterials(); ++Slot)
 					{
-						UMaterialInterface* Mat = SSXRemaster::ClassicMaterial(*Comp, Slot);
+						UMaterialInterface* Mat = SSXEnhanced::ClassicMaterial(*Comp, Slot);
 						UTexture* Own = nullptr;
 						if (!Mat || !Mat->GetTextureParameterValue(FHashedMaterialParameterInfo(MovieBaseTexParam), Own))
 						{
 							continue;
 						}
 						// 0x148D28 / 0x1E1F70 / 0x200390
-						if (UMaterialInstanceDynamic* Mid = SSXRemaster::ClassicMid(*Comp, Slot))
+						if (UMaterialInstanceDynamic* Mid = SSXEnhanced::ClassicMid(*Comp, Slot))
 						{
 							Mid->SetTextureParameterValue(MovieBaseTexParam, MovieTexture);
 							Slots.Add({ Mid, INDEX_NONE, Own });
-							SSXRemaster::SetGlow(*Comp, 0.8f);   // Remastered look: a screen gives off its own light
+							SSXEnhanced::SetGlow(*Comp, 0.8f);   // Enhanced look: a screen gives off its own light
 						}
 					}
 				}
@@ -213,13 +213,13 @@ void USSXPropAnimation::ApplyTextureOverrides()
 					{
 						for (int32 Slot = 0; Slot < Comp->GetNumMaterials(); ++Slot)
 						{
-							UMaterialInterface* Mat = SSXRemaster::ClassicMaterial(*Comp, Slot);
+							UMaterialInterface* Mat = SSXEnhanced::ClassicMaterial(*Comp, Slot);
 							UTexture* Own = nullptr;
 							if (!Mat || !Mat->GetTextureParameterValue(FHashedMaterialParameterInfo(MovieBaseTexParam), Own))
 							{
 								continue;
 							}
-							if (UMaterialInstanceDynamic* Mid = SSXRemaster::ClassicMid(*Comp, Slot))
+							if (UMaterialInstanceDynamic* Mid = SSXEnhanced::ClassicMid(*Comp, Slot))
 							{
 								New.Add({ Mid, INDEX_NONE, Own });
 								Flat.AddUnique(Comp);

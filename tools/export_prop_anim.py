@@ -187,7 +187,7 @@ def map_model_names(path: Path) -> dict:
 
 
 def write_surface_look(path: Path, L, out_path: Path):
-    """Remastered look: the instances whose model is glass (1) or water (2), by model name (World/SSXRemasterWorld.cpp)."""
+    """Enhanced look: the instances whose model is glass (1) or water (2), by model name (World/SSXEnhancedWorld.cpp)."""
     names = map_model_names(path)
     rows = []
     for i, inst in enumerate(L.instances):

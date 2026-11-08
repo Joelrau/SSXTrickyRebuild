@@ -18,7 +18,7 @@
 #include "UI/SSXFeRiderActor.h"
 #include "World/SSXWorldPresentation.h"
 #include "Particles/SSXRiderFx.h"
-#include "World/SSXRemasterWorld.h"
+#include "World/SSXEnhancedWorld.h"
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
 #include "Materials/MaterialInterface.h"
@@ -39,7 +39,7 @@ namespace
 
 	struct FPinnedFile { const TCHAR* Path; const TCHAR* Sha1; };
 
-	// Every committed Classic asset, byte for byte. Remastered assets live elsewhere; a regenerated Classic asset
+	// Every committed Classic asset, byte for byte. Enhanced assets live elsewhere; a regenerated Classic asset
 	// fails here (revert it, or update the pin when the Classic change is intended).
 	const FPinnedFile ClassicAssets[] = {
 		{ TEXT("Particles/M_SSXGhost.uasset"), TEXT("042B77992C12E8B9971242376ACD9429EAB76530") },
@@ -140,7 +140,7 @@ bool FSSXRenderClassicPinnedTest::RunTest(const FString&)
 		TEXT("[/Script/Engine.RendererSettings]"));
 	TestEqual(TEXT("DefaultEngine.ini RendererSettings entry count"), Ini.Num(), int32(UE_ARRAY_COUNT(ClassicRenderer)));
 	FLookRestore Restore;
-	SSXRenderLook::Set(ESSXRenderLook::Remastered);
+	SSXRenderLook::Set(ESSXRenderLook::Enhanced);
 	SSXRenderLook::Set(ESSXRenderLook::Classic);
 	for (int32 I = 0; I < UE_ARRAY_COUNT(ClassicRenderer); ++I)
 	{
@@ -212,18 +212,18 @@ bool FSSXRenderFollowerAliveTest::RunTest(const FString&)
 		auto SetCrowd = [&]()
 		{
 			UMaterialInstanceDynamic* Mid = UMaterialInstanceDynamic::Create(Crowd, A);
-			SSXRemaster::SetClassicMaterial(*C, 0, Mid);
+			SSXEnhanced::SetClassicMaterial(*C, 0, Mid);
 			Classic = Mid;
 		};
 		if (!bLookFirst) { SetCrowd(); }
-		USSXRemasterLibrary::SetRemasteredInWorld(W, true);
+		USSXEnhancedLibrary::SetEnhancedInWorld(W, true);
 		if (bLookFirst) { SetCrowd(); }
 		CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS, true);
 		const FString Case = bLookFirst ? TEXT("look first") : TEXT("crowd first");
 		TestTrue(Case + TEXT(": Classic crowd instance survives GC"), Classic.IsValid());
 		TestTrue(Case + TEXT(": slot shows the lit twin"), C->GetMaterial(0) != Classic.Get() && C->GetMaterial(0) != nullptr);
-		TestTrue(Case + TEXT(": ClassicMaterial is the animated instance"), SSXRemaster::ClassicMaterial(*C, 0) == Classic.Get());
-		USSXRemasterLibrary::SetRemasteredInWorld(W, false);
+		TestTrue(Case + TEXT(": ClassicMaterial is the animated instance"), SSXEnhanced::ClassicMaterial(*C, 0) == Classic.Get());
+		USSXEnhancedLibrary::SetEnhancedInWorld(W, false);
 		TestTrue(Case + TEXT(": Classic restores the instance"), C->GetMaterial(0) == Classic.Get());
 		A->Destroy();
 	}
@@ -235,11 +235,11 @@ bool FSSXRenderFollowerAliveTest::RunTest(const FString&)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSSXRenderRiderMapsTest, "SSX.Render.RiderMaps", RenderLookFlags)
 bool FSSXRenderRiderMapsTest::RunTest(const FString&)
 {
-	for (const TCHAR* Name : { TEXT("M_RmRider"), TEXT("M_RmRider_Masked"), TEXT("M_RmRiderChrome"), TEXT("M_RmRiderChrome_Masked") })
+	for (const TCHAR* Name : { TEXT("M_EnRider"), TEXT("M_EnRider_Masked"), TEXT("M_EnRiderChrome"), TEXT("M_EnRiderChrome_Masked") })
 	{
-		const UMaterialInterface* M = LoadObject<UMaterialInterface>(nullptr, *FString::Printf(TEXT("/Game/Remastered/%s.%s"), Name, Name));
+		const UMaterialInterface* M = LoadObject<UMaterialInterface>(nullptr, *FString::Printf(TEXT("/Game/Enhanced/%s.%s"), Name, Name));
 		UTexture* Tex = nullptr;
-		TestTrue(FString::Printf(TEXT("%s reads the detail masks"), Name), M && M->GetTextureParameterValue(FHashedMaterialParameterInfo(TEXT("RmMasks")), Tex));
+		TestTrue(FString::Printf(TEXT("%s reads the detail masks"), Name), M && M->GetTextureParameterValue(FHashedMaterialParameterInfo(TEXT("EnMasks")), Tex));
 	}
 	return true;
 }
@@ -261,16 +261,16 @@ bool FSSXRenderSprayCompanionTest::RunTest(const FString&)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSSXRenderSpeedFxTest, "SSX.Render.SpeedFx", RenderLookFlags)
 bool FSSXRenderSpeedFxTest::RunTest(const FString&)
 {
-	const SSXRemaster::FSpeedFx Slow = SSXRemaster::SpeedFxFor(0.0, 3), Fast = SSXRemaster::SpeedFxFor(5000.0, 3);
+	const SSXEnhanced::FSpeedFx Slow = SSXEnhanced::SpeedFxFor(0.0, 3), Fast = SSXEnhanced::SpeedFxFor(5000.0, 3);
 	TestEqual(TEXT("standing still: no vignette"), Slow.Vignette, 0.f);
 	TestEqual(TEXT("standing still: Epic keeps its gentle blur"), Slow.MotionBlur, 0.25f);
 	TestEqual(TEXT("speed does not change the blur"), Fast.MotionBlur, Slow.MotionBlur);
 	TestTrue(TEXT("speed adds a subtle vignette"), Fast.Vignette > 0.f && Fast.Vignette <= 0.3f);
 	TestEqual(TEXT("standing still: no speed blur"), Slow.SpeedBlur, 0.f);
-	TestEqual(TEXT("cruising: no speed blur yet"), SSXRemaster::SpeedFxFor(1900.0, 3).SpeedBlur, 0.f);
+	TestEqual(TEXT("cruising: no speed blur yet"), SSXEnhanced::SpeedFxFor(1900.0, 3).SpeedBlur, 0.f);
 	TestEqual(TEXT("top speed: full speed blur"), Fast.SpeedBlur, 1.f);
-	TestEqual(TEXT("the speed blur at every quality"), SSXRemaster::SpeedFxFor(5000.0, 0).SpeedBlur, 1.f);
-	TestEqual(TEXT("High has no motion blur at any speed"), SSXRemaster::SpeedFxFor(5000.0, 2).MotionBlur, 0.f);
+	TestEqual(TEXT("the speed blur at every quality"), SSXEnhanced::SpeedFxFor(5000.0, 0).SpeedBlur, 1.f);
+	TestEqual(TEXT("High has no motion blur at any speed"), SSXEnhanced::SpeedFxFor(5000.0, 2).MotionBlur, 0.f);
 	return true;
 }
 
@@ -281,45 +281,45 @@ bool FSSXRenderTrackTuningTest::RunTest(const FString&)
 	TSet<float> Suns;
 	for (const TCHAR* Stem : Stems)
 	{
-		const SSXRemaster::FTrackTuning& T = SSXRemaster::TuningFor(Stem);
+		const SSXEnhanced::FTrackTuning& T = SSXEnhanced::TuningFor(Stem);
 		TestEqual(FString::Printf(TEXT("%s has its own entry"), Stem), FString(T.Stem ? T.Stem : TEXT("")), FString(Stem));
 		TestTrue(FString::Printf(TEXT("%s is a day track with real shadows"), Stem), T.SunLux >= 1.f);
 		Suns.Add(T.SunLux);
 	}
 	TestEqual(TEXT("each its own sun"), Suns.Num(), 4);
-	TestTrue(TEXT("Tokyo's lamps sweep through thick fog"), SSXRemaster::TuningFor(TEXT("megaple")).bSweepLights && SSXRemaster::TuningFor(TEXT("megaple")).FogVolume > 1.f);
-	TestFalse(TEXT("other tracks' lamps stay still"), SSXRemaster::TuningFor(TEXT("merquer")).bSweepLights);
-	TestTrue(TEXT("night tracks face their painted moons"), SSXRemaster::TuningFor(TEXT("snow")).MoonAzimuthDeg > 0.f && SSXRemaster::TuningFor(TEXT("merquer")).MoonAzimuthDeg > 0.f
-		&& SSXRemaster::TuningFor(TEXT("trick")).MoonAzimuthDeg > 0.f);
-	TestTrue(TEXT("day tracks have no moon or stars"), SSXRemaster::TuningFor(TEXT("gari")).MoonAzimuthDeg < 0.f && SSXRemaster::TuningFor(TEXT("gari")).Stars == 0.f);
-	TestNotNull(TEXT("Alaska has see-through ice"), SSXRemaster::TuningFor(TEXT("alaska")).IceTextures);
-	TestNull(TEXT("no see-through ice elsewhere"), SSXRemaster::TuningFor(TEXT("gari")).IceTextures);
-	TestNotNull(TEXT("the ice material exists"), LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Remastered/M_RmIce.M_RmIce")));
-	TestFalse(TEXT("Alaska and Aloha keep the shadow cache"), SSXRemaster::TuningFor(TEXT("alaska")).bNoShadowCache || SSXRemaster::TuningFor(TEXT("aloha")).bNoShadowCache);
+	TestTrue(TEXT("Tokyo's lamps sweep through thick fog"), SSXEnhanced::TuningFor(TEXT("megaple")).bSweepLights && SSXEnhanced::TuningFor(TEXT("megaple")).FogVolume > 1.f);
+	TestFalse(TEXT("other tracks' lamps stay still"), SSXEnhanced::TuningFor(TEXT("merquer")).bSweepLights);
+	TestTrue(TEXT("night tracks face their painted moons"), SSXEnhanced::TuningFor(TEXT("snow")).MoonAzimuthDeg > 0.f && SSXEnhanced::TuningFor(TEXT("merquer")).MoonAzimuthDeg > 0.f
+		&& SSXEnhanced::TuningFor(TEXT("trick")).MoonAzimuthDeg > 0.f);
+	TestTrue(TEXT("day tracks have no moon or stars"), SSXEnhanced::TuningFor(TEXT("gari")).MoonAzimuthDeg < 0.f && SSXEnhanced::TuningFor(TEXT("gari")).Stars == 0.f);
+	TestNotNull(TEXT("Alaska has see-through ice"), SSXEnhanced::TuningFor(TEXT("alaska")).IceTextures);
+	TestNull(TEXT("no see-through ice elsewhere"), SSXEnhanced::TuningFor(TEXT("gari")).IceTextures);
+	TestNotNull(TEXT("the ice material exists"), LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Enhanced/M_EnIce.M_EnIce")));
+	TestFalse(TEXT("Alaska and Aloha keep the shadow cache"), SSXEnhanced::TuningFor(TEXT("alaska")).bNoShadowCache || SSXEnhanced::TuningFor(TEXT("aloha")).bNoShadowCache);
 	bool bLodDelta = false;
-	for (const SSXRenderLook::FCvarValue& C : SSXRenderLook::RemasteredCvars())
+	for (const SSXRenderLook::FCvarValue& C : SSXRenderLook::EnhancedCvars())
 	{
 		bLodDelta |= FString(C.Name) == TEXT("r.Nanite.VSMInvalidateOnLODDelta") && FString(C.Value) == TEXT("1");
 	}
 	TestTrue(TEXT("cached shadow pages are drawn again once their Nanite detail streamed in"), bLodDelta);
 	{
 		const FVector Light = FVector(0.5, 0.0, -FMath::Sqrt(0.75)), ToSun = FVector(0.0, 0.9, 0.1).GetSafeNormal();
-		const FVector Faced = SSXRemaster::SunLightFacing(Light, ToSun);
+		const FVector Faced = SSXEnhanced::SunLightFacing(Light, ToSun);
 		TestTrue(TEXT("the light keeps its height"), FMath::IsNearlyEqual(Faced.Z, Light.Z, 1e-9));
 		TestTrue(TEXT("the light is still a unit vector"), FMath::IsNearlyEqual(Faced.Size(), 1.0, 1e-9));
 		TestTrue(TEXT("the light travels away from the sun's bearing"), Faced.Y < -0.4 && FMath::Abs(Faced.X) < 1e-9);
-		TestTrue(TEXT("a sun straight up changes nothing"), SSXRemaster::SunLightFacing(Light, FVector(0, 0, 1)) == Light);
+		TestTrue(TEXT("a sun straight up changes nothing"), SSXEnhanced::SunLightFacing(Light, FVector(0, 0, 1)) == Light);
 	}
-	TestEqual(TEXT("Alaska's light-shaft cards"), FString(SSXRemaster::TuningFor(TEXT("alaska")).LightShaftMaterials), FString(TEXT("tex_168_")));
-	TestNull(TEXT("no light-shaft cards elsewhere"), SSXRemaster::TuningFor(TEXT("aloha")).LightShaftMaterials);
-	TestNotNull(TEXT("the light-shaft material exists"), LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Remastered/M_RmLightShaft.M_RmLightShaft")));
+	TestEqual(TEXT("Alaska's light-shaft cards"), FString(SSXEnhanced::TuningFor(TEXT("alaska")).LightShaftMaterials), FString(TEXT("tex_168_")));
+	TestNull(TEXT("no light-shaft cards elsewhere"), SSXEnhanced::TuningFor(TEXT("aloha")).LightShaftMaterials);
+	TestNotNull(TEXT("the light-shaft material exists"), LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Enhanced/M_EnLightShaft.M_EnLightShaft")));
 	TestTrue(TEXT("Alaska's sun is low, Aloha's high"),
-		SSXRemaster::TuningFor(TEXT("alaska")).SunElevation < 30.f && SSXRemaster::TuningFor(TEXT("aloha")).SunElevation > 50.f);
-	TestEqual(TEXT("indoor tracks keep their own sun direction"), SSXRemaster::TuningFor(TEXT("megaple")).SunElevation, 0.f);
-	TestTrue(TEXT("Merqury's lamps glow in the fog"), SSXRemaster::TuningFor(TEXT("merquer")).LightScatter > 1.f);
+		SSXEnhanced::TuningFor(TEXT("alaska")).SunElevation < 30.f && SSXEnhanced::TuningFor(TEXT("aloha")).SunElevation > 50.f);
+	TestEqual(TEXT("indoor tracks keep their own sun direction"), SSXEnhanced::TuningFor(TEXT("megaple")).SunElevation, 0.f);
+	TestTrue(TEXT("Merqury's lamps glow in the fog"), SSXEnhanced::TuningFor(TEXT("merquer")).LightScatter > 1.f);
 	TestTrue(TEXT("Snowdream's glow stays below Merqury's"),
-		SSXRemaster::TuningFor(TEXT("snow")).LightScatter < SSXRemaster::TuningFor(TEXT("merquer")).LightScatter);
-	TestEqual(TEXT("an unknown track keeps the default glow"), SSXRemaster::TuningFor(TEXT("nothing")).LightScatter, 1.f);
+		SSXEnhanced::TuningFor(TEXT("snow")).LightScatter < SSXEnhanced::TuningFor(TEXT("merquer")).LightScatter);
+	TestEqual(TEXT("an unknown track keeps the default glow"), SSXEnhanced::TuningFor(TEXT("nothing")).LightScatter, 1.f);
 	return true;
 }
 
@@ -334,9 +334,9 @@ bool FSSXRenderShadowCacheRestoreTest::RunTest(const FString&)
 	UWorld* W = UWorld::CreateWorld(EWorldType::Game, false, TEXT("alaska"), CreatePackage(TEXT("/Temp/SSXTest/alaska")));
 	FWorldContext& Ctx = GEngine->CreateNewWorldContext(EWorldType::Game);
 	Ctx.SetCurrentWorld(W);
-	USSXRemasterLibrary::SetRemasteredInWorld(W, true);
-	TestEqual(TEXT("Remastered on Alaska: the shadow cache follows its tuning"), Cache->GetInt(),
-		SSXRemaster::TuningFor(TEXT("alaska")).bNoShadowCache ? 0 : Before);
+	USSXEnhancedLibrary::SetEnhancedInWorld(W, true);
+	TestEqual(TEXT("Enhanced on Alaska: the shadow cache follows its tuning"), Cache->GetInt(),
+		SSXEnhanced::TuningFor(TEXT("alaska")).bNoShadowCache ? 0 : Before);
 	GEngine->DestroyWorldContext(W);
 	W->DestroyWorld(false);
 	TestEqual(TEXT("closing the world restores the shadow cache"), Cache->GetInt(), Before);
@@ -353,7 +353,7 @@ bool FSSXRenderSweepShadowsTest::RunTest(const FString&)
 	UWorld* W = UWorld::CreateWorld(EWorldType::Editor, false, TEXT("megaple"), CreatePackage(TEXT("/Temp/SSXTest/megaple")));
 	FWorldContext& Ctx = GEngine->CreateNewWorldContext(EWorldType::Editor);
 	Ctx.SetCurrentWorld(W);
-	USSXRemasterLibrary::SetRemasteredInWorld(W, true);
+	USSXEnhancedLibrary::SetEnhancedInWorld(W, true);
 	int32 Spots = 0, Casting = 0;
 	for (TActorIterator<ASpotLight> It(W); It; ++It)
 	{
@@ -366,24 +366,24 @@ bool FSSXRenderSweepShadowsTest::RunTest(const FString&)
 	}
 	else
 	{
-		TestTrue(TEXT("Tokyo has more sweeping lamps than shadowed ones"), Spots > SSXRemaster::MaxSweepShadowLights);
-		TestEqual(TEXT("only the strongest sweeping lamps cast shadows"), Casting, SSXRemaster::MaxSweepShadowLights);
+		TestTrue(TEXT("Tokyo has more sweeping lamps than shadowed ones"), Spots > SSXEnhanced::MaxSweepShadowLights);
+		TestEqual(TEXT("only the strongest sweeping lamps cast shadows"), Casting, SSXEnhanced::MaxSweepShadowLights);
 	}
-	USSXRemasterLibrary::SetRemasteredInWorld(W, false);
+	USSXEnhancedLibrary::SetEnhancedInWorld(W, false);
 	GEngine->DestroyWorldContext(W);
 	W->DestroyWorld(false);
 	SSXRenderLook::SetQuality(PrevQuality);
 	return true;
 }
 
-// The sky is unlit: PP_RmScene shows unlit pixels from MPC SkyFrom on as the sky, so it must lie short of the dome (grown
+// The sky is unlit: PP_EnScene shows unlit pixels from MPC SkyFrom on as the sky, so it must lie short of the dome (grown
 // past the fog) and beyond the draw distance, where the world's last unlit pixels (spline lines) end.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSSXRenderSkyFromTest, "SSX.Render.SkyFrom", RenderLookFlags)
 bool FSSXRenderSkyFromTest::RunTest(const FString&)
 {
-	UMaterialParameterCollection* Mpc = LoadObject<UMaterialParameterCollection>(nullptr, SSXRemaster::CollectionPath);
+	UMaterialParameterCollection* Mpc = LoadObject<UMaterialParameterCollection>(nullptr, SSXEnhanced::CollectionPath);
 	UStaticMesh* Sphere = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Sphere.Sphere"));
-	if (!TestNotNull(TEXT("MPC_SSXRemaster"), Mpc) || !TestNotNull(TEXT("the engine sphere"), Sphere)) { return false; }
+	if (!TestNotNull(TEXT("MPC_SSXEnhanced"), Mpc) || !TestNotNull(TEXT("the engine sphere"), Sphere)) { return false; }
 	TestNotNull(TEXT("the collection has SkyFrom"), Mpc->GetScalarParameterByName(TEXT("SkyFrom")));
 	UWorld* W = UWorld::CreateWorld(EWorldType::Editor, false, TEXT("gari"), CreatePackage(TEXT("/Temp/SSXTest/gari")));
 	FWorldContext& Ctx = GEngine->CreateNewWorldContext(EWorldType::Editor);
@@ -393,7 +393,7 @@ bool FSSXRenderSkyFromTest::RunTest(const FString&)
 	Dome->GetStaticMeshComponent()->SetStaticMesh(Sphere);
 	Dome->SetActorScale3D(FVector(2000.0));   // 1 km
 	Dome->Tags.Add(USSXWorldPresentation::SkyTag);
-	USSXRemasterLibrary::SetRemasteredInWorld(W, true);
+	USSXEnhancedLibrary::SetEnhancedInWorld(W, true);
 	const AExponentialHeightFog* Fog = nullptr;
 	for (TActorIterator<AExponentialHeightFog> It(W); It; ++It) { Fog = *It; }
 	if (!Fog)
@@ -407,28 +407,28 @@ bool FSSXRenderSkyFromTest::RunTest(const FString&)
 		TestTrue(TEXT("the sky starts short of the dome"), SkyFrom > 0.f && SkyFrom < DomeNear);
 		TestTrue(TEXT("and beyond the draw distance (half the fog's cutoff)"), SkyFrom > Fog->GetComponent()->FogCutoffDistance * 0.5f);
 	}
-	USSXRemasterLibrary::SetRemasteredInWorld(W, false);
+	USSXEnhancedLibrary::SetEnhancedInWorld(W, false);
 	GEngine->DestroyWorldContext(W);
 	W->DestroyWorld(false);
 	return true;
 }
 
-// Remastered: the sharper copy of UI art decodes on a worker from its registration; its first draw shows the same
+// Enhanced: the sharper copy of UI art decodes on a worker from its registration; its first draw shows the same
 // texture a direct import makes.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSSXRenderSharpArtTest, "SSX.Render.SharpArt", RenderLookFlags)
 bool FSSXRenderSharpArtTest::RunTest(const FString&)
 {
-	const FString Dir = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectDir(), TEXT("../../converted/remaster/textures/TEXTURES/PARTICLE")));
+	const FString Dir = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectDir(), TEXT("../../converted/enhanced/textures/TEXTURES/PARTICLE")));
 	TArray<FString> Found;
 	IFileManager::Get().FindFiles(Found, *FPaths::Combine(Dir, TEXT("*_C.png")), true, false);
 	if (Found.Num() == 0)
 	{
-		SSXTest::Skip(*this, TEXT("SKIPPED sharp art: no converted/remaster textures"));
+		SSXTest::Skip(*this, TEXT("SKIPPED sharp art: no converted/enhanced textures"));
 		return true;
 	}
 	const FString Path = FPaths::Combine(Dir, Found[0]);
 	FLookRestore Restore;
-	SSXRenderLook::Set(ESSXRenderLook::Remastered);
+	SSXRenderLook::Set(ESSXRenderLook::Enhanced);
 	UTexture2D* Classic = UTexture2D::CreateTransient(4, 4);
 	SSXFeDrawHiRes::Register(Classic, Path);
 	const UTexture2D* Direct = FImageUtils::ImportFileAsTexture2D(Path);
@@ -442,7 +442,7 @@ bool FSSXRenderSharpArtTest::RunTest(const FString&)
 	return true;
 }
 
-// The Remastered render resolution: Auto keeps each quality preset's own, the modes the upscalers' usual ratios. The
+// The Enhanced render resolution: Auto keeps each quality preset's own, the modes the upscalers' usual ratios. The
 // upscaler's console variables (with the FSR plugin) come before r.ScreenPercentage, which the FSR plugin also sets.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSSXRenderUpscaleTest, "SSX.Render.Upscale", RenderLookFlags)
 bool FSSXRenderUpscaleTest::RunTest(const FString&)
@@ -467,12 +467,12 @@ bool FSSXRenderUpscaleTest::RunTest(const FString&)
 	SetQuality(2);
 	SetUpscaler(DefaultUpscaler);
 	SetUpscaleQuality(4);
-	const TConstArrayView<FCvarValue> Cvars = RemasteredCvars();
+	const TConstArrayView<FCvarValue> Cvars = EnhancedCvars();
 	TestTrue(TEXT("r.ScreenPercentage comes last"), Cvars.Num() > 0 && FString(Cvars.Last().Name) == TEXT("r.ScreenPercentage"));
 	bool bFsr = false;
 	for (const FCvarValue& C : Cvars) { bFsr |= FString(C.Name).StartsWith(TEXT("r.FidelityFX.")); }
 	TestEqual(TEXT("the FSR plugin's console variables only with the plugin loaded"), bFsr, FsrLoaded());
-	Set(ESSXRenderLook::Remastered);
+	Set(ESSXRenderLook::Enhanced);
 	TestEqual(TEXT("Performance renders at half the resolution"), Pct->GetFloat(), 50.f);
 	SetUpscaleQuality(0);
 	TestEqual(TEXT("Auto at High renders at full resolution"), Pct->GetFloat(), 100.f);
@@ -491,20 +491,20 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSSXRenderFogTest, "SSX.Render.Fog", RenderLook
 bool FSSXRenderFogTest::RunTest(const FString&)
 {
 	const float Dist = 30000.f;
-	const float Scale = SSXRemaster::DrawDistanceScale(3);
-	const SSXRemaster::FFogSetup F = SSXRemaster::FogFor(Dist, Scale, 1.f);
+	const float Scale = SSXEnhanced::DrawDistanceScale(3);
+	const SSXEnhanced::FFogSetup F = SSXEnhanced::FogFor(Dist, Scale, 1.f);
 	const float End = Dist * Scale;
 	const float AtEnd = 1.f - FMath::Exp(-F.Density / 1000.f * (End - F.Start));
 	TestTrue(TEXT("half opaque at the draw distance"), AtEnd > 0.45f && AtEnd < 0.55f);
 	TestTrue(TEXT("the fog starts well before it"), F.Start < End * 0.5f && F.Start > 0.f);
 	TestTrue(TEXT("the radial cutoff clears the draw distance at the screen corners"), F.Cutoff >= End * 2.f);
-	TestEqual(TEXT("strength 0: no fog"), SSXRemaster::FogFor(Dist, Scale, 0.f).Density, 0.f);
-	const float Line = SSXRemaster::LineFarDistance(float(Dist), 3);
-	TestTrue(TEXT("spline lines end inside the world's fade"), Line > End * (1.f - SSXRemaster::DrawFadeWidth) && Line < End);
+	TestEqual(TEXT("strength 0: no fog"), SSXEnhanced::FogFor(Dist, Scale, 0.f).Density, 0.f);
+	const float Line = SSXEnhanced::LineFarDistance(float(Dist), 3);
+	TestTrue(TEXT("spline lines end inside the world's fade"), Line > End * (1.f - SSXEnhanced::DrawFadeWidth) && Line < End);
 	return true;
 }
 
-// The rider's outfit changed in the Remastered look: going back to Classic keeps the current outfit, not the first one.
+// The rider's outfit changed in the Enhanced look: going back to Classic keeps the current outfit, not the first one.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSSXRenderRiderOutfitRevertTest, "SSX.Render.RiderOutfitRevert", RenderLookFlags)
 bool FSSXRenderRiderOutfitRevertTest::RunTest(const FString&)
 {
@@ -518,13 +518,13 @@ bool FSSXRenderRiderOutfitRevertTest::RunTest(const FString&)
 	UWorld* W = UWorld::CreateWorld(EWorldType::Game, false, TEXT("SSXRiderOutfitRevert"));
 	FWorldContext& Ctx = GEngine->CreateNewWorldContext(EWorldType::Game);
 	Ctx.SetCurrentWorld(W);
-	USSXRemasterWorld* R = W->GetSubsystem<USSXRemasterWorld>();
+	USSXEnhancedWorld* R = W->GetSubsystem<USSXEnhancedWorld>();
 	W->GetSubsystem<USSXWorldPresentation>()->LoadRiderMaterials();
 	ASSXFeRiderActor* A = W->SpawnActor<ASSXFeRiderActor>();
 	UStaticMeshComponent* C = NewObject<UStaticMeshComponent>(A);
 	C->SetStaticMesh(Cube);
 	C->RegisterComponent();
-	USSXRemasterLibrary::SetRemasteredInWorld(W, true);
+	USSXEnhancedLibrary::SetEnhancedInWorld(W, true);
 	UMaterialInstanceDynamic* First = UMaterialInstanceDynamic::Create(Rider, A);
 	C->SetMaterial(0, First);
 	R->SwapRiders();
@@ -534,13 +534,13 @@ bool FSSXRenderRiderOutfitRevertTest::RunTest(const FString&)
 	R->SwapRiders();
 	UMaterialInterface* SecondTwin = C->GetMaterial(0);
 	TestTrue(TEXT("second outfit: the slot shows a twin"), SecondTwin != Second && SecondTwin != First);
-	USSXRemasterLibrary::SetRemasteredInWorld(W, false);
+	USSXEnhancedLibrary::SetEnhancedInWorld(W, false);
 	TestTrue(TEXT("back to Classic: the current outfit, not the first"), C->GetMaterial(0) == Second);
-	USSXRemasterLibrary::SetRemasteredInWorld(W, true);
+	USSXEnhancedLibrary::SetEnhancedInWorld(W, true);
 	UMaterialInstanceDynamic* Third = UMaterialInstanceDynamic::Create(Rider, A);
 	R->SwapRiders();
 	C->SetMaterial(0, Third);
-	USSXRemasterLibrary::SetRemasteredInWorld(W, false);
+	USSXEnhancedLibrary::SetEnhancedInWorld(W, false);
 	TestTrue(TEXT("an outfit set after the last swap stays"), C->GetMaterial(0) == Third);
 	A->Destroy();
 	GEngine->DestroyWorldContext(W);
@@ -548,7 +548,7 @@ bool FSSXRenderRiderOutfitRevertTest::RunTest(const FString&)
 	return true;
 }
 
-// USSXRemasterWorld::SetGlow (the Showoff crystals): a component of its own, on the lit material, glowing.
+// USSXEnhancedWorld::SetGlow (the Showoff crystals): a component of its own, on the lit material, glowing.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSSXRenderGlowTest, "SSX.Render.Glow", RenderLookFlags)
 bool FSSXRenderGlowTest::RunTest(const FString&)
 {
@@ -569,17 +569,17 @@ bool FSSXRenderGlowTest::RunTest(const FString&)
 		M->SetStaticMesh(Cube);
 		M->SetMaterial(0, Prop);
 	}
-	USSXRemasterLibrary::SetRemasteredInWorld(W, true);
+	USSXEnhancedLibrary::SetEnhancedInWorld(W, true);
 	TestTrue(TEXT("both share the lit twin"), C[0]->GetMaterial(0) == C[1]->GetMaterial(0) && C[0]->GetMaterial(0) != Prop);
-	SSXRemaster::SetGlow(*C[0], 2.f);
+	SSXEnhanced::SetGlow(*C[0], 2.f);
 	const UMaterialInstanceDynamic* Own = Cast<UMaterialInstanceDynamic>(C[0]->GetMaterial(0));
 	float Glow = 0.f, Other = -1.f;
 	TestTrue(TEXT("glowing component has its own instance"), Own && Own != C[1]->GetMaterial(0));
 	TestTrue(TEXT("its parent is a material, not an instance"), Own && Own->Parent && !Own->Parent->IsA<UMaterialInstanceDynamic>());
-	TestTrue(TEXT("RmGlow set"), Own && Own->GetScalarParameterValue(FHashedMaterialParameterInfo(TEXT("RmGlow")), Glow) && Glow == 2.f);
-	Cast<UMaterialInstanceDynamic>(C[1]->GetMaterial(0))->GetScalarParameterValue(FHashedMaterialParameterInfo(TEXT("RmGlow")), Other);
+	TestTrue(TEXT("EnGlow set"), Own && Own->GetScalarParameterValue(FHashedMaterialParameterInfo(TEXT("EnGlow")), Glow) && Glow == 2.f);
+	Cast<UMaterialInstanceDynamic>(C[1]->GetMaterial(0))->GetScalarParameterValue(FHashedMaterialParameterInfo(TEXT("EnGlow")), Other);
 	TestEqual(TEXT("the other component does not glow"), Other, 0.f);
-	USSXRemasterLibrary::SetRemasteredInWorld(W, false);
+	USSXEnhancedLibrary::SetEnhancedInWorld(W, false);
 	TestTrue(TEXT("Classic restores the material"), C[0]->GetMaterial(0) == Prop);
 	GEngine->DestroyWorldContext(W);
 	W->DestroyWorld(false);
@@ -605,24 +605,24 @@ bool FSSXRenderSurfaceLookTest::RunTest(const FString&)
 	UStaticMeshComponent* C = W->SpawnActor<AStaticMeshActor>()->GetStaticMeshComponent();
 	C->SetStaticMesh(Cube);
 	C->SetMaterial(0, Soft);
-	USSXRemasterWorld* R = W->GetSubsystem<USSXRemasterWorld>();
-	USSXRemasterLibrary::SetRemasteredInWorld(W, true);
-	if (!TestNotNull(TEXT("remaster subsystem"), R)) { return false; }
+	USSXEnhancedWorld* R = W->GetSubsystem<USSXEnhancedWorld>();
+	USSXEnhancedLibrary::SetEnhancedInWorld(W, true);
+	if (!TestNotNull(TEXT("enhanced subsystem"), R)) { return false; }
 	R->AddLookComponent(*C);
-	UMaterialInstanceDynamic* Classic = SSXRemaster::ClassicMid(*C, 0);   // game code animating the slot (UV scroll)
+	UMaterialInstanceDynamic* Classic = SSXEnhanced::ClassicMid(*C, 0);   // game code animating the slot (UV scroll)
 	const UMaterialInstanceDynamic* Shown = Cast<UMaterialInstanceDynamic>(C->GetMaterial(0));
 	TestTrue(TEXT("game code gets the Classic instance"), Classic && Classic != Shown);
-	TestTrue(TEXT("the shown twin is the glass material"), Shown && Shown->Parent && Shown->Parent->GetName() == TEXT("M_RmPropGlass"));
-	USSXRemasterLibrary::SetRemasteredInWorld(W, false);
+	TestTrue(TEXT("the shown twin is the glass material"), Shown && Shown->Parent && Shown->Parent->GetName() == TEXT("M_EnPropGlass"));
+	USSXEnhancedLibrary::SetEnhancedInWorld(W, false);
 	C->SetMaterial(0, Lit);
-	USSXRemasterLibrary::SetRemasteredInWorld(W, true);
+	USSXEnhancedLibrary::SetEnhancedInWorld(W, true);
 	R->AddLookComponent(*C);
-	SSXRemaster::ClassicMid(*C, 0);
+	SSXEnhanced::ClassicMid(*C, 0);
 	float Surface = 0.f;
 	const UMaterialInstanceDynamic* LitShown = Cast<UMaterialInstanceDynamic>(C->GetMaterial(0));
 	TestTrue(TEXT("a lit layer gets the mirror class"),
-		LitShown && LitShown->GetScalarParameterValue(FHashedMaterialParameterInfo(TEXT("RmSurface")), Surface) && Surface == 4.f);
-	USSXRemasterLibrary::SetRemasteredInWorld(W, false);
+		LitShown && LitShown->GetScalarParameterValue(FHashedMaterialParameterInfo(TEXT("EnSurface")), Surface) && Surface == 4.f);
+	USSXEnhancedLibrary::SetEnhancedInWorld(W, false);
 	GEngine->DestroyWorldContext(W);
 	W->DestroyWorld(false);
 	return true;
@@ -635,29 +635,29 @@ bool FSSXRenderLookSwitchTest::RunTest(const FString&)
 	SSXRenderLook::Set(ESSXRenderLook::Classic);
 	TArray<ESSXRenderLook> Seen;
 	const FDelegateHandle H = SSXRenderLook::OnChanged().AddLambda([&Seen](ESSXRenderLook L) { Seen.Add(L); });
-	SSXRenderLook::Set(ESSXRenderLook::Remastered);
-	SSXRenderLook::Set(ESSXRenderLook::Remastered);
-	TestEqual(TEXT("Get after Set(Remastered)"), int32(SSXRenderLook::Get()), 1);
+	SSXRenderLook::Set(ESSXRenderLook::Enhanced);
+	SSXRenderLook::Set(ESSXRenderLook::Enhanced);
+	TestEqual(TEXT("Get after Set(Enhanced)"), int32(SSXRenderLook::Get()), 1);
 	SSXRenderLook::Set(ESSXRenderLook::Classic);
 	SSXRenderLook::OnChanged().Remove(H);
 	TestEqual(TEXT("OnChanged fires once per change"), Seen.Num(), 2);
-	TestTrue(TEXT("OnChanged order"), Seen.Num() == 2 && Seen[0] == ESSXRenderLook::Remastered && Seen[1] == ESSXRenderLook::Classic);
+	TestTrue(TEXT("OnChanged order"), Seen.Num() == 2 && Seen[0] == ESSXRenderLook::Enhanced && Seen[1] == ESSXRenderLook::Classic);
 
 	IConsoleVariable* Probe = IConsoleManager::Get().RegisterConsoleVariable(TEXT("ssx.Test.RenderLookProbe"), 7, TEXT("test only"));
 	const SSXRenderLook::FCvarValue Set[] = { { TEXT("ssx.Test.RenderLookProbe"), TEXT("3") }, { TEXT("ssx.Test.NoSuchCvar"), TEXT("1") } };
-	SSXRenderLook::ApplyCvars(Set, ESSXRenderLook::Remastered);
-	TestEqual(TEXT("Remastered sets the cvar"), Probe->GetInt(), 3);
+	SSXRenderLook::ApplyCvars(Set, ESSXRenderLook::Enhanced);
+	TestEqual(TEXT("Enhanced sets the cvar"), Probe->GetInt(), 3);
 	Probe->Set(5, ECVF_SetByCode);
-	SSXRenderLook::ApplyCvars(Set, ESSXRenderLook::Remastered);
+	SSXRenderLook::ApplyCvars(Set, ESSXRenderLook::Enhanced);
 	SSXRenderLook::ApplyCvars(Set, ESSXRenderLook::Classic);
-	TestEqual(TEXT("Classic restores the value from before the first Remastered"), Probe->GetInt(), 7);
+	TestEqual(TEXT("Classic restores the value from before the first Enhanced"), Probe->GetInt(), 7);
 	SSXRenderLook::ApplyCvars(Set, ESSXRenderLook::Classic);
 	TestEqual(TEXT("Classic twice is a no-op"), Probe->GetInt(), 7);
 	IConsoleManager::Get().UnregisterConsoleObject(Probe);
 
-	for (const SSXRenderLook::FCvarValue& C : SSXRenderLook::RemasteredCvars())
+	for (const SSXRenderLook::FCvarValue& C : SSXRenderLook::EnhancedCvars())
 	{
-		TestNotNull(FString::Printf(TEXT("Remastered cvar %s exists"), C.Name), IConsoleManager::Get().FindConsoleVariable(C.Name));
+		TestNotNull(FString::Printf(TEXT("Enhanced cvar %s exists"), C.Name), IConsoleManager::Get().FindConsoleVariable(C.Name));
 	}
 	return true;
 }

@@ -390,7 +390,7 @@ bool FSSXUIOptionsVideoTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("the nearest listed resolution"), Res[ResolutionIndex(Res.Last())], Res.Last());
 		TestEqual(TEXT("help line"), F.FE.CurrentHelpLine(), FString(HelpText(VideoPage, 0)));
 		F.Press(ESSXFeKey::Right);
-		TestEqual(TEXT("Right previews Remastered"), int32(SSXRenderLook::Get()), int32(ESSXRenderLook::Remastered));
+		TestEqual(TEXT("Right previews Enhanced"), int32(SSXRenderLook::Get()), int32(ESSXRenderLook::Enhanced));
 		F.Redraw();
 		TestNotNull(TEXT("value ENHANCED"), F.Txt(TEXT("ENHANCED")));
 		F.Press(ESSXFeKey::Triangle);
@@ -410,7 +410,7 @@ bool FSSXUIOptionsVideoTest::RunTest(const FString& Parameters)
 		for (int32 I = 1; I < RowIndex(VideoPage, DoneId); ++I) { F.Press(ESSXFeKey::Down); }
 		F.FE.SoundHooks.Reset();
 		F.Press(ESSXFeKey::Cross);
-		TestEqual(TEXT("DONE keeps Remastered"), int32(SSXRenderLook::Get()), int32(ESSXRenderLook::Remastered));
+		TestEqual(TEXT("DONE keeps Enhanced"), int32(SSXRenderLook::Get()), int32(ESSXRenderLook::Enhanced));
 		TestTrue(TEXT("DONE asks to save the Video settings"), F.HasHook(TEXT("saveVideo")));
 		if (SSXRenderLook::FrameGenerationAvailable())
 		{
@@ -423,7 +423,7 @@ bool FSSXUIOptionsVideoTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("DONE leaves the page"), F.FE.Top()->Page, -1);
 	}
 	{
-		SSXRenderLook::Set(ESSXRenderLook::Remastered);   // the Remastered rows take changes
+		SSXRenderLook::Set(ESSXRenderLook::Enhanced);   // the Enhanced rows take changes
 		FOptFe F;
 		F.OpenPage(VideoPage);
 		for (int32 I = 0; I < RowIndex(VideoPage, UpscaleQualityId); ++I) { F.Press(ESSXFeKey::Down); }
@@ -448,7 +448,7 @@ bool FSSXUIOptionsVideoTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("Down from LOOK skips QUALITY in Classic"), S->Opt.RowSel[VideoPage], RowIndex(VideoPage, 2));
 		F.Press(ESSXFeKey::Up);
 		F.Press(ESSXFeKey::Right);
-		TestFalse(TEXT("QUALITY takes changes with LOOK Remastered"), RowGreyed(VideoPage, 1, S->Opt.List[VideoPage]));
+		TestFalse(TEXT("QUALITY takes changes with LOOK Enhanced"), RowGreyed(VideoPage, 1, S->Opt.List[VideoPage]));
 		for (int32 I = 0; I < RowIndex(VideoPage, UpscalerId); ++I) { F.Press(ESSXFeKey::Down); }
 		F.Press(ESSXFeKey::Left);
 		TestEqual(TEXT("UPSCALER Left previews off"), SSXRenderLook::GetUpscaler(), 0);
@@ -471,7 +471,7 @@ bool FSSXUIOptionsVideoTest::RunTest(const FString& Parameters)
 		F.OpenPage(VideoPage);
 		F.Press(ESSXFeKey::Right);
 		for (int32 I = 0; I < RowIndex(VideoPage, UpscaleQualityId); ++I) { F.Press(ESSXFeKey::Down); }
-		TestEqual(TEXT("on UPSCALE QUALITY with LOOK Remastered"), F.FE.Top()->Opt.RowSel[VideoPage], RowIndex(VideoPage, UpscaleQualityId));
+		TestEqual(TEXT("on UPSCALE QUALITY with LOOK Enhanced"), F.FE.Top()->Opt.RowSel[VideoPage], RowIndex(VideoPage, UpscaleQualityId));
 		F.Press(ESSXFeKey::Triangle);
 		F.Press(ESSXFeKey::Cross);
 		const FSSXFeState* S = F.FE.Top();
@@ -480,7 +480,7 @@ bool FSSXUIOptionsVideoTest::RunTest(const FString& Parameters)
 		F.Press(ESSXFeKey::Triangle);
 	}
 	{
-		SSXRenderLook::Set(ESSXRenderLook::Remastered);   // no grey rows above FRAME LIMIT
+		SSXRenderLook::Set(ESSXRenderLook::Enhanced);   // no grey rows above FRAME LIMIT
 		FOptFe F;
 		F.OpenPage(VideoPage);
 		const int32 Row = RowIndex(VideoPage, FrameLimitId);
@@ -496,7 +496,7 @@ bool FSSXUIOptionsVideoTest::RunTest(const FString& Parameters)
 		const bool bPrev = SSXRenderLook::GetFrameGeneration();
 		ON_SCOPE_EXIT { SSXRenderLook::SetFrameGeneration(bPrev); };
 		SSXRenderLook::SetFrameGeneration(false);
-		SSXRenderLook::Set(ESSXRenderLook::Remastered);   // no grey rows above FRAME GENERATION
+		SSXRenderLook::Set(ESSXRenderLook::Enhanced);   // no grey rows above FRAME GENERATION
 		FOptFe F;
 		F.OpenPage(VideoPage);
 		for (int32 I = 0; I < Fg; ++I) { F.Press(ESSXFeKey::Down); }
@@ -866,10 +866,10 @@ bool FSSXOptionsClassicOnlyTest::RunTest(const FString&)
 	const bool bPrevOnly = SSXRenderLook::IsClassicOnly();
 	ON_SCOPE_EXIT { SSXRenderLook::SetClassicOnlyForTest(bPrevOnly); SSXRenderLook::Set(Prev); };
 	SSXRenderLook::SetClassicOnlyForTest(false);
-	SSXRenderLook::Set(ESSXRenderLook::Remastered);
+	SSXRenderLook::Set(ESSXRenderLook::Enhanced);
 	SSXRenderLook::SetClassicOnlyForTest(true);
 	TestTrue(TEXT("the look reads Classic"), SSXRenderLook::Get() == ESSXRenderLook::Classic);
-	SSXRenderLook::Set(ESSXRenderLook::Remastered);
+	SSXRenderLook::Set(ESSXRenderLook::Enhanced);
 	TestTrue(TEXT("the look cannot be changed"), SSXRenderLook::Get() == ESSXRenderLook::Classic);
 	TestFalse(TEXT("no frame generation"), SSXRenderLook::FrameGenerationAvailable());
 	TestFalse(TEXT("the HUD is not anchored: the UI frame stretches like the original's"), SSXFeWide::Anchored(true));
