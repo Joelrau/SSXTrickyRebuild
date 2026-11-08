@@ -226,8 +226,9 @@ for (int j = 0; j < 2; ++j)
 }
 float blue = saturate((c.b - max(c.r, c.g)) * 6.0);
 float toSun = saturate(dot(d, sun));
-// The sun and its glow, on open sky only: painted mountains and sunsets stay as drawn.
-float3 sky = c + tint * blue * (pow(toSun, 900.0) * 3.0 + pow(toSun, 24.0) * 0.22);
+// The sun and its glow, on open sky only: painted mountains and sunsets stay as drawn. SunOpen 1: the sun sits where
+// the original's sun flare has it, on painted sky, so it is drawn whole (masked by the blue it was cut off and speckled).
+float3 sky = c + tint * lerp(blue, 1.0, SunOpen) * (pow(toSun, 900.0) * 3.0 + pow(toSun, 24.0) * 0.22);
 float cl = smoothstep(0.46, 0.78, n) * up * blue * Clouds;
 float l = dot(c, float3(0.2126, 0.7152, 0.0722));
 float lit = saturate(0.55 + (n - ns) * 3.0);
@@ -591,7 +592,7 @@ for n, v in (("BakedWeight", 0.6), ("BakedAmbient", 0.55), ("AlbedoScale", 0.9),
              ("Exposure", 1.0), ("Saturation", 1.15), ("Emissive", 3.0), ("RiderFill", 0.6), ("RiderRim", 0.5),
              ("ParticleSoftness", 80.0), ("SpriteGlow", 0.35), ("DrawDistanceScale", 3.0), ("DrawDistanceUp", 1.0), ("Sparkle", 3.0), ("SpeedFx", 0.0),
              ("TrailX", 0.0), ("TrailY", 0.0), ("TrailSize", 1.0e9), ("WorldTime", 0.0), ("Stars", 0.0),
-             ("SunX", 0.0), ("SunY", 0.0), ("SunZ", 1.0), ("SunR", 1.0), ("SunG", 1.0), ("SunB", 1.0), ("SkyFrom", 60000.0)):
+             ("SunX", 0.0), ("SunY", 0.0), ("SunZ", 1.0), ("SunR", 1.0), ("SunG", 1.0), ("SunB", 1.0), ("SunOpen", 0.0), ("SkyFrom", 60000.0)):
     p = old.get(n) or unreal.CollectionScalarParameter()
     p.set_editor_property("parameter_name", n)
     p.set_editor_property("default_value", v)
@@ -828,7 +829,7 @@ connect_prop(custom(m, -400, 0, SKY_SHADE, F3, [("Tex", (sky, "RGB")), ("Factor"
                                                  ("WP", (expr(m, unreal.MaterialExpressionWorldPosition, -750, 200), "")),
                                                  ("Cam", (expr(m, unreal.MaterialExpressionCameraPositionWS, -750, 280), "")),
                                                  ("T", (coll(m, rm, "WorldTime", -750, 360), "")),
-                                                 ("Clouds", (coll(m, rm, "Clouds", -750, 440), ""))] + [(k, (coll(m, rm, k, -750, 520 + 60 * i), "")) for i, k in enumerate(("SunX", "SunY", "SunZ", "SunR", "SunG", "SunB", "Stars"))],
+                                                 ("Clouds", (coll(m, rm, "Clouds", -750, 440), ""))] + [(k, (coll(m, rm, k, -750, 520 + 60 * i), "")) for i, k in enumerate(("SunX", "SunY", "SunZ", "SunR", "SunG", "SunB", "Stars", "SunOpen"))],
                     "RmSkyShade"), "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
 finish(m)
 
@@ -837,7 +838,7 @@ connect_prop(custom(m, -400, 0, CLEAR_SHADE, F3, [("C", (coll(m, mpc, "ClearColo
                                                    ("WP", (expr(m, unreal.MaterialExpressionWorldPosition, -750, 200), "")),
                                                    ("Cam", (expr(m, unreal.MaterialExpressionCameraPositionWS, -750, 280), "")),
                                                    ("T", (coll(m, rm, "WorldTime", -750, 360), "")),
-                                                   ("Clouds", (coll(m, rm, "Clouds", -750, 440), ""))] + [(k, (coll(m, rm, k, -750, 520 + 60 * i), "")) for i, k in enumerate(("SunX", "SunY", "SunZ", "SunR", "SunG", "SunB", "Stars"))], "RmClearColour"), "",
+                                                   ("Clouds", (coll(m, rm, "Clouds", -750, 440), ""))] + [(k, (coll(m, rm, k, -750, 520 + 60 * i), "")) for i, k in enumerate(("SunX", "SunY", "SunZ", "SunR", "SunG", "SunB", "Stars", "SunOpen"))], "RmClearColour"), "",
              unreal.MaterialProperty.MP_EMISSIVE_COLOR)
 finish(m)
 

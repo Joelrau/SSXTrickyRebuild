@@ -1377,6 +1377,8 @@ void USSXRemasterWorld::Apply()
 		UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("SunR"), SunColour.R);
 		UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("SunG"), SunColour.G);
 		UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("SunB"), SunColour.B);
+		// The sky's sun is drawn whole where the original's sun flare places it; elsewhere only on open blue sky.
+		UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("SunOpen"), Track && Track->bFlareOn ? 1.f : 0.f);
 	}
 	if (ADirectionalLight* D = T.SunLux > 0.f ? W->SpawnActor<ADirectionalLight>(FVector::ZeroVector, SunDir.Rotation(), P) : nullptr)
 	{
