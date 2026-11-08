@@ -266,6 +266,10 @@ bool FSSXRenderSpeedFxTest::RunTest(const FString&)
 	TestEqual(TEXT("standing still: Epic keeps its gentle blur"), Slow.MotionBlur, 0.25f);
 	TestEqual(TEXT("speed does not change the blur"), Fast.MotionBlur, Slow.MotionBlur);
 	TestTrue(TEXT("speed adds a subtle vignette"), Fast.Vignette > 0.f && Fast.Vignette <= 0.3f);
+	TestEqual(TEXT("standing still: no speed blur"), Slow.SpeedBlur, 0.f);
+	TestEqual(TEXT("cruising: no speed blur yet"), SSXRemaster::SpeedFxFor(1900.0, 3).SpeedBlur, 0.f);
+	TestEqual(TEXT("top speed: full speed blur"), Fast.SpeedBlur, 1.f);
+	TestEqual(TEXT("the speed blur at every quality"), SSXRemaster::SpeedFxFor(5000.0, 0).SpeedBlur, 1.f);
 	TestEqual(TEXT("High has no motion blur at any speed"), SSXRemaster::SpeedFxFor(5000.0, 2).MotionBlur, 0.f);
 	return true;
 }

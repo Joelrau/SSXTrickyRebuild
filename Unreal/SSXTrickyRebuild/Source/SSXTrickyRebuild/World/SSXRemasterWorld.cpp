@@ -324,7 +324,10 @@ SSXRemaster::FSpeedFx SSXRemaster::SpeedFxFor(double Speed, int32 Quality)
 	// Motion blur only at Epic, and gentle: stronger blur streaks the snow and shows the blur's screen tiles.
 	F.MotionBlur = Quality >= 3 ? 0.25f : 0.f;
 	F.MotionBlurMax = 2.f;
-	F.Vignette = 0.3f * T * T;
+	F.Vignette = 0.2f * T * T;
+	// The speed blur from cruising speed (about 70 km/h) to the top speed tier; boosting reaches it.
+	const float B = float(FMath::Clamp((Speed - 2000.0) / (FRiderSim::SpeedTiers[3] - 2000.0), 0.0, 1.0));
+	F.SpeedBlur = B * B * (3.f - 2.f * B);
 	return F;
 }
 
@@ -604,6 +607,7 @@ void USSXRemasterWorld::UpdateSpeedFx(float DeltaTime)
 	if (UMaterialParameterCollection* Mpc = LoadObject<UMaterialParameterCollection>(nullptr, SSXRemaster::CollectionPath))
 	{
 		UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("SpeedFx"), F.Vignette);
+		UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("SpeedBlur"), F.SpeedBlur);
 	}
 }
 
@@ -1275,6 +1279,10 @@ void USSXRemasterWorld::Apply()
 		S.bOverride_LumenFrontLayerTranslucencyReflections = true;   // the glass / water layers (M_RmPropGlass)
 		S.LumenFrontLayerTranslucencyReflections = true;
 		if (UObject* PP = LoadObject<UObject>(nullptr, SSXRemaster::ScenePostPath))
+		{
+			S.WeightedBlendables.Array.Add(FWeightedBlendable(1.f, PP));
+		}
+		if (UObject* PP = LoadObject<UObject>(nullptr, SSXRemaster::SpeedBlurPostPath))
 		{
 			S.WeightedBlendables.Array.Add(FWeightedBlendable(1.f, PP));
 		}

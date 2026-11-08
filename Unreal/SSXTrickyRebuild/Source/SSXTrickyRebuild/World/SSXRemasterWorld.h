@@ -29,6 +29,7 @@ namespace SSXRemaster
 	SSXTRICKYREBUILD_API int32 SunLight(TConstArrayView<FSSXLight> Lights);
 
 	constexpr const TCHAR* ScenePostPath = TEXT("/Game/Remastered/PP_RmScene.PP_RmScene");
+	constexpr const TCHAR* SpeedBlurPostPath = TEXT("/Game/Remastered/PP_RmSpeedBlur.PP_RmSpeedBlur");
 	constexpr const TCHAR* CollectionPath = TEXT("/Game/Remastered/MPC_SSXRemaster.MPC_SSXRemaster");
 	/** Lit rider parent for a Classic rider parent's name (M_SSXRiderLit, _Masked, Chrome, Chrome_Masked). */
 	SSXTRICKYREBUILD_API const TCHAR* RemasteredRiderPath(const FString& ClassicParentName);
@@ -113,6 +114,7 @@ namespace SSXRemaster
 		float MotionBlur = 0.f;
 		float MotionBlurMax = 0.f;
 		float Vignette = 0.f;
+		float SpeedBlur = 0.f;   // radial streaks towards the screen edges (PP_RmSpeedBlur), 0..1
 	};
 	SSXTRICKYREBUILD_API FSpeedFx SpeedFxFor(double Speed, int32 Quality);
 	/** Height fog for a draw distance (cm) x scale: starts at 40 %, about 89 % at the end; no fog past the cutoff. */

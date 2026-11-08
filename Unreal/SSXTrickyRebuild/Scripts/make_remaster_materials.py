@@ -332,6 +332,32 @@ c = c < k ? c : k + (1.0 - k) * (1.0 - exp(-(c - k) / (1.0 - k)));
 return saturate({ENC.format(x='c')} * Brightness) * vig;
 """
 
+# Speed blur (after the tonemapper, so on display colours): each pixel averages 10 samples back along the line to a
+# point a little below the screen centre (the rider), the streak growing with SpeedBlur and with the horizontal distance
+# from a clear vertical band in the middle (where the player looks down the course), so only the left and right sides
+# streak. The player's rider sits in that band; no per-object mask (it cut hard outlines through spray and glass).
+SPEED_BLUR = """
+const uint IN0 = PPI_PostProcessInput0;
+float3 c = SceneTextureLookup(ClampSceneTextureUV(ViewportUVToSceneTextureUV(UV, IN0), IN0), IN0, false).rgb;
+if (Amount <= 0.001) return c;
+float aspect = View.ViewSizeAndInvSize.x * View.ViewSizeAndInvSize.w;
+float2 d = UV - float2(0.5, 0.56);
+float m = saturate((abs(d.x) * aspect - 0.3) / 0.4);
+float k = Amount * m * m * 0.06;
+if (k <= 0.0005) return c;
+float3 acc = c;
+float w = 1.0;
+for (int i = 1; i < 10; ++i)
+{
+    float t = i / 9.0;
+    float2 uv = UV - d * k * t;
+    float wt = 1.0 - 0.5 * t;
+    acc += SceneTextureLookup(ClampSceneTextureUV(ViewportUVToSceneTextureUV(uv, IN0), IN0), IN0, true).rgb * wt;
+    w += wt;
+}
+return acc / w;
+"""
+
 # As make_world_materials.CROWD_UV: crowd slot UV1.x picks one of 16 frame indices (CrowdFrames0..3), a 4x4 atlas cell.
 CROWD_UV = """
 float idx = floor(UV1.x + 0.5);
@@ -592,7 +618,7 @@ old = {str(p.get_editor_property("parameter_name")): p for p in rm.get_editor_pr
 scalars = []
 for n, v in (("BakedWeight", 0.6), ("BakedAmbient", 0.55), ("AlbedoScale", 0.9), ("BaseRoughness", 0.62), ("Clouds", 0.0),
              ("Exposure", 1.0), ("Saturation", 1.15), ("Emissive", 3.0), ("RiderFill", 0.6), ("RiderRim", 0.5),
-             ("ParticleSoftness", 80.0), ("SpriteGlow", 0.35), ("DrawDistanceScale", 3.0), ("DrawDistanceUp", 1.0), ("Sparkle", 3.0), ("SpeedFx", 0.0),
+             ("ParticleSoftness", 80.0), ("SpriteGlow", 0.35), ("DrawDistanceScale", 3.0), ("DrawDistanceUp", 1.0), ("Sparkle", 3.0), ("SpeedFx", 0.0), ("SpeedBlur", 0.0),
              ("TrailX", 0.0), ("TrailY", 0.0), ("TrailSize", 1.0e9), ("WorldTime", 0.0), ("Stars", 0.0),
              ("SunX", 0.0), ("SunY", 0.0), ("SunZ", 1.0), ("SunR", 1.0), ("SunG", 1.0), ("SunB", 1.0), ("SunOpen", 0.0), ("SkyFrom", 60000.0)):
     p = old.get(n) or unreal.CollectionScalarParameter()
@@ -981,6 +1007,16 @@ enc = custom(pp, -350, 0, PP_SCENE, F3,
               ("Rel", (camera_relative(pp, -700, 900), "")),
               ("SkyFrom", (coll(pp, rm, "SkyFrom", -700, 1000), ""))], "RmScene")
 connect_prop(enc, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+finish(pp)
+
+pp = recreate("PP_RmSpeedBlur", unreal.Material, unreal.MaterialFactoryNew())
+pp.set_editor_property("material_domain", unreal.MaterialDomain.MD_POST_PROCESS)
+pp.set_editor_property("blendable_location", unreal.BlendableLocation.BL_SCENE_COLOR_AFTER_TONEMAPPING)
+inputs = [("UV", (expr(pp, unreal.MaterialExpressionScreenPosition, -700, 0), "ViewportUV")),
+          ("Amount", (coll(pp, rm, "SpeedBlur", -700, 100), ""))]
+inputs.append(("In0", (expr(pp, unreal.MaterialExpressionSceneTexture, -700, 200,
+                            scene_texture_id=unreal.SceneTextureId.PPI_POST_PROCESS_INPUT0), "Color")))
+connect_prop(custom(pp, -350, 0, SPEED_BLUR, F3, inputs, "RmSpeedBlur"), "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
 finish(pp)
 
 # The shadow twins of props with a soft (translucent) layer: that slot clipped, so the twin stays Nanite
