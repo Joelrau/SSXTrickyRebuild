@@ -69,6 +69,12 @@
   .kicker { font: 700 13px/1 var(--body); letter-spacing: .18em; text-transform: uppercase; color: var(--cyan); }
   .c2 .kicker { color: var(--magenta); } .c3 .kicker { color: var(--gold); }
 
+  /* comparison video */
+  .video { margin-top: 40px; aspect-ratio: 16 / 9; border: 1px solid var(--line); border-radius: 16px; overflow: hidden;
+    background: #050816; box-shadow: 0 18px 50px rgba(0,0,0,.45); }
+  .video iframe { display: block; width: 100%; height: 100%; border: 0; }
+  .video-note { margin: 12px 0 0; font-size: 16px; }
+
   /* enhanced list */
   .feature-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px 28px; padding: 0; margin: 0; list-style: none; }
   .feature-list li { position: relative; padding-left: 30px; color: #d6deef; }
@@ -208,6 +214,12 @@
             with optional AMD FSR upscaling and frame generation.</p>
         </div>
       </div>
+      <div class="reveal video">
+        <iframe src="https://www.youtube-nocookie.com/embed/rurbWgNTpMI" title="SSX Tricky Rebuild: Classic vs Enhanced look"
+          loading="lazy" allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen
+          referrerpolicy="strict-origin-when-cross-origin"></iframe>
+      </div>
+      <p class="small video-note">Every track's intro flyover in both looks, Classic on the left and Enhanced on the right.</p>
     </div>
   </section>
 
